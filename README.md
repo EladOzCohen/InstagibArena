@@ -108,7 +108,7 @@ Nothing in the code is Windows-specific, but a Mac build has to be made on a Mac
 
 ## Credits and licenses
 
-- Game code, tools and generated audio: see [LICENSE](LICENSE).
+- Game code, tools and generated audio: MIT, see [LICENSE](LICENSE). More in [NOTICE.md](NOTICE.md).
 - Built with **Unreal Engine** by Epic Games. The Mannequin characters and animations are Epic's content and are used under
   the Unreal Engine EULA; they ship inside the game builds but are not stored in this repository.
 - Third-party notices of the game build are in `NOTICES.txt` in the installed game folder.
