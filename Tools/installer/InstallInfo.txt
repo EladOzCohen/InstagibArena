@@ -1,0 +1,15 @@
+Instagib Arena
+
+A fast first-person arena shooter in the spirit of Unreal Tournament 2004:
+one weapon, one hit, 15 characters, 4 maps, bots at three skill levels,
+free for all and team deathmatch, and online play with friends.
+
+This setup will:
+  - install the game
+  - add the Microsoft Visual C++ runtime if your PC does not have it yet
+  - optionally allow the game through Windows Firewall, so friends can join your games
+
+To play with friends: one player clicks "Host LAN game" in the main menu and the others
+type that player's address in the Join box. A short guide (README.txt) is installed with the game.
+
+The game uses Unreal Engine by Epic Games. Third-party notices are in NOTICES.txt in the install folder.

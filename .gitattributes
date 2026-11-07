@@ -1,0 +1,11 @@
+# Unreal assets and media are binary
+*.uasset binary
+*.umap binary
+*.wav binary
+*.png binary
+*.ico binary
+
+# Text files keep Windows line endings where the tools expect them
+*.iss text eol=crlf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
