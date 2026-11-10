@@ -5,7 +5,7 @@
 ; The result is  Builds\InstagibArena_Setup_<version>.exe
 
 #define AppName "Instagib Arena"
-#define AppVersion "1.0.0"
+#define AppVersion "1.1.0"
 #define AppExe "InstagibArena.exe"
 #define BuildDir "..\..\Builds\Windows"
 

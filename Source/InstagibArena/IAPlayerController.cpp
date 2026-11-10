@@ -4,6 +4,10 @@
 #include "IAMapList.h"
 #include "IAAudioSubsystem.h"
 #include "IAHUD.h"
+#include "SIAPauseMenu.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/World.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputAction.h"
@@ -84,7 +88,7 @@ void AIAPlayerController::SetupInputComponent()
 
 	if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(InputComponent))
 	{
-		Input->BindAction(MenuAction, ETriggerEvent::Started, this, &AIAPlayerController::ReturnToMenu);
+		Input->BindAction(MenuAction, ETriggerEvent::Started, this, &AIAPlayerController::TogglePause);
 	}
 }
 
@@ -113,7 +117,76 @@ void AIAPlayerController::BeginPlay()
 	}
 }
 
+void AIAPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	ClosePause();
+	Super::EndPlay(EndPlayReason);
+}
+
+void AIAPlayerController::TogglePause()
+{
+	if (bMenuOpen)
+	{
+		ClosePause();
+	}
+	else
+	{
+		OpenPause();
+	}
+}
+
+void AIAPlayerController::OpenPause()
+{
+	UGameViewportClient* Viewport = GetWorld() ? GetWorld()->GetGameViewport() : nullptr;
+	if (bMenuOpen || !IsLocalController() || !Viewport)
+	{
+		return;
+	}
+
+	PauseMenu = SNew(SIAPauseMenu)
+		.OwnerController(this)
+		.OnResume([this]() { ClosePause(); })
+		.OnLeave([this]() { ReturnToMenu(); })
+		.OnQuit([this]() { UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false); });
+	Viewport->AddViewportWidgetContent(PauseMenu.ToSharedRef(), 20);
+
+	bMenuOpen = true;
+	SetIgnoreLookInput(true);
+	SetIgnoreMoveInput(true);
+	SetShowMouseCursor(true);
+
+	FInputModeGameAndUI InputMode;
+	InputMode.SetWidgetToFocus(PauseMenu);
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
+	SetInputMode(InputMode);
+}
+
+void AIAPlayerController::ClosePause()
+{
+	if (!bMenuOpen)
+	{
+		return;
+	}
+
+	if (PauseMenu.IsValid())
+	{
+		if (UGameViewportClient* Viewport = GetWorld() ? GetWorld()->GetGameViewport() : nullptr)
+		{
+			Viewport->RemoveViewportWidgetContent(PauseMenu.ToSharedRef());
+		}
+		PauseMenu.Reset();
+	}
+
+	bMenuOpen = false;
+	ResetIgnoreLookInput();
+	ResetIgnoreMoveInput();
+	SetShowMouseCursor(false);
+	SetInputMode(FInputModeGameOnly());
+}
+
 void AIAPlayerController::ReturnToMenu()
 {
+	ClosePause();
 	ClientTravel(IAMaps::MenuPath, TRAVEL_Absolute);
 }

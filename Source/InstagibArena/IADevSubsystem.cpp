@@ -3,6 +3,7 @@
 #include "IADevSubsystem.h"
 #include "IACharacterRoster.h"
 #include "IAPlayerCharacter.h"
+#include "IAPlayerController.h"
 #include "IAGameState.h"
 #include "IAHUD.h"
 #include "IAImpactEffect.h"
@@ -54,6 +55,23 @@ void UIADevSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 				FTickerDelegate::CreateUObject(this, &UIADevSubsystem::FireRifle), FMath::Max(0.5f, Delay - 0.12f));
 		}
 
+		if (FParse::Param(FCommandLine::Get(), TEXT("IAPause")))
+		{
+			// Opens the pause menu half a second before the screenshot.
+			PauseHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float)
+			{
+				UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+				if (World)
+				{
+					if (AIAPlayerController* PC = Cast<AIAPlayerController>(UGameplayStatics::GetPlayerController(World, 0)))
+					{
+						PC->OpenPause();
+					}
+				}
+				return false;
+			}), FMath::Max(0.5f, Delay - 1.f));
+		}
+
 		FString ImpactText;
 		if (FParse::Value(FCommandLine::Get(), TEXT("IAImpact="), ImpactText, /*bShouldStopOnSeparator*/ false))
 		{
@@ -103,6 +121,7 @@ void UIADevSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UIADevSubsystem::Deinitialize()
 {
+	FTSTicker::GetCoreTicker().RemoveTicker(PauseHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ImpactHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ReportHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(WalkHandle);

@@ -91,6 +91,7 @@ private:
 	void JumpPressed();
 	void JumpReleased();
 	void FirePressed();
+	bool IsPauseMenuOpen() const;
 	void DodgeForwardTap() { RegisterTap(0); }
 	void DodgeBackTap() { RegisterTap(1); }
 	void DodgeLeftTap() { RegisterTap(2); }

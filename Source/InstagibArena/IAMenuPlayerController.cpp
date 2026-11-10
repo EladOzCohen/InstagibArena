@@ -3,7 +3,9 @@
 #include "IAMenuPlayerController.h"
 #include "SIAMainMenu.h"
 #include "IAAudioSubsystem.h"
+#include "IAMenuStateSubsystem.h"
 #include "IAPlayerCharacter.h"
+#include "Engine/GameInstance.h"
 #include "IACharacterRoster.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
@@ -49,10 +51,29 @@ void AIAMenuPlayerController::BeginPlay()
 
 	SpawnPreview(MenuCamera);
 
+	// After a failed or lost connection the menu opens on the Join screen with the reason.
+	FString InitialError;
+	if (UIAMenuStateSubsystem* State = GetGameInstance() ? GetGameInstance()->GetSubsystem<UIAMenuStateSubsystem>() : nullptr)
+	{
+		InitialError = State->ConsumeError();
+	}
+
 	Menu = SNew(SIAMainMenu)
 		.OwnerController(this)
+		.InitialError(InitialError)
 		.OnCharacterChanged([this](int32 CharacterIndex) { ShowPreviewCharacter(CharacterIndex); });
 	Viewport->AddViewportWidgetContent(Menu.ToSharedRef(), 10);
+
+#if !UE_BUILD_SHIPPING
+	// Developer check for screenshots: -IAMenuPage=3 opens the Character screen, -IAMenuTab=1 the Join tab.
+	int32 TestPage = -1;
+	int32 TestTab = 0;
+	FParse::Value(FCommandLine::Get(), TEXT("IAMenuTab="), TestTab);
+	if (FParse::Value(FCommandLine::Get(), TEXT("IAMenuPage="), TestPage))
+	{
+		Menu->ShowPageForTest(TestPage, TestTab);
+	}
+#endif
 
 	SetShowMouseCursor(true);
 	FInputModeUIOnly InputMode;

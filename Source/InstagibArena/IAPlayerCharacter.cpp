@@ -8,6 +8,7 @@
 #include "IAAudioSubsystem.h"
 #include "IACharacterRoster.h"
 #include "IABeam.h"
+#include "IASettings.h"
 #include "IAImpactEffect.h"
 #include "IAHUD.h"
 #include "InstagibArena.h"
@@ -201,13 +202,20 @@ void AIAPlayerCharacter::Move(const FInputActionValue& Value)
 void AIAPlayerCharacter::Look(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();
-	AddControllerYawInput(Axis.X);
-	AddControllerPitchInput(Axis.Y);
+	const float Sensitivity = IASettings::GetMouseSensitivity();
+	AddControllerYawInput(Axis.X * Sensitivity);
+	AddControllerPitchInput(Axis.Y * Sensitivity);
+}
+
+bool AIAPlayerCharacter::IsPauseMenuOpen() const
+{
+	const AIAPlayerController* PC = Cast<AIAPlayerController>(GetController());
+	return PC && PC->IsMenuOpen();
 }
 
 void AIAPlayerCharacter::JumpPressed()
 {
-	if (!bDead)
+	if (!bDead && !IsPauseMenuOpen())
 	{
 		Jump();
 	}
@@ -220,12 +228,15 @@ void AIAPlayerCharacter::JumpReleased()
 
 void AIAPlayerCharacter::FirePressed()
 {
-	TryFire();
+	if (!IsPauseMenuOpen())
+	{
+		TryFire();
+	}
 }
 
 void AIAPlayerCharacter::RegisterTap(int32 DirIndex)
 {
-	if (bDead)
+	if (bDead || IsPauseMenuOpen())
 	{
 		return;
 	}
@@ -871,6 +882,12 @@ void AIAPlayerCharacter::UpdateWeaponView(float DeltaSeconds)
 	if (GetNetMode() == NM_DedicatedServer)
 	{
 		return;
+	}
+
+	// The player's field of view setting applies to their own camera.
+	if (IsLocalHuman() && FirstPersonCamera)
+	{
+		FirstPersonCamera->SetFieldOfView(IASettings::GetFieldOfView());
 	}
 
 	// The on-screen rifle exists only for the human playing on this machine.

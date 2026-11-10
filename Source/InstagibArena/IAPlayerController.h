@@ -53,9 +53,19 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientShowMessage(const FString& Text, FLinearColor Color, float Duration);
 
+	/** True while the pause menu is open. The character ignores firing, jumping and dodging then. */
+	bool IsMenuOpen() const { return bMenuOpen; }
+
+	void OpenPause();
+	void ClosePause();
+
 protected:
 	virtual void SetupInputComponent() override;
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	/** Esc: opens the pause menu, or closes it again. */
+	void TogglePause();
 
 	/** Leaves the match and opens the main menu. */
 	void ReturnToMenu();
@@ -63,4 +73,7 @@ protected:
 private:
 	void BuildInput();
 	UInputAction* MakeAction(const TCHAR* Name, bool bAxis2D);
+
+	TSharedPtr<class SIAPauseMenu> PauseMenu;
+	bool bMenuOpen = false;
 };

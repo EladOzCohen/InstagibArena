@@ -9,7 +9,7 @@ One weapon, one hit, one kill.
 
 You do not need to know anything about code.
 
-1. Open the **[Releases page](../../releases/latest)** and download **`InstagibArena_Setup_1.0.0.exe`**.
+1. Open the **[Releases page](../../releases/latest)** and download **`InstagibArena_Setup_1.1.0.exe`**.
 2. Run it and follow the wizard. It installs the game and everything the game needs
    (the Microsoft Visual C++ runtime, and optionally a Windows Firewall rule so friends can join your games).
 3. If Windows shows a blue "Windows protected your PC" screen, click **More info** and then **Run anyway**.
@@ -19,14 +19,15 @@ You do not need to know anything about code.
 Requirements: Windows 10 or 11 (64-bit) and a graphics card that supports DirectX 12.
 
 ### עברית - בקצרה
-1. נכנסים לעמוד **Releases** ומורידים את `InstagibArena_Setup_1.0.0.exe`.
+1. נכנסים לעמוד **Releases** ומורידים את `InstagibArena_Setup_1.1.0.exe`.
 2. מפעילים ועוברים על אשף ההתקנה. הוא מתקין את המשחק ואת כל מה שהוא צריך.
 3. אם Windows מציג מסך כחול - לוחצים **More info** ואז **Run anyway** (ההתקנה לא חתומה דיגיטלית).
 4. פותחים את **Instagib Arena** מהסמל בשולחן העבודה.
 
 ### Playing with friends
-- **Same network (home Wi-Fi):** one player clicks **Host LAN game**. The others type that player's IPv4 address
-  (open Command Prompt and type `ipconfig`) in the box next to **Join** and click Join.
+- **Same network (home Wi-Fi):** one player opens **Multiplayer > Host a game** and clicks **Host game**. The screen
+  shows the address to give to friends. They open **Multiplayer > Join a game**, type it and click **Join game**.
+  If a connection fails or is lost, the menu says so on the Join screen.
 - **Over the internet:** the easiest way is for everyone to install the free [Tailscale](https://tailscale.com/)
   or [ZeroTier](https://www.zerotier.com/) and join the same virtual network, then use the host's address there.
   Or the host forwards UDP port **7777** on their router.
@@ -41,6 +42,13 @@ Requirements: Windows 10 or 11 (64-bit) and a graphics card that supports Direct
 - **4 maps:** Foundry (industrial), Sunken Temple, Orbital Dock and Skyline (rooftops, falling kills).
 - **Online multiplayer** for you and your friends (host a game, others join by address).
 - **Sound and music:** footsteps, weapons, hit feedback and three music tracks, with volume settings.
+- **A proper main menu:** Quick Play, Custom Game, Multiplayer (host or join, with your address shown), Character
+  with a 3D preview, Settings (name, volumes, mouse sensitivity, field of view, fullscreen), Credits, and a pause menu
+  during matches. It works with the mouse and the keyboard, and remembers your choices.
+
+| | |
+|---|---|
+| ![Custom game](docs/images/custom_game.png) | ![Choose a character](docs/images/character_select.png) |
 
 | | |
 |---|---|
@@ -59,7 +67,7 @@ Requirements: Windows 10 or 11 (64-bit) and a graphics card that supports Direct
 | Dodge next to a wall in the air | Wall dodge |
 | Left mouse button | Fire |
 | Tab | Scoreboard |
-| Esc | Back to the main menu |
+| Esc | Pause menu (resume, settings, leave the match, quit). In the main menu: back one screen |
 
 ## For developers
 

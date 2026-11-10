@@ -3,44 +3,84 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IASettings.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class APlayerController;
 
 /**
- * Main menu, written in Slate so it needs no UMG assets.
- * Lets the player pick game type, map, bots, bot skill and limits,
- * then start a local game, host a LAN game or join one by IP address.
+ * The main menu, written in Slate so it needs no UMG assets.
+ *
+ * A column on the left holds the screens, one at a time:
+ *   Main         Quick Play, Custom Game, Multiplayer, Character, Settings, Credits, Quit
+ *   Custom Game  game type, map, bots and limits, then Start
+ *   Multiplayer  Host a game (same setup as Custom Game) or Join a game by address
+ *   Character    a grid of the 15 characters, with a live 3D preview on the right of the screen
+ *   Settings     name, volumes, mouse sensitivity, field of view, display mode
+ *   Credits
+ * Esc goes back one screen. The arrow keys and Enter work as well as the mouse.
  */
 class SIAMainMenu : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SIAMainMenu) {}
 		SLATE_ARGUMENT(TWeakObjectPtr<APlayerController>, OwnerController)
-		/** Called whenever the selected character changes, so that the preview can follow. */
+		/** Called whenever the selected character changes, so that the 3D preview can follow. */
 		SLATE_ARGUMENT(TFunction<void(int32)>, OnCharacterChanged)
+		/** A message to show on the Join screen when the menu opens (for example "connection lost"). */
+		SLATE_ARGUMENT(FString, InitialError)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 
-private:
-	TSharedRef<SWidget> MakeButton(const FText& Label, TFunction<void()> OnClick, TFunction<bool()> IsSelected, float MinWidth = 0.f);
-	TSharedRef<SWidget> MakeStepper(TFunction<FText()> ValueText, TFunction<void()> OnMinus, TFunction<void()> OnPlus);
-	TSharedRef<SWidget> MakeRow(const FString& Label, TSharedRef<SWidget> Content);
+	int32 GetCharacterIndex() const { return Setup.CharacterIndex; }
 
+	/** Developer check: opens a screen by number (0 main ... 5 credits). Used by -IAMenuPage=N for screenshots. */
+	void ShowPageForTest(int32 PageIndex, int32 Tab);
+
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
+private:
+	enum class EPage : int32
+	{
+		Main = 0,
+		Custom,
+		Multiplayer,
+		Character,
+		Settings,
+		Credits
+	};
+
+	void GoTo(EPage NewPage);
+
+	TSharedRef<SWidget> BuildMainPage();
+	TSharedRef<SWidget> BuildCustomPage();
+	TSharedRef<SWidget> BuildMultiplayerPage();
+	TSharedRef<SWidget> BuildCharacterPage();
+	TSharedRef<SWidget> BuildSettingsPage();
+	TSharedRef<SWidget> BuildCreditsPage();
+
+	/** The game rules rows, used by both Custom Game and Host a game. */
+	TSharedRef<SWidget> BuildSetupRows();
+	TSharedRef<SWidget> BuildBackButton();
+
+	void SelectCharacter(int32 Index);
 	void StartGame(bool bHost);
 	void JoinGame();
+	void QuitGame();
+
+	FString BuildOptions(bool bHost) const;
 
 	TWeakObjectPtr<APlayerController> Owner;
 	TFunction<void(int32)> OnCharacterChanged;
 
-	bool bTeamGame = false;
-	int32 MapIndex = 0;
-	int32 CharacterIndex = 0;
-	int32 BotCount = 4;
-	int32 BotSkill = 1;
-	int32 ScoreLimit = 25;
-	int32 TimeLimit = 10;
-	FString JoinAddress = TEXT("127.0.0.1");
+	EPage Page = EPage::Main;
+	FIAMatchSetup Setup;
+
+	int32 MultiplayerTab = 0;      // 0 = host a game, 1 = join a game
+	FString JoinAddress;
+	FText JoinStatus;
+	FLinearColor JoinStatusColor = FLinearColor::White;
 };

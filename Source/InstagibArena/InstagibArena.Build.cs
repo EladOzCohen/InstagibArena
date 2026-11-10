@@ -18,7 +18,8 @@ public class InstagibArena : ModuleRules
 			"NavigationSystem",
 			"UMG",
 			"Slate",
-			"SlateCore"
+			"SlateCore",
+			"Sockets"
 		});
 	}
 }

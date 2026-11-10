@@ -6,7 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "IAMenuPlayerController.generated.h"
 
-class SWidget;
+class SIAMainMenu;
 class AIAPlayerCharacter;
 
 /**
@@ -31,7 +31,7 @@ private:
 	void SpawnPreview(const class ACameraActor* Camera);
 	void ShowPreviewCharacter(int32 CharacterIndex);
 
-	TSharedPtr<SWidget> Menu;
+	TSharedPtr<SIAMainMenu> Menu;
 
 	UPROPERTY(Transient)
 	TObjectPtr<AIAPlayerCharacter> Preview;

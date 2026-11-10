@@ -44,6 +44,7 @@ private:
 	bool PlaceCamera(float DeltaTime);
 	bool TakeScreenshot(float DeltaTime);
 
+	FTSTicker::FDelegateHandle PauseHandle;
 	FTSTicker::FDelegateHandle ImpactHandle;
 	FVector ImpactLocation = FVector::ZeroVector;
 	FTSTicker::FDelegateHandle ReportHandle;
