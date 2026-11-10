@@ -40,6 +40,8 @@ namespace
 		case EIASound::UIStart:      return TEXT("/Game/Audio/SFX/S_UiStart.S_UiStart");
 		case EIASound::MatchStart:   return TEXT("/Game/Audio/SFX/S_MatchStart.S_MatchStart");
 		case EIASound::MatchEnd:     return TEXT("/Game/Audio/SFX/S_MatchEnd.S_MatchEnd");
+		// ---- MENUS block (append new sounds below)
+		case EIASound::UIHover:      return TEXT("/Game/Audio/SFX/S_UiHover.S_UiHover");   // made by gen_audio.py "ui_hover" (not generated yet)
 		}
 		return TEXT("");
 	}
