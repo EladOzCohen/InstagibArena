@@ -27,7 +27,7 @@ foreach ($folder in "Meshes", "Materials", "Textures", "Rigs") {
     Copy-Item -Path (Join-Path $source $folder) -Destination (Join-Path $target $folder) -Recurse -Force
 }
 New-Item -ItemType Directory -Force (Join-Path $target "Anims") | Out-Null
-foreach ($folder in "Unarmed", "Death") {
+foreach ($folder in "Unarmed", "Rifle", "Death") {
     Copy-Item -Path (Join-Path $source "Anims\$folder") -Destination (Join-Path $target "Anims\$folder") -Recurse -Force
 }
 
