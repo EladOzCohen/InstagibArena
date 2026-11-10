@@ -180,3 +180,137 @@ class MapBuilder:
             world.get_world_settings().set_editor_property("kill_z", float(kill_z))
         self.level_lib.save_current_level()
         unreal.log("MAKEMAP_DONE %s boxes=%d starts=%d" % (self.map_path, self.box_count, self.start_count))
+
+
+# =====================================================================================
+# Extensions (MAPS): glowing materials, fog, ballistic jump pads, small prop helpers.
+# =====================================================================================
+
+GRAVITY = 980.0 * 1.15   # world gravity times the character's GravityScale
+
+
+def launch_velocity(start, target, apex_extra=160.0):
+    """Returns ((vx, vy, vz), flight_time) that carries a body from start to target on a ballistic arc.
+
+    start / target are feet positions (x, y, z). The arc peaks apex_extra above the higher of the two.
+    """
+    dz = target[2] - start[2]
+    apex = max(0.0, dz) + apex_extra
+    vz = math.sqrt(2.0 * GRAVITY * apex)
+    t_up = vz / GRAVITY
+    t_down = math.sqrt(2.0 * GRAVITY * max(1.0, apex - dz)) / GRAVITY
+    total = t_up + t_down
+    return ((target[0] - start[0]) / total, (target[1] - start[1]) / total, vz), total
+
+
+def _glow_material(self, name, rgb, glow=6.0):
+    """A material that emits light: instance of M_IABody (parameters Color and Glow)."""
+    if name in self.mats:
+        return self.mats[name]
+    full = "/Game/Materials/%s" % name
+    if unreal.EditorAssetLibrary.does_asset_exist(full):
+        mic = unreal.EditorAssetLibrary.load_asset(full)
+    else:
+        tools = unreal.AssetToolsHelpers.get_asset_tools()
+        mic = tools.create_asset(name, "/Game/Materials", unreal.MaterialInstanceConstant,
+                                 unreal.MaterialInstanceConstantFactoryNew())
+    lib = unreal.MaterialEditingLibrary
+    lib.set_material_instance_parent(mic, unreal.EditorAssetLibrary.load_asset("/Game/Characters/M_IABody"))
+    lib.set_material_instance_vector_parameter_value(mic, "Color", unreal.LinearColor(rgb[0], rgb[1], rgb[2], 1.0))
+    lib.set_material_instance_scalar_parameter_value(mic, "Roughness", 0.4)
+    lib.set_material_instance_scalar_parameter_value(mic, "Metallic", 0.0)
+    lib.set_material_instance_scalar_parameter_value(mic, "Glow", glow)
+    lib.update_material_instance(mic)
+    unreal.EditorAssetLibrary.save_asset(full)
+    self.mats[name] = mic
+    return mic
+
+
+def _fog(self, rgb=None, density=None, falloff=None, start=None, max_opacity=None):
+    """Adjusts (or creates) the level's exponential height fog."""
+    fog = getattr(self, "fog_actor", None)
+    if fog is None:
+        for a in self.actor_lib.get_all_level_actors():
+            if isinstance(a, unreal.ExponentialHeightFog):
+                fog = a
+        if fog is None:
+            fog = self.spawn(unreal.ExponentialHeightFog, "Fog", (0, 0, 200))
+        self.fog_actor = fog
+    comp = fog.get_component_by_class(unreal.ExponentialHeightFogComponent)
+    if rgb is not None:
+        comp.set_editor_property("fog_inscattering_color", unreal.LinearColor(rgb[0], rgb[1], rgb[2], 1.0))
+    if density is not None:
+        comp.set_editor_property("fog_density", density)
+    if falloff is not None:
+        comp.set_editor_property("fog_height_falloff", falloff)
+    if start is not None:
+        comp.set_editor_property("start_distance", start)
+    if max_opacity is not None:
+        comp.set_editor_property("fog_max_opacity", max_opacity)
+    return fog
+
+
+def _jump_pad(self, label, x, y, z, target, color=(0.0, 0.8, 1.0), apex_extra=160.0):
+    """Places an AIAJumpPad at ground point (x, y, z) that lands the player on target=(x, y, z_ground).
+
+    Returns the flight time in seconds and logs the launch data.
+    """
+    vel, total = launch_velocity((x, y, z), target, apex_extra)
+    pad = self.spawn(unreal.IAJumpPad, label, (x, y, z), (0, 0, math.degrees(math.atan2(vel[1], vel[0]))))
+    pad.set_editor_property("launch_velocity", unreal.Vector(*vel))
+    pad.set_editor_property("pad_color", unreal.LinearColor(color[0], color[1], color[2], 1.0))
+    self.pad_count = getattr(self, "pad_count", 0) + 1
+    unreal.log("JUMPPAD %s at (%.0f, %.0f, %.0f) -> (%.0f, %.0f, %.0f) v=(%.0f, %.0f, %.0f) t=%.2fs" % (
+        (label, x, y, z) + tuple(target) + vel + (total,)))
+    return total
+
+
+def _light_strip(self, label, cx, cy, cz, sx, sy, sz, mat, rgb=None, light_every=0.0, intensity=1500.0,
+                 radius=600.0):
+    """A glowing bar (no collision), optionally with point lights spaced along its long axis."""
+    self.box(label, cx, cy, cz, sx, sy, sz, mat=mat, solid=False)
+    if rgb is not None and light_every > 0:
+        along_x = sx >= sy
+        length = sx if along_x else sy
+        n = max(1, int(length // light_every))
+        for i in range(n):
+            f = ((i + 0.5) / n - 0.5) * length
+            self.point_light("%s_L%d" % (label, i), (cx + (f if along_x else 0.0), cy + (0.0 if along_x else f), cz),
+                             rgb, intensity, radius)
+
+
+def _frame(self, label, cx, cy, z_bottom, width, height, thick, depth, yaw, mat, solid=True):
+    """A rectangular frame (two posts and a lintel) in the plane given by yaw (door, gate, sign frame)."""
+    c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    for side in (-1, 1):
+        px, py = cx + c * side * (width / 2 - thick / 2), cy + s * side * (width / 2 - thick / 2)
+        self.box(label + "_post", px, py, z_bottom + height / 2, thick, depth, height, yaw=yaw, mat=mat, solid=solid)
+    self.box(label + "_lintel", cx, cy, z_bottom + height - thick / 2, width, depth, thick, yaw=yaw, mat=mat,
+             solid=solid)
+
+
+def _check_starts(self, min_distance=0.0):
+    """Logs every pair of PlayerStarts that can see each other (eye-height line trace against the geometry)."""
+    world = self.editor_lib.get_editor_world()
+    starts = [a for a in self.actor_lib.get_all_level_actors() if isinstance(a, unreal.PlayerStart)]
+    seen = 0
+    for i in range(len(starts)):
+        for j in range(i + 1, len(starts)):
+            a = starts[i].get_actor_location() + unreal.Vector(0, 0, 60)
+            b = starts[j].get_actor_location() + unreal.Vector(0, 0, 60)
+            res = unreal.SystemLibrary.line_trace_single(
+                world, a, b, unreal.TraceTypeQuery.TRACE_TYPE_QUERY1, False, [], unreal.DrawDebugTrace.NONE, True)
+            hit = res[0] if isinstance(res, tuple) else bool(res)
+            if not hit:
+                seen += 1
+                unreal.log("START_LOS %s <-> %s" % (starts[i].get_actor_label(), starts[j].get_actor_label()))
+    unreal.log("START_CHECK starts=%d pairs_in_sight=%d" % (len(starts), seen))
+    return seen
+
+
+MapBuilder.check_starts = _check_starts
+MapBuilder.glow = _glow_material
+MapBuilder.fog = _fog
+MapBuilder.jump_pad = _jump_pad
+MapBuilder.light_strip = _light_strip
+MapBuilder.frame = _frame

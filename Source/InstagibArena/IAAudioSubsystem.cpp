@@ -40,6 +40,8 @@ namespace
 		case EIASound::UIStart:      return TEXT("/Game/Audio/SFX/S_UiStart.S_UiStart");
 		case EIASound::MatchStart:   return TEXT("/Game/Audio/SFX/S_MatchStart.S_MatchStart");
 		case EIASound::MatchEnd:     return TEXT("/Game/Audio/SFX/S_MatchEnd.S_MatchEnd");
+		// --- MAPS: added at the end
+		case EIASound::JumpPad:      return TEXT("/Game/Audio/SFX/S_JumpPad.S_JumpPad");
 		}
 		return TEXT("");
 	}

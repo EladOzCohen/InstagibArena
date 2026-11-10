@@ -26,7 +26,9 @@ enum class EIASound : uint8
 	UIClick,
 	UIStart,
 	MatchStart,
-	MatchEnd
+	MatchEnd,
+	// --- MAPS: added at the end
+	JumpPad
 };
 
 UENUM(BlueprintType)

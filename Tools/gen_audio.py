@@ -430,6 +430,22 @@ def render_song(name, spec):
     write_wav(os.path.join(OUT, "music", "%s.wav" % name), left, right)
 
 
+# ---- MAPS: jump pad whoosh (added at the end of the effects)
+def jump_pad():
+    rng = random.Random(77)
+    n = int(0.55 * SR)
+    out, phase, y1, y2 = [], 0.0, 0.0, 0.0
+    for i in range(n):
+        t = i / n
+        f = 160.0 + 900.0 * t * t
+        phase += TAU * f / SR
+        y1 += (0.05 + 0.4 * t) * (rng.uniform(-1, 1) - y1)
+        y2 += 0.02 * (y1 - y2)
+        env = math.sin(math.pi * min(1.0, t * 1.15)) ** 0.7 * (1.0 - t) ** 0.4
+        out.append(((y1 - y2) * 1.4 + math.sin(phase) * 0.45 + math.sin(phase * 2.0) * 0.12) * env)
+    return normalize(out, 0.8)
+
+
 # ------------------------------------------------------------------------- main
 
 def main():
@@ -452,6 +468,7 @@ def main():
         "ui_start": ui_start(),
         "match_start": match_start(),
         "match_end": match_end(),
+        "jump_pad": jump_pad(),   # MAPS
     }
     print("Sound effects:")
     for name, samples in sfx.items():
