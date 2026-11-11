@@ -884,6 +884,7 @@ void SIAMainMenu::DevCommand(const FString& Command)
 	else if (Name == TEXT("quit")) { QuitGame(); }
 	else if (Name == TEXT("modal-cancel")) { Modal->Cancel(); }
 	else if (Name == TEXT("quickplay")) { StartGame(false); }
+	else if (Name == TEXT("host")) { StartGame(true); }
 	else if (Name == TEXT("map")) { Setup.MapIndex = FMath::Clamp(FCString::Atoi(*Value), 0, IAMaps::Count - 1); }
 	else if (Name == TEXT("join")) { JoinAddress = Value; JoinGame(); }
 	else if (Name == TEXT("copy")) { CopiedUntil = FPlatformTime::Seconds() + 2.0; }
