@@ -40,6 +40,12 @@ public:
 
 	bool IsDead() const { return bDead; }
 
+	/** View pitch in degrees (up is positive) for the third-person animation. Works on every machine. */
+	float GetAimPitchForAnimation() const;
+
+	/** Developer showroom only: a fixed view pitch for pawns without a controller. Below -900 = not used. */
+	float DevAimPitch = -1000.f;
+
 	/** Shows a roster look without any player state. Used by the developer showroom. */
 	void SetForcedLook(int32 CharacterIndex) { ForcedLook = CharacterIndex; }
 
@@ -72,6 +78,17 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_Dead)
 	bool bDead = false;
 
+	/** Direction and place of the killing shot. Set on the server just before bDead, so the ragdoll can be pushed. */
+	UPROPERTY(Replicated)
+	FVector_NetQuantizeNormal DeathShotDir = FVector::ZeroVector;
+
+	UPROPERTY(Replicated)
+	FVector_NetQuantize DeathHitLocation = FVector::ZeroVector;
+
+	float DeathAge = 0.f;
+	bool bDeathBurstDone = false;
+	void UpdateDeath(float DeltaSeconds);
+
 	UFUNCTION()
 	void OnRep_Dead();
 
@@ -91,6 +108,10 @@ private:
 	void JumpPressed();
 	void JumpReleased();
 	void FirePressed();
+	void CrouchPressed();
+	void CrouchReleased();
+	void WalkPressed();
+	void WalkReleased();
 	bool IsPauseMenuOpen() const;
 	void DodgeForwardTap() { RegisterTap(0); }
 	void DodgeBackTap() { RegisterTap(1); }
@@ -129,6 +150,29 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> FPMuzzleFlash;
+
+	// ---- first-person camera feel (only runs for the human playing on this machine)
+	void UpdateCamera(float DeltaSeconds);
+
+	float CamEyeOffset = 0.f;        // smooths crouching and steps (cm, decays to 0)
+	float CamPrevEyeZ = 0.f;
+	float CamPrevHalfHeight = 0.f;
+	bool bCamHavePrev = false;
+	bool bCamPrevGrounded = false;
+	float CamBobPhase = 0.f;
+	float CamBobAlpha = 0.f;
+	float CamRoll = 0.f;             // degrees, from strafing
+	float CamKick = 0.f;             // 1 right after a dodge, falls to 0
+	float CamKickRoll = 0.f;         // direction of the dodge roll (-1 left, 1 right, 0 none)
+	float CamLastKickTime = -10.f;
+	int32 CamSeenDodgeCount = 0;
+	float CamDip = 0.f;              // landing dip (cm), a damped spring
+	float CamDipVelocity = 0.f;
+	float CamSeenLandingTime = -10.f;
+	float CamSettingsTimer = 0.f;
+	bool bCamBob = true;
+	bool bCamRoll = true;
+	bool bCamReduced = false;
 
 	FLinearColor CurrentAccent = FLinearColor(0.f, 0.9f, 1.f);
 	float Recoil = 0.f;

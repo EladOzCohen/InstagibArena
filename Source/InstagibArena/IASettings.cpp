@@ -162,6 +162,45 @@ namespace IASettings
 	float GetCrosshairScale() { return FMath::Clamp(ReadFloat(TEXT("CrosshairScale"), 1.f), 0.5f, 2.f); }
 	void SetCrosshairScale(float Scale) { WriteFloat(TEXT("CrosshairScale"), FMath::Clamp(Scale, 0.5f, 2.f)); }
 
+	bool IsCameraBobEnabled()
+	{
+		bool bValue = true;
+		GConfig->GetBool(Section, TEXT("CameraBob"), bValue, GGameUserSettingsIni);
+		return bValue;
+	}
+
+	void SetCameraBobEnabled(bool bEnabled)
+	{
+		GConfig->SetBool(Section, TEXT("CameraBob"), bEnabled, GGameUserSettingsIni);
+		GConfig->Flush(false, GGameUserSettingsIni);
+	}
+
+	bool IsViewRollEnabled()
+	{
+		bool bValue = true;
+		GConfig->GetBool(Section, TEXT("ViewRoll"), bValue, GGameUserSettingsIni);
+		return bValue;
+	}
+
+	void SetViewRollEnabled(bool bEnabled)
+	{
+		GConfig->SetBool(Section, TEXT("ViewRoll"), bEnabled, GGameUserSettingsIni);
+		GConfig->Flush(false, GGameUserSettingsIni);
+	}
+
+	bool IsReducedMotion()
+	{
+		bool bValue = false;
+		GConfig->GetBool(Section, TEXT("ReducedMotion"), bValue, GGameUserSettingsIni);
+		return bValue;
+	}
+
+	void SetReducedMotion(bool bEnabled)
+	{
+		GConfig->SetBool(Section, TEXT("ReducedMotion"), bEnabled, GGameUserSettingsIni);
+		GConfig->Flush(false, GGameUserSettingsIni);
+	}
+
 	bool IsFullscreen()
 	{
 		const UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;

@@ -21,6 +21,8 @@ namespace IAInput
 			{ TEXT("Jump"),       TEXT("Jump"),           EKeys::SpaceBar },
 			{ TEXT("Fire"),       TEXT("Fire"),           EKeys::LeftMouseButton },
 			{ TEXT("Scoreboard"), TEXT("Scoreboard"),     EKeys::Tab },
+			{ TEXT("Crouch"),     TEXT("Crouch (hold)"),  EKeys::LeftControl },
+			{ TEXT("Walk"),       TEXT("Slow walk (hold)"), EKeys::LeftShift },
 		};
 		return Bindings;
 	}

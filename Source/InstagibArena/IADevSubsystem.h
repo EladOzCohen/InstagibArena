@@ -24,6 +24,13 @@
  *   -IAReport        logs what this machine sees every 4 seconds
  *   -IAWalk          walks and turns the local player
  *   -IAFireEvery=2   fires the local player's rifle every 2 seconds
+ *
+ * Movement and animation helpers (FEEL):
+ *   -IAMoveTest [-IAMoveTestQuit]  the local player runs a script (jump, double jump, dodges, crouch, walk, wall dodge)
+ *                    and logs MOVETEST lines with positions; use it with a listen server + client and p.NetShowCorrections 1
+ *   -IAShowroomWalk  the showroom characters walk on the spot in different directions with different view pitch
+ *   -IAShowroomJump / -IAShowroomCrouch   one of them jumps / crouches
+ *   -IARifleOffset=x,y,z,pitch,yaw,roll[,scale]   rifle in the hand (bone space of hand_r), without a rebuild
  */
 UCLASS()
 class INSTAGIBARENA_API UIADevSubsystem : public UGameInstanceSubsystem
@@ -62,4 +69,28 @@ private:
 	FVector CameraLocation = FVector::ZeroVector;
 	FRotator CameraRotation = FRotator::ZeroRotator;
 	FString ShotName = TEXT("shot_00");
+
+	// ---- FEEL: scripted movement test (-IAMoveTest) and showroom walk (-IAShowroomWalk)
+	bool MoveTest(float DeltaTime);
+	bool ShowroomWalk(float DeltaTime);
+
+	FTSTicker::FDelegateHandle MoveTestHandle;
+	FTSTicker::FDelegateHandle ShowroomWalkHandle;
+	int32 MoveTestStep = -1;
+	float MoveTestStepTime = 0.f;
+	float MoveTestLogTimer = 0.f;
+	float MoveTestYaw = 0.f;
+	bool bMoveTestJumped = false;
+	bool bMoveTestDodged = false;
+	TArray<TWeakObjectPtr<class AIAPlayerCharacter>> ShowroomPawns;
+	// Frame time statistics for the report lines (hitch check with many bots).
+	FTSTicker::FDelegateHandle FrameStatHandle;
+	float FrameTimeMax = 0.f;
+	float FrameTimeSum = 0.f;
+	int32 FrameTimeCount = 0;
+	int32 FrameHitches = 0;
+
+	TArray<FVector> ShowroomHome;
+	float ShowroomWalkTime = 0.f;
+	float ShowroomResetTimer = 0.f;
 };

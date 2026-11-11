@@ -2,6 +2,8 @@
 
 #include "IADevSubsystem.h"
 #include "IACharacterRoster.h"
+#include "IAAnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "IAPlayerCharacter.h"
 #include "IAPlayerController.h"
 #include "IAGameState.h"
@@ -40,6 +42,25 @@ void UIADevSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	if (FParse::Value(FCommandLine::Get(), TEXT("IAFireEvery="), FireEvery) && FireEvery > 0.f)
 	{
 		AutoFireHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UIADevSubsystem::AutoFire), FireEvery);
+	}
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("IAReport")))
+	{
+		FrameStatHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float Dt)
+		{
+			FrameTimeMax = FMath::Max(FrameTimeMax, Dt);
+			FrameTimeSum += Dt;
+			++FrameTimeCount;
+			if (Dt > 0.1f)
+			{
+				++FrameHitches;
+			}
+			return true;
+		}), 0.f);
+	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("IAMoveTest")))
+	{
+		MoveTestHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UIADevSubsystem::MoveTest), 0.f);
 	}
 
 	float Delay = 0.f;
@@ -128,6 +149,9 @@ void UIADevSubsystem::Deinitialize()
 	FTSTicker::GetCoreTicker().RemoveTicker(AutoFireHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(FireHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ShowroomHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(FrameStatHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(MoveTestHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(ShowroomWalkHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(CameraHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ShotHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(QuitHandle);
@@ -232,6 +256,12 @@ bool UIADevSubsystem::Report(float DeltaTime)
 	UE_LOG(LogInstagib, Log, TEXT("REPORT %s clock=%d red=%d blue=%d over=%d players=%d pawns=%d local=%s :: %s"),
 		Net, Clock, Red, Blue, bOver ? 1 : 0, Count, Pawns, *Local, *Players);
 	UE_LOG(LogInstagib, Log, TEXT("HUMANS %s clock=%d %s"), Net, Clock, *Humans);
+	UE_LOG(LogInstagib, Log, TEXT("FRAMES %s clock=%d avg=%.1f ms max=%.1f ms over100ms=%d (frames=%d)"), Net, Clock,
+		FrameTimeCount > 0 ? FrameTimeSum / FrameTimeCount * 1000.f : 0.f, FrameTimeMax * 1000.f, FrameHitches, FrameTimeCount);
+	FrameTimeMax = 0.f;
+	FrameTimeSum = 0.f;
+	FrameTimeCount = 0;
+	FrameHitches = 0;
 	return true;
 }
 
@@ -298,7 +328,23 @@ bool UIADevSubsystem::SpawnShowroom(float DeltaTime)
 		if (AIAPlayerCharacter* Pawn = World->SpawnActor<AIAPlayerCharacter>(AIAPlayerCharacter::StaticClass(), Location, FRotator(0.f, ShowroomYaw, 0.f), Params))
 		{
 			Pawn->SetForcedLook((First + I) % IACharacters::LookCount);
+			ShowroomPawns.Add(Pawn);
+			ShowroomHome.Add(Location);
+			if (FParse::Param(FCommandLine::Get(), TEXT("IAShowroomWalk")))
+			{
+				Pawn->GetCharacterMovement()->bRunPhysicsWithNoController = true;
+				Pawn->GetCharacterMovement()->SetDefaultMovementMode(); // pawns that nobody possesses start without movement
+				Pawn->DevAimPitch = (I - 2) * 22.f; // looking down ... up across the row
+				if (FParse::Param(FCommandLine::Get(), TEXT("IAShowroomCrouch")) && I == 4)
+				{
+					Pawn->Crouch();
+				}
+			}
 		}
+	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("IAShowroomWalk")))
+	{
+		ShowroomWalkHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UIADevSubsystem::ShowroomWalk), 0.f);
 	}
 	return false;
 }
@@ -337,4 +383,208 @@ bool UIADevSubsystem::TakeScreenshot(float DeltaTime)
 	}), 4.f);
 
 	return false; // run once
+}
+
+// ---------------------------------------------------------------- FEEL: movement test and showroom walk
+
+bool UIADevSubsystem::MoveTest(float DeltaTime)
+{
+	// Scripted run through every kind of movement. Logs "MOVETEST" lines with positions, so that the logs of a
+	// listen server and a client can be compared, and so that the effect of each step can be read.
+	UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	if (!World)
+	{
+		return true;
+	}
+	APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
+	AIAPlayerCharacter* Pawn = PC ? Cast<AIAPlayerCharacter>(PC->GetPawn()) : nullptr;
+	if (!Pawn || Pawn->IsDead())
+	{
+		MoveTestStepTime = 0.f;
+		return true;
+	}
+	UIACharacterMovement* Move = Cast<UIACharacterMovement>(Pawn->GetCharacterMovement());
+	if (!Move)
+	{
+		return true;
+	}
+
+	struct FStep { const TCHAR* Name; float Duration; };
+	static const FStep Steps[] = {
+		{ TEXT("settle"), 2.0f },     { TEXT("jump"), 1.4f },       { TEXT("doublejump"), 1.8f },
+		{ TEXT("run"), 1.3f },        { TEXT("dodgeLeft"), 1.3f },  { TEXT("dodgeRight"), 1.3f },
+		{ TEXT("dodgeFwd"), 1.3f },   { TEXT("dodgeBack"), 1.3f },  { TEXT("crouch"), 1.2f },
+		{ TEXT("crouchwalk"), 1.4f }, { TEXT("slowwalk"), 1.4f },   { TEXT("findwall"), 0.4f },
+		{ TEXT("wallrun"), 3.5f },    { TEXT("end"), 3.0f }
+	};
+	constexpr int32 StepCount = UE_ARRAY_COUNT(Steps);
+
+	if (MoveTestStep < 0)
+	{
+		MoveTestStep = 0;
+		MoveTestStepTime = 0.f;
+		UE_LOG(LogInstagib, Log, TEXT("MOVETEST start (net mode %d)"), static_cast<int32>(World->GetNetMode()));
+	}
+
+	const bool bFirstFrame = MoveTestStepTime == 0.f;
+	MoveTestStepTime += DeltaTime;
+	MoveTestLogTimer += DeltaTime;
+	const float T = MoveTestStepTime;
+	const FVector Forward = Pawn->GetActorForwardVector();
+
+	// One-time actions at the start of a step, or at a moment inside it.
+	switch (MoveTestStep)
+	{
+	case 1: if (bFirstFrame) { Pawn->Jump(); } break;
+	case 2:
+		if (bFirstFrame) { Pawn->Jump(); }
+		if (T > 0.1f && T - DeltaTime <= 0.1f) { Pawn->StopJumping(); }
+		if (T > 0.45f && !bMoveTestJumped) { bMoveTestJumped = true; Pawn->Jump(); }
+		break;
+	case 4: if (bFirstFrame) { Pawn->Dodge(EIADodgeDir::Left); } break;
+	case 5: if (bFirstFrame) { Pawn->Dodge(EIADodgeDir::Right); } break;
+	case 6: if (bFirstFrame) { Pawn->Dodge(EIADodgeDir::Forward); } break;
+	case 7: if (bFirstFrame) { Pawn->Dodge(EIADodgeDir::Back); } break;
+	case 8:
+		if (bFirstFrame) { Pawn->Crouch(); }
+		if (T > 0.8f) { Pawn->UnCrouch(); }
+		break;
+	case 9: if (bFirstFrame) { Pawn->Crouch(); } break;
+	case 10: if (bFirstFrame) { Pawn->UnCrouch(); Move->SetWantsToWalk(true); } break;
+	case 11:
+		if (bFirstFrame)
+		{
+			Move->SetWantsToWalk(false);
+			// Face the nearest wall.
+			float BestDistance = 1.0e9f;
+			float BestYaw = Pawn->GetActorRotation().Yaw;
+			FCollisionQueryParams Params(SCENE_QUERY_STAT(IAMoveTestWall), false, Pawn);
+			for (int32 I = 0; I < 12; ++I)
+			{
+				const FVector Dir = FRotator(0.f, I * 30.f, 0.f).Vector();
+				FHitResult Hit;
+				if (World->LineTraceSingleByChannel(Hit, Pawn->GetActorLocation(), Pawn->GetActorLocation() + Dir * 900.f, ECC_WorldStatic, Params)
+					&& FMath::Abs(Hit.ImpactNormal.Z) < 0.3f && Hit.Distance < BestDistance)
+				{
+					BestDistance = Hit.Distance;
+					BestYaw = I * 30.f;
+				}
+			}
+			PC->SetControlRotation(FRotator(0.f, BestYaw, 0.f));
+			bMoveTestJumped = false;
+			bMoveTestDodged = false;
+			UE_LOG(LogInstagib, Log, TEXT("MOVETEST wall: nearest %.0f units away at yaw %.0f"), BestDistance, BestYaw);
+		}
+		break;
+	default: break;
+	}
+
+	// Steady input while a step runs.
+	const bool bWalkInput = MoveTestStep == 3 || MoveTestStep == 9 || MoveTestStep == 10 || MoveTestStep == 12;
+	if (bWalkInput)
+	{
+		Pawn->AddMovementInput(Forward, 1.f);
+	}
+	if (MoveTestStep == 12)
+	{
+		// Run at the wall, jump when close, dodge into it while in the air.
+		FHitResult Hit;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(IAMoveTestWall2), false, Pawn);
+		const FVector From = Pawn->GetActorLocation();
+		const float Dist = World->LineTraceSingleByChannel(Hit, From, From + Forward * 700.f, ECC_WorldStatic, Params) ? Hit.Distance : 9999.f;
+		if (Move->IsMovingOnGround() && Dist < 300.f && !bMoveTestJumped)
+		{
+			bMoveTestJumped = true;
+			Pawn->Jump();
+		}
+		if (Move->IsFalling() && Dist < 100.f && !bMoveTestDodged)
+		{
+			bMoveTestDodged = true;
+			UE_LOG(LogInstagib, Log, TEXT("MOVETEST wall dodge requested at distance %.0f, speed before %.0f"), Dist, Pawn->GetVelocity().Size2D());
+			Pawn->Dodge(EIADodgeDir::Forward);
+		}
+	}
+
+	if (bFirstFrame || MoveTestLogTimer >= 0.1f)
+	{
+		MoveTestLogTimer = 0.f;
+		const FVector L = Pawn->GetActorLocation();
+		const FVector V = Pawn->GetVelocity();
+		UE_LOG(LogInstagib, Log, TEXT("MOVETEST %s t=%.2f pos=(%.1f,%.1f,%.1f) vel=(%.0f,%.0f,%.0f) speed2d=%.0f crouched=%d falling=%d dodges=%d"),
+			Steps[MoveTestStep].Name, T, L.X, L.Y, L.Z, V.X, V.Y, V.Z, V.Size2D(),
+			Pawn->bIsCrouched ? 1 : 0, Move->IsFalling() ? 1 : 0, Move->DodgeCounter);
+	}
+
+	if (T >= Steps[MoveTestStep].Duration)
+	{
+		const FVector L = Pawn->GetActorLocation();
+		UE_LOG(LogInstagib, Log, TEXT("MOVETEST_STEP_END %s pos=(%.1f,%.1f,%.1f)"), Steps[MoveTestStep].Name, L.X, L.Y, L.Z);
+		if (MoveTestStep == 9) { Pawn->UnCrouch(); }
+		MoveTestStepTime = 0.f;
+		bMoveTestJumped = false;
+		++MoveTestStep;
+		if (MoveTestStep >= StepCount)
+		{
+			UE_LOG(LogInstagib, Log, TEXT("MOVETEST_DONE"));
+			if (FParse::Param(FCommandLine::Get(), TEXT("IAMoveTestQuit")))
+			{
+				FPlatformMisc::RequestExit(false);
+			}
+			return false;
+		}
+	}
+	return true;
+}
+
+bool UIADevSubsystem::ShowroomWalk(float DeltaTime)
+{
+	// Showroom pawns walk on the spot in different directions (they are put back every now and then).
+	ShowroomWalkTime += DeltaTime;
+	ShowroomResetTimer += DeltaTime;
+	const bool bReset = ShowroomResetTimer > 0.2f;
+	if (bReset)
+	{
+		ShowroomResetTimer = 0.f;
+	}
+
+	// The second pawn jumps shortly before the screenshot (-IAShowroomJump), to look at the air pose.
+	if (!bMoveTestJumped && ShowroomWalkTime > 5.3f && FParse::Param(FCommandLine::Get(), TEXT("IAShowroomJump")))
+	{
+		bMoveTestJumped = true;
+		if (AIAPlayerCharacter* Jumper = ShowroomPawns.IsValidIndex(1) ? ShowroomPawns[1].Get() : nullptr)
+		{
+			Jumper->Jump();
+		}
+	}
+
+	static const FVector2D Dirs[8] = {
+		FVector2D(1, 0), FVector2D(-1, 0), FVector2D(0, -1), FVector2D(0, 1),
+		FVector2D(1, 1), FVector2D(-1, -1), FVector2D(1, -1), FVector2D(-1, 1) };
+
+	const bool bLogNow = FMath::FloorToInt(ShowroomWalkTime) != FMath::FloorToInt(ShowroomWalkTime - DeltaTime);
+	for (int32 Index = 0; Index < ShowroomPawns.Num(); ++Index)
+	{
+		AIAPlayerCharacter* Pawn = ShowroomPawns[Index].Get();
+		if (!Pawn)
+		{
+			continue;
+		}
+		if (bLogNow && (Index == 0 || Index == 3))
+		{
+			const UIAAnimInstance* Anim = Cast<UIAAnimInstance>(Pawn->GetMesh()->GetAnimInstance());
+			UE_LOG(LogInstagib, Log, TEXT("SHOWROOM pawn %d z=%.1f mode=%d %s"), Index, Pawn->GetActorLocation().Z,
+				static_cast<int32>(Pawn->GetCharacterMovement()->MovementMode.GetValue()), Anim ? *Anim->GetDebugString() : TEXT("no anim instance"));
+		}
+		const FVector2D D = Dirs[(Index + FMath::FloorToInt(ShowroomWalkTime / 30.f) * 5) % 8].GetSafeNormal();
+		Pawn->AddMovementInput(Pawn->GetActorForwardVector(), D.X);
+		Pawn->AddMovementInput(Pawn->GetActorRightVector(), D.Y);
+		if (bReset && ShowroomHome.IsValidIndex(Index))
+		{
+			// Back to the spot, but at the height the pawn has now (so that it stays on the floor, or in its jump).
+			FVector Home = ShowroomHome[Index];
+			Home.Z = Pawn->GetActorLocation().Z;
+			Pawn->SetActorLocation(Home, false, nullptr, ETeleportType::TeleportPhysics);
+		}
+	}
+	return true;
 }
