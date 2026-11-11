@@ -47,6 +47,12 @@ public:
 	TObjectPtr<UInputAction> DodgeRightAction;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> CrouchAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> WalkAction;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> MenuAction;
 
 	/** Text in the middle of this player's screen. Sent by the server, shown by the HUD. */

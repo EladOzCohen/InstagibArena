@@ -38,6 +38,7 @@ AIAPlayerCharacter::AIAPlayerCharacter(const FObjectInitializer& ObjectInitializ
 
 	GetCapsuleComponent()->InitCapsuleSize(34.f, 92.f);
 	BaseEyeHeight = 64.f;
+	CrouchedEyeHeight = 34.f; // from the capsule center, which is lower while crouching
 
 	// The body turns with the view, like in a classic arena shooter.
 	bUseControllerRotationYaw = true;
@@ -94,6 +95,123 @@ void AIAPlayerCharacter::Tick(float DeltaSeconds)
 	UpdateLook();
 	UpdateMovementAudio(DeltaSeconds);
 	UpdateWeaponView(DeltaSeconds);
+	UpdateCamera(DeltaSeconds);
+}
+
+// ---------------------------------------------------------------- camera feel
+
+void AIAPlayerCharacter::UpdateCamera(float DeltaSeconds)
+{
+	if (!IsLocalHuman() || !FirstPersonCamera || DeltaSeconds <= 0.f)
+	{
+		return;
+	}
+	const float Dt = FMath::Min(DeltaSeconds, 0.1f);
+
+	// Settings are read twice a second, not every frame.
+	CamSettingsTimer -= Dt;
+	if (CamSettingsTimer <= 0.f)
+	{
+		CamSettingsTimer = 0.5f;
+		bCamReduced = IASettings::IsReducedMotion();
+		bCamBob = IASettings::IsCameraBobEnabled() && !bCamReduced;
+		bCamRoll = IASettings::IsViewRollEnabled() && !bCamReduced;
+	}
+
+	UIACharacterMovement* Move = Cast<UIACharacterMovement>(GetCharacterMovement());
+	if (!Move || bDead)
+	{
+		FirstPersonCamera->ClearAdditiveOffset();
+		return;
+	}
+
+	const float Now = GetWorld()->GetTimeSeconds();
+	const FVector Velocity = GetVelocity();
+	const float Speed2D = Velocity.Size2D();
+	const bool bGrounded = Move->IsMovingOnGround();
+	const float HalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+
+	// Pause menu open: let go of crouch and walk, the key release may not arrive.
+	if (IsPauseMenuOpen())
+	{
+		Move->SetWantsToWalk(false);
+		UnCrouch();
+	}
+
+	// ---- eye height: crouching and stair steps are smoothed, not snapped.
+	const float EyeZ = GetActorLocation().Z + BaseEyeHeight;
+	if (bCamHavePrev)
+	{
+		const float Jump = EyeZ - CamPrevEyeZ - Velocity.Z * Dt;
+		const bool bCapsuleChanged = !FMath::IsNearlyEqual(HalfHeight, CamPrevHalfHeight, 0.1f);
+		const bool bStep = bGrounded && bCamPrevGrounded && FMath::Abs(Jump) > 2.5f && FMath::Abs(Jump) < 60.f
+			&& Move->CurrentFloor.HitResult.ImpactNormal.Z > 0.98f;
+		if (bCapsuleChanged || bStep)
+		{
+			CamEyeOffset = FMath::Clamp(CamEyeOffset - Jump, -70.f, 70.f);
+		}
+	}
+	CamPrevEyeZ = EyeZ;
+	CamPrevHalfHeight = HalfHeight;
+	bCamPrevGrounded = bGrounded;
+	bCamHavePrev = true;
+	CamEyeOffset = bCamReduced ? 0.f : FMath::FInterpTo(CamEyeOffset, 0.f, Dt, 11.f);
+
+	// ---- head bob: once per step, scaled by speed, quieter when crouched or walking slowly.
+	const float BobTarget = (bCamBob && bGrounded) ? FMath::Clamp(Speed2D / 600.f, 0.f, 1.f) : 0.f;
+	CamBobAlpha = FMath::FInterpTo(CamBobAlpha, BobTarget, Dt, 8.f);
+	CamBobPhase += Speed2D * Dt / 270.f * PI; // one step per 270 units, like the footsteps
+	const float StanceScale = bIsCrouched ? 0.5f : 1.f;
+	const float BobZ = FMath::Sin(CamBobPhase * 2.f) * 0.9f * CamBobAlpha * StanceScale;
+	const float BobRoll = FMath::Sin(CamBobPhase) * 0.3f * CamBobAlpha * StanceScale;
+
+	// ---- landing dip: a damped spring pushed down by the impact.
+	if (Move->LastLandingTime > CamSeenLandingTime)
+	{
+		CamSeenLandingTime = Move->LastLandingTime;
+		if (!bCamReduced && Move->LastLandingSpeed > 350.f)
+		{
+			CamDipVelocity -= FMath::Min(Move->LastLandingSpeed, 1500.f) * 0.1f;
+		}
+	}
+	{
+		constexpr float Stiffness = 320.f;
+		const float Damping = 2.f * FMath::Sqrt(Stiffness) * 0.6f;
+		CamDipVelocity += (-Stiffness * CamDip - Damping * CamDipVelocity) * Dt;
+		CamDip += CamDipVelocity * Dt;
+		CamDip = FMath::Clamp(CamDip, -9.f, 4.f);
+		if (bCamReduced)
+		{
+			CamDip = 0.f;
+			CamDipVelocity = 0.f;
+		}
+	}
+
+	// ---- dodge: a roll to the side and a short field of view kick.
+	if (Move->DodgeCounter != CamSeenDodgeCount)
+	{
+		CamSeenDodgeCount = Move->DodgeCounter;
+		// Replayed moves after a correction count again; ignore those.
+		if (Now - CamLastKickTime > 0.3f)
+		{
+			CamLastKickTime = Now;
+			CamKick = 1.f;
+			CamKickRoll = Move->LastDodgeDir == EIADodgeDir::Left ? -1.f : (Move->LastDodgeDir == EIADodgeDir::Right ? 1.f : 0.f);
+		}
+	}
+	CamKick = FMath::Max(0.f, CamKick - Dt * 3.f);
+	const float Kick = bCamReduced ? 0.f : CamKick * CamKick;
+
+	// ---- strafing roll: lean a little into the direction of the sideways speed.
+	const float SideSpeed = FVector::DotProduct(Velocity, GetActorRightVector());
+	const float RollTarget = bCamRoll ? FMath::Clamp(SideSpeed / 600.f, -1.f, 1.f) * 1.4f : 0.f;
+	CamRoll = FMath::FInterpTo(CamRoll, RollTarget, Dt, 9.f);
+
+	const float Roll = CamRoll + (bCamRoll ? CamKickRoll * 4.f * Kick : 0.f) + BobRoll;
+	const float Punch = bCamReduced ? 0.f : 0.7f * Recoil * Recoil; // fire kick, display only
+
+	FirstPersonCamera->SetRelativeLocation(FVector(0.f, 0.f, BaseEyeHeight + CamEyeOffset + BobZ + CamDip));
+	FirstPersonCamera->AddAdditiveOffset(FTransform(FRotator(Punch, 0.f, Roll)), 6.f * Kick);
 }
 
 // ---------------------------------------------------------------- movement sounds
@@ -186,6 +304,10 @@ void AIAPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	Input->BindAction(PC->JumpAction, ETriggerEvent::Started, this, &AIAPlayerCharacter::JumpPressed);
 	Input->BindAction(PC->JumpAction, ETriggerEvent::Completed, this, &AIAPlayerCharacter::JumpReleased);
 	Input->BindAction(PC->FireAction, ETriggerEvent::Started, this, &AIAPlayerCharacter::FirePressed);
+	Input->BindAction(PC->CrouchAction, ETriggerEvent::Started, this, &AIAPlayerCharacter::CrouchPressed);
+	Input->BindAction(PC->CrouchAction, ETriggerEvent::Completed, this, &AIAPlayerCharacter::CrouchReleased);
+	Input->BindAction(PC->WalkAction, ETriggerEvent::Started, this, &AIAPlayerCharacter::WalkPressed);
+	Input->BindAction(PC->WalkAction, ETriggerEvent::Completed, this, &AIAPlayerCharacter::WalkReleased);
 	Input->BindAction(PC->DodgeForwardAction, ETriggerEvent::Started, this, &AIAPlayerCharacter::DodgeForwardTap);
 	Input->BindAction(PC->DodgeBackAction, ETriggerEvent::Started, this, &AIAPlayerCharacter::DodgeBackTap);
 	Input->BindAction(PC->DodgeLeftAction, ETriggerEvent::Started, this, &AIAPlayerCharacter::DodgeLeftTap);
@@ -231,6 +353,38 @@ void AIAPlayerCharacter::FirePressed()
 	if (!IsPauseMenuOpen())
 	{
 		TryFire();
+	}
+}
+
+void AIAPlayerCharacter::CrouchPressed()
+{
+	if (!bDead && !IsPauseMenuOpen())
+	{
+		Crouch();
+	}
+}
+
+void AIAPlayerCharacter::CrouchReleased()
+{
+	UnCrouch();
+}
+
+void AIAPlayerCharacter::WalkPressed()
+{
+	if (!bDead && !IsPauseMenuOpen())
+	{
+		if (UIACharacterMovement* Move = Cast<UIACharacterMovement>(GetCharacterMovement()))
+		{
+			Move->SetWantsToWalk(true);
+		}
+	}
+}
+
+void AIAPlayerCharacter::WalkReleased()
+{
+	if (UIACharacterMovement* Move = Cast<UIACharacterMovement>(GetCharacterMovement()))
+	{
+		Move->SetWantsToWalk(false);
 	}
 }
 

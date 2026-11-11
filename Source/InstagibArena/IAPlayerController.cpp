@@ -35,6 +35,8 @@ void AIAPlayerController::BuildInput()
 	DodgeBackAction = MakeAction(TEXT("IA_DodgeBack"), false);
 	DodgeLeftAction = MakeAction(TEXT("IA_DodgeLeft"), false);
 	DodgeRightAction = MakeAction(TEXT("IA_DodgeRight"), false);
+	CrouchAction = MakeAction(TEXT("IA_Crouch"), false);
+	WalkAction = MakeAction(TEXT("IA_Walk"), false);
 	MenuAction = MakeAction(TEXT("IA_Menu"), false);
 
 	// The keys come from the player's bindings (see IAInputConfig.h).
@@ -71,6 +73,8 @@ void AIAPlayerController::BuildInput()
 	MappingContext->MapKey(MenuAction, EKeys::Escape);
 	MappingContext->MapKey(JumpAction, IAInput::GetKey(TEXT("Jump")));
 	MappingContext->MapKey(FireAction, IAInput::GetKey(TEXT("Fire")));
+	MappingContext->MapKey(CrouchAction, IAInput::GetKey(TEXT("Crouch")));
+	MappingContext->MapKey(WalkAction, IAInput::GetKey(TEXT("Walk")));
 
 	// The same keys also feed the double-tap dodge detection.
 	MappingContext->MapKey(DodgeForwardAction, ForwardKey);

@@ -109,9 +109,15 @@ public:
 	float CooldownRemaining = 0.f;
 	bool bWallDodgedThisJump = false;
 
+	/** Seconds since the last jump, and whether this stretch in the air began with (or contained) a dodge. */
+	float TimeSinceJump = 10.f;
+	bool bDodgedThisAir = false;
+
+	/** Counts every dodge that was performed on this machine. The camera and the animation watch it. */
+	int32 DodgeCounter = 0;
+	EIADodgeDir LastDodgeDir = EIADodgeDir::Forward;
+
 private:
 	void PerformDodge();
 	bool FindWall(const FVector& Direction, FHitResult& OutHit) const;
-
-	float TimeSinceJump = 10.f;
 };
