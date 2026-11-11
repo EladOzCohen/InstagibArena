@@ -10,5 +10,5 @@
   <g fill="none" stroke="#1b1200" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" transform="translate(40 24)">
     <path d="M22 2v30m0 0L10 21m12 11l12-11M6 44h32"/>
   </g>
-  <text x="102" y="57" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="31" font-weight="800" fill="#1b1200">Download for Windows</text>
+  <text x="100" y="57" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="800" fill="#1b1200" textLength="300" lengthAdjust="spacingAndGlyphs">Download for Windows</text>
 </svg>
