@@ -45,4 +45,9 @@ Write-Host "== 3/3 Building the installer"
 & (Join-Path $InnoPath "ISCC.exe") (Join-Path $PSScriptRoot "installer\InstagibArena.iss")
 if ($LASTEXITCODE -ne 0) { throw "Installer build failed (exit code $LASTEXITCODE)." }
 
-Get-ChildItem (Join-Path $builds "InstagibArena_Setup_*.exe") | Select-Object Name, @{n = 'MB'; e = { [math]::Round($_.Length / 1MB) } }
+# The same file under a name that never changes. Attach THIS one to the GitHub release: the download button in the
+# README links to releases/latest/download/InstagibArena_Setup.exe, so it always gets the newest version.
+$newest = Get-ChildItem (Join-Path $builds "InstagibArena_Setup_*.exe") | Sort-Object LastWriteTime | Select-Object -Last 1
+Copy-Item $newest.FullName (Join-Path $builds "InstagibArena_Setup.exe") -Force
+
+Get-ChildItem (Join-Path $builds "InstagibArena_Setup*.exe") | Select-Object Name, @{n = 'MB'; e = { [math]::Round($_.Length / 1MB) } }
