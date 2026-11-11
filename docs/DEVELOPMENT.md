@@ -121,3 +121,20 @@ UnrealEditor-Cmd.exe <uproject> -ExecutePythonScript=<proj>\Tools\make_map_templ
 
 Commit your work in small steps with clear messages. End every commit message with
 `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`. Do not push. Do not commit the Mannequins, Builds, Saved, Binaries or Intermediate folders (they are ignored).
+
+## 12. Menu helpers (MENUS)
+
+Menus are Slate (`SIAMainMenu`, `SIAPauseMenu`, `SIASettingsPanel`, `SIAControlsPanel`, `SIAWelcome`, `IALoadingScreen`). Shared pieces are in `IAMenuStyle.h`.
+Slate's own arrow-key navigation does not work with our buttons (a focused `SButton` answers it first), so `SIAMainMenu` and `SIAPauseMenu` do arrow/Tab navigation themselves in `OnPreviewKeyDown` (`IAMenu::HandleNavKey`).
+Development-only command line flags (they need a window with rendering: the menu is not built with `-nullrhi`):
+
+| Option | What it does |
+|---|---|
+| `-IAMenuScript="a;b;c"` | Runs menu commands 1.5 s after start, 0.7 s apart: `page=N`, `mp=0/1`, `settings=N`, `key=Down` (a real Slate key event), `welcome=0/1/off`, `quit`, `quickplay`, `host`, `join=ADDRESS`, `map=N`, `uiscale=1.2`, `modal-cancel`, `wait=3`; on the settings screen also `tab=N`, `mode=0/1/2`, `res=WxH`, `apply`, `keep`, `revert`, `rebind=Id:Key`, `listen=Id`, `reset-keys` |
+| `-IAPauseScript=...`, `-IAPauseTab=N`, `-IAPauseAt=20` | The same for the pause menu; `-IAPauseAt` opens it after 20 s (no screenshot needed) |
+| `-IAFirstRun`, `-IASkipWelcome` | Force or skip the welcome overlay (it shows on the first launch; fresh worktrees need `-IASkipWelcome` for screenshots) |
+| `-IALoadingPreview -IALoadingMap=/Game/Maps/DM-Foundry` | Covers the screen with the loading screen widget |
+| `-IAShotAuto` | With `-IAShotDelay` and `-IAShotName`: overview camera for map thumbnails (`Tools/make_thumbnails.ps1` uses it) |
+
+Map thumbnails: `powershell -File Tools\make_thumbnails.ps1` reads `IAMapList.h`, makes one picture per map, imports them as `/Game/UI/MapThumbs/T_<MapName>` and rewrites `IAMapRecommended.inl` (rebuild afterwards).
+Settings tests write into the worktree's `Saved/Config`; undo with `-IAMenuScript=uiscale=1.0` or the RESET buttons.

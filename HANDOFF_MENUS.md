@@ -1,37 +1,25 @@
 # HANDOFF - MENUS engineer (branch worktree-agent-a50b41cc388d0bce2)
 
-Last updated at the second interruption. Read this first.
+Updated at the third interruption. No process of mine is running and no lock is held.
 
 ## Build state
-- Last build that was verified to compile: commit "Controls, settings tabs, map card, ..." plus the later small fixes up to the modal-title change (build output "Succeeded").
-- After that I made these edits that are NOT compiled yet (all tiny):
-  - `IAMenuStyle.cpp`: `SimulateKey` now logs the result and the focused widget type (needs `#include "InstagibArena.h"`, added); modal title uses `AutoWrapText` and font 26.
-  - `SIASettingsPanel.cpp`: modal title text is now "KEEP THESE SETTINGS?".
-  - `SIAMainMenu.cpp`: Join address `OnTextChanged` only clears the status when the text really changed.
-  - `SIAPauseMenu.cpp`: the "New keys apply..." note next to BACK uses `FillWidth(1)`.
-  - A build was running when the interruption came; if it did not finish, simply build again.
-- Heavy-job lock: nothing of mine should hold it after the running build ends. No game processes are left running by me (shot.ps1 kills on timeout).
+Compiles (last build Succeeded). Everything below marked "verified" was run and looked at.
 
-## Done and verified by screenshot at 1280x720 (Saved/IAShots, not committed)
-main menu, custom game (map card with placeholder thumbnail, name, description, recommended players, prev/next), host (address note, COPY ADDRESS), join, character, credits, how to play (all controls with current keys), welcome step 1 and 2, quit confirmation, settings GAMEPLAY (name, sensitivity and FOV sliders, crosshair style/colour/size, live preview, camera bob/view roll/reduced motion toggles, reset tutorial), VIDEO (display mode, resolution, APPLY, VSync, FPS limit, quality, motion blur, UI scale), CONTROLS, pause menu and its settings (same panel, note about the next match), rebind via `-IAMenuScript=rebind=Jump:Q` (works, saved), swap prompt (works), "Press a key..." listening state, apply-and-confirm modal with countdown (resolution really changed to 1600x900), loading screen widget via `-IALoadingPreview`.
-Also done: hover tick sound asset (S_UiHover imported), camera comfort settings keys (same text as FEEL), `/Game/UI` cook entry, `make_thumbnails.ps1` + `import_thumbnails.py` + `-IAShotAuto` (written, NOT run yet), `IAMapRecommended.inl` (hand-made defaults, to be rewritten by the script).
+## Done and verified
+- Keyboard navigation: arrows, Tab / Shift+Tab, Enter, Esc, PageUp/PageDown (settings tabs). Cause of the earlier failure: a focused SButton answers arrow keys with Slate's own navigation, which did not move focus. Fix: `OnPreviewKeyDown` in `SIAMainMenu` / `SIAPauseMenu` call `IAMenu::HandleNavKey` (geometry based, in `IAMenuStyle.cpp`). Left/Right are left alone on sliders and text boxes; `KeyCaptureActive()` suspends it while a key is being bound. Verified with simulated Slate key events (`-IAMenuScript=key=Down;...`): main menu, Multiplayer page + Tab, Esc back, settings tabs (PageDown, Down), quit box (Left, Esc). Pause menu navigation: only partly seen (script ran too late in the shot); the code path is the same.
+- Join validation verified (red message for 999.1.1.1).
+- Loading screen verified in the real game window through the log (`LoadingScreen: shown for ...` for menu->match and match->menu, 2.2 s minimum) and by an OS screen capture (map name, tip, animated bar). First map load at start is skipped on purpose. Without a thumbnail the picture box is empty (add text/placeholder if wanted).
+- Quick Play from the menu code path: match started with bots, 31 frags in 40 s, no warnings. NOTE: with `-nullrhi` the menu is not built at all (no viewport), so this was run with a window.
+- Host from the menu + Join from the menu (windowed, 640x360, two processes): REPORT lines of server and client match (players, clock, scores), 0 LogNet warnings.
+- Screens viewed at 1280x720 (all, incl. rebind, swap prompt, apply-and-confirm, welcome 1+2, quit, pause + pause settings) and at 1920x1080 (settings video, host). A sweep of all screens at 1920x1080 and 2560x1080 was running when stopped: files `Saved/IAShots/*_1920x1080.png` and `*_2560x1080.png` exist for about 40 shots but were NOT all looked at; pause sets at 1920/2560 and the UI scale sweep (0.8 / 1.5) were NOT run.
 
-## Known problems / half done
-1. KEYBOARD NAVIGATION: the simulated Down key (`-IAMenuScript=key=Down`) did not move the focus off QUICK PLAY, and Enter then started a match. The first button gets focus (FocusFirst works). Next step: run `-IAMenuScript=key=Down` again and read the new `SimulateKey ... handled=.. focus=..` log lines. If Slate navigation does not fire from a simulated event, implement arrow-key navigation myself in `SIAMainMenu::OnKeyDown`/`SIAPauseMenu::OnKeyDown` (collect focusable widgets of the current page, move focus up/down/left/right by geometry) and handle Tab/Shift+Tab the same way. Real keyboard use is unverified.
-2. The "join=999.1.1.1" dev test showed no red message because the text box change handler cleared it (fixed in the not-yet-compiled edit above); re-test with `t_join_bad`.
-3. Thumbnails: not generated yet. Run `powershell -File Tools\make_thumbnails.ps1` (waits for the lock itself), look at `Tools\MapThumbs\*.png`, fix `AutoShotCamera` in `IADevSubsystem.cpp` if the framing is bad, rebuild (IAMapRecommended.inl changes), commit the PNGs, the .inl and `Content/UI/MapThumbs/*.uasset`.
-4. Loading screen: only the widget was screenshotted. The real MoviePlayer path (`LoadingScreen: shown for ...` log line) is not verified; test with Quick Play (`-IAMenuScript=quickplay -IASkipWelcome`, no -IAShotDelay needed but the game must be killed by a timeout) and Leave Match.
-5. Headless Quick Play check, bots check, multiplayer check not done.
-6. Not done: screenshots at 1920x1080 and 2560x1080 and at UI scales 0.8 to 1.5 (`-IAMenuScript=uiscale=1.5`), welcome/pause at those sizes, `docs/DEVELOPMENT.md` section for the new dev flags (listed below), `-game` test of fullscreen display mode, effect of mute-when-unfocused (only the setting is written; `FApp::SetUnfocusedVolumeMultiplier`), motion blur cvar effect.
-7. Possible polish: loading screen placeholder when no thumbnail, tab key hint in settings.
+## Not done
+1. Look at the remaining 1920x1080 / 2560x1080 shots (clipping), run `batch.ps1 -Set pause` at both and `-Set ui` (UI scale 0.8 and 1.5: scale persists in the worktree config, finish with `-IAMenuScript=uiscale=1.0`). The helper scripts live in the session scratchpad and are not in the repo; the commands are in docs/DEVELOPMENT.md section 12.
+2. Map thumbnails: tooling written (`Tools/make_thumbnails.ps1`, `Tools/import_thumbnails.py`, `-IAShotAuto`) but NEVER RUN. Wait until the MAPS engineer's maps are in `IAMapList.h`, then run it, look at `Tools/MapThumbs/*.png`, fix `AutoShotCamera` framing if needed, rebuild (IAMapRecommended.inl is rewritten), commit PNGs + `Content/UI/MapThumbs`.
+3. Real mouse clicks and real key presses were never used (only simulated Slate events and dev commands).
+4. Mute-when-unfocused and motion blur: settings are stored and applied (`ApplyStartupSettings` via `OnPostEngineInit`), effects not observed. Fullscreen (exclusive) mode not tested; the 10 s auto revert was not watched to the end.
+5. Packaged build and Mac compile not tried (no Windows-only API used; `FPlatformApplicationMisc::ClipboardCopy`, MoviePlayer and ApplicationCore are cross-platform).
 
-## Dev flags added (non-shipping)
-`-IAMenuScript="a;b;c"` (commands: page=N, mp=N, settings=N, key=Name, welcome=0|1|off, quit, modal-cancel, quickplay, map=N, join=addr, copy, uiscale=x, tutorial-done, and for the settings panel: tab=N, mode=0|1|2, res=WxH, apply, keep, revert, rebind=Id:Key, listen=Id, reset-keys, wait=seconds), `-IAPauseScript=` (same, plus settings=N), `-IAPauseTab=N`, `-IAFirstRun`, `-IASkipWelcome`, `-IALoadingPreview [-IALoadingMap=/Game/Maps/DM-Foundry]`, `-IAShotAuto` (with `-IAShotDelay` and `-IAShotName`). `-IAMenuPage=N` now accepts 0..6 (6 = How to play); `-IAMenuTab` also selects the settings tab on page 4.
-
-## How to test what exists
-Scratchpad helper scripts (shot.ps1, batch.ps1, build.ps1) are not in the repo. A screenshot run is:
-`UnrealEditor.exe <uproject> -game -windowed -ResX=1280 -ResY=720 -nosound -nosplash -IASkipWelcome -IAMenuPage=4 -IAMenuTab=1 -IAShotDelay=8 -IAShotName=x` (wrapped in `Tools\exclusive.ps1`), then look at `Saved/IAShots/x.png`.
-Note: key bindings and settings written by tests live in the worktree's `Saved/Config` (Jump was rebound to Q during tests; reset with `-IAMenuScript=reset-keys` on page 4 tab 3 or the RESET TO DEFAULTS button).
-
-## New files
-SIAControlsPanel.*, SIAWelcome.*, IALoadingScreen.*, IAMapPreview.*, IAMapRecommended.inl, Tools/make_thumbnails.ps1, Tools/import_thumbnails.py, Content/Audio/SFX/S_UiHover.uasset. Rewritten: SIAMainMenu.*, SIAPauseMenu.*, SIASettingsPanel.*, InstagibArena.cpp (module class), InstagibArena.Build.cs (+ApplicationCore, MoviePlayer).
+## Files and flags
+See docs/DEVELOPMENT.md section 12 (dev flags) and the earlier list: new SIAControlsPanel, SIAWelcome, IALoadingScreen, IAMapPreview, IAMapRecommended.inl, Tools/make_thumbnails.ps1, Tools/import_thumbnails.py, S_UiHover. Small appends in shared files: IAAudioSubsystem (UIHover), gen_audio.py (ui_hover), IADevSubsystem (-IAShotAuto, -IAPauseAt), DefaultGame.ini (/Game/UI cooked), Build.cs (+ApplicationCore, MoviePlayer), InstagibArena.cpp (module class).
+Unity build gotcha: a function named `Section` in an anonymous namespace clashed with IASettings.cpp; mine is now `SectionLabel`.
