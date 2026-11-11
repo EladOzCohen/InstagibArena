@@ -9,6 +9,9 @@
 #include "IASettings.h"
 #include "SIAScoreboard.h"
 #include "CanvasItem.h"
+#include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Rendering/SlateRenderer.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -113,9 +116,10 @@ const AIAPlayerState* AIAHUD::FindPlayer(int32 PlayerId) const
 	{
 		for (APlayerState* PS : GS->PlayerArray)
 		{
-			if (PS && PS->GetPlayerId() == PlayerId)
+			const AIAPlayerState* State = Cast<AIAPlayerState>(PS);
+			if (State && State->SlotId == PlayerId)
 			{
-				return Cast<AIAPlayerState>(PS);
+				return State;
 			}
 		}
 	}
@@ -141,7 +145,7 @@ void AIAHUD::QueueBanner(const FBanner& Banner)
 void AIAHUD::HandleAnnounce(EIAAnnounce Kind, int32 Subject, int32 Param)
 {
 	const AIAPlayerState* Me = GetLocalState();
-	const bool bMe = Me && Subject >= 0 && Me->GetPlayerId() == Subject;
+	const bool bMe = Me && Subject >= 0 && Me->SlotId == Subject;
 	const AIAPlayerState* Who = FindPlayer(Subject);
 	const FString WhoName = Who ? Who->GetPlayerName() : TEXT("Someone");
 
@@ -252,7 +256,7 @@ void AIAHUD::UpdatePhase(const AIAGameState& GS, float Now)
 			if (const AIAPlayerState* Me = GetLocalState())
 			{
 				if (GS.IsTeamGame()) { Result = GS.WinnerTeam == IA_NoTeam ? 0 : (GS.WinnerTeam == Me->Team ? 1 : -1); }
-				else { Result = GS.WinnerPlayerId < 0 ? 0 : (GS.WinnerPlayerId == Me->GetPlayerId() ? 1 : -1); }
+				else { Result = GS.WinnerPlayerId < 0 ? 0 : (GS.WinnerPlayerId == Me->SlotId ? 1 : -1); }
 			}
 			if (Audio) { Audio->Play2D(Result > 0 ? EIASound::Victory : (Result < 0 ? EIASound::Defeat : EIASound::MatchEnd), 0.9f); }
 		}
@@ -303,28 +307,32 @@ void AIAHUD::UpdateClockCues(const AIAGameState& GS)
 
 float AIAHUD::TextWidth(const FString& Value, float Px) const
 {
-	if (!Canvas || !HudFont)
+	if (!Canvas || !FSlateApplication::IsInitialized())
 	{
 		return 0.f;
 	}
-	float W = 0.f, H = 0.f;
-	const float Scale = Px / FMath::Max(1.f, FontRefHeight);
-	Canvas->TextSize(HudFont, Value, W, H, Scale, Scale);
-	return W;
+	const TSharedRef<FSlateFontMeasure> Measure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	return Measure->Measure(Value, MakeFont(Px)).X;
+}
+
+FSlateFontInfo AIAHUD::MakeFont(float Px) const
+{
+	// Slate fonts are drawn crisp at their own size (the engine's canvas fonts are bitmaps that blur when scaled).
+	const int32 Size = FMath::Max(8, FMath::RoundToInt(Px * FontPxToSize));
+	// The canvas needs the font's UFont object (Roboto, the same family as the menus) to draw with.
+	return FSlateFontInfo(HudFont, Size, Px >= 26.f ? FName(TEXT("Bold")) : FName(TEXT("Regular")));
 }
 
 float AIAHUD::Text(const FString& Value, float X, float Y, float Px, const FLinearColor& Color, int32 Align, float Scale)
 {
-	if (!Canvas || !HudFont || Value.IsEmpty() || Color.A <= 0.01f)
+	if (!Canvas || !FSlateApplication::IsInitialized() || Value.IsEmpty() || Color.A <= 0.01f)
 	{
 		return 0.f;
 	}
-	const float Factor = Scale * Px / FMath::Max(1.f, FontRefHeight);
-	float W = 0.f, H = 0.f;
-	Canvas->TextSize(HudFont, Value, W, H, Factor, Factor);
+	Px = FMath::Max(Px, 11.f) * Scale;   // never smaller than a readable label
+	const float W = TextWidth(Value, Px);
 	const float DrawX = Align == 1 ? X - W * 0.5f : (Align == 2 ? X - W : X);
-	FCanvasTextItem Item(FVector2D(DrawX, Y - (Scale - 1.f) * Px * 0.5f), FText::FromString(Value), HudFont, Color);
-	Item.Scale = FVector2D(Factor, Factor);
+	FCanvasTextItem Item(FVector2D(DrawX, Y - (Scale - 1.f) * Px * 0.25f), FText::FromString(Value), MakeFont(Px), Color);
 	Item.EnableShadow(FLinearColor(0.f, 0.f, 0.f, Color.A * 0.85f), FVector2D(FMath::Max(1.f, Px * 0.05f), FMath::Max(1.f, Px * 0.05f)));
 	Canvas->DrawItem(Item);
 	return W;
@@ -341,10 +349,13 @@ void AIAHUD::Panel(float X, float Y, float W, float H, float Alpha, const FLinea
 
 void AIAHUD::DrawTriangle(const FVector2D& A, const FVector2D& B, const FVector2D& C, const FLinearColor& Color)
 {
-	FCanvasTriangleItem Tri(A, B, C, nullptr);
-	Tri.SetColor(Color);
-	Tri.BlendMode = SE_BLEND_Translucent;
-	Canvas->DrawItem(Tri);
+	// Filled with lines from the tip A across the base B-C (no texture needed).
+	const int32 Steps = FMath::Max(6, FMath::CeilToInt(FVector2D::Distance(B, C) / 1.5f));
+	for (int32 I = 0; I <= Steps; ++I)
+	{
+		const FVector2D P = FMath::Lerp(B, C, static_cast<float>(I) / Steps);
+		DrawLine(A.X, A.Y, P.X, P.Y, Color, 2.f);
+	}
 }
 
 // ---------------------------------------------------------------- crosshair and hit marker
@@ -595,8 +606,8 @@ void AIAHUD::DrawKillFeed(const AIAGameState& GS, float Now)
 		const float Alpha = Age > FadeStart ? 1.f - (Age - FadeStart) / (Life - FadeStart) : 1.f;
 		const float Slide = (1.f - EaseOut(Age / 0.18f)) * 40.f * S;
 
-		const bool bMineKill = Me && Entry->KillerId == Me->GetPlayerId();
-		const bool bMineDeath = Me && Entry->VictimId == Me->GetPlayerId();
+		const bool bMineKill = Me && Entry->KillerId == Me->SlotId;
+		const bool bMineDeath = Me && Entry->VictimId == Me->SlotId;
 		const bool bMine = bMineKill || bMineDeath;
 
 		const FLinearColor Neutral(0.92f, 0.94f, 0.98f);
@@ -882,7 +893,7 @@ void AIAHUD::DrawHUD()
 		return;
 	}
 
-	S = FMath::Clamp(Canvas->ClipY / 1080.f, 0.6f, 2.5f);
+	S = FMath::Clamp(Canvas->ClipY / 900.f, 0.7f, 2.5f);
 	{
 		float W = 0.f, H = 0.f;
 		Canvas->TextSize(HudFont, TEXT("Ag"), W, H, 1.f, 1.f);

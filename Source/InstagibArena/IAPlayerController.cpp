@@ -5,6 +5,7 @@
 #include "IAAudioSubsystem.h"
 #include "IAHUD.h"
 #include "IAInputConfig.h"
+#include "InstagibArena.h"
 #include "IACharacterRoster.h"
 #include "IAGameMode.h"
 #include "IAGameState.h"
@@ -276,6 +277,7 @@ void AIAPlayerController::RequestPlayAgain()
 
 void AIAPlayerController::OnPhaseChanged(uint8 NewPhase)
 {
+	UE_LOG(LogInstagib, Log, TEXT("%s sees match phase %d"), GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Local player"), static_cast<int32>(NewPhase));
 	const bool bEnded = NewPhase == static_cast<uint8>(EIAMatchPhase::Ended);
 	bMatchFrozen = bEnded;
 	if (bEnded)

@@ -16,11 +16,11 @@ namespace
 {
 	const float ColRank = 44.f;
 	const float ColName = 300.f;
-	const float ColKills = 74.f;
-	const float ColDeaths = 74.f;
+	const float ColKills = 84.f;
+	const float ColDeaths = 96.f;
 	const float ColKD = 74.f;
 	const float ColAcc = 84.f;
-	const float ColStreak = 84.f;
+	const float ColStreak = 96.f;
 	const float ColPing = 74.f;
 
 	const FLinearColor RedColor(1.f, 0.36f, 0.34f);
@@ -89,7 +89,7 @@ void SIAScoreboard::Tick(const FGeometry& AllottedGeometry, const double InCurre
 		{
 			return A.Deaths < B.Deaths;
 		}
-		return A.GetPlayerId() < B.GetPlayerId();
+		return A.SlotId < B.SlotId;
 	});
 
 	// In a team game the leading team goes first.
@@ -102,7 +102,7 @@ void SIAScoreboard::Tick(const FGeometry& AllottedGeometry, const double InCurre
 	NewSignature.Add(bTeamGame ? 1 : 0);
 	for (const AIAPlayerState* State : Players)
 	{
-		NewSignature.Add(State->GetPlayerId());
+		NewSignature.Add(State->SlotId);
 		NewSignature.Add(State->Team);
 	}
 	if (NewSignature != Signature)

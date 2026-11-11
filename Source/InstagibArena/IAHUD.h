@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
+#include "Fonts/SlateFontInfo.h"
 #include "IAAudioSubsystem.h"
 #include "IAGameState.h"
 #include "IAHUD.generated.h"
@@ -68,6 +69,8 @@ private:
 	// ---- drawing
 	float Text(const FString& Value, float X, float Y, float Px, const FLinearColor& Color, int32 Align = 0, float Scale = 1.f);
 	float TextWidth(const FString& Value, float Px) const;
+	FSlateFontInfo MakeFont(float Px) const;
+	static constexpr float FontPxToSize = 0.8f;   // Slate font size per pixel of text height
 	void Panel(float X, float Y, float W, float H, float Alpha, const FLinearColor& Accent, bool bTopLine = true);
 	void DrawCrosshair(float CX, float CY);
 	void DrawHitMarker(float CX, float CY, float Now);

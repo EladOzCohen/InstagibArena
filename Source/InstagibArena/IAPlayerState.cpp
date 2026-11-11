@@ -20,6 +20,7 @@ void AIAPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AIAPlayerState, Team);
 	DOREPLIFETIME(AIAPlayerState, bIsBotPlayer);
 	DOREPLIFETIME(AIAPlayerState, CharacterIndex);
+	DOREPLIFETIME(AIAPlayerState, SlotId);
 	DOREPLIFETIME(AIAPlayerState, ShotsFired);
 	DOREPLIFETIME(AIAPlayerState, ShotsHit);
 	DOREPLIFETIME(AIAPlayerState, Streak);

@@ -52,12 +52,12 @@ void AIAGameState::MulticastKillFeed_Implementation(int32 KillerId, int32 Victim
 		{
 			continue;
 		}
-		if (State->GetPlayerId() == KillerId)
+		if (State->SlotId == KillerId)
 		{
 			Entry.KillerName = State->GetPlayerName();
 			Entry.KillerTeam = State->Team;
 		}
-		if (State->GetPlayerId() == VictimId)
+		if (State->SlotId == VictimId)
 		{
 			Entry.VictimName = State->GetPlayerName();
 			Entry.VictimTeam = State->Team;

@@ -253,6 +253,7 @@ void AIAGameMode::SpawnBots()
 			const int32 CharacterIndex = Roster[I % Roster.Num()];
 			PS->SetPlayerName(IACharacters::GetLook(CharacterIndex).Name);
 			PS->bIsBotPlayer = true;
+			PS->SlotId = NextSlotId++;
 			PS->CharacterIndex = CharacterIndex;
 			AssignTeam(PS);
 		}
@@ -266,6 +267,7 @@ void AIAGameMode::PostLogin(APlayerController* NewPlayer)
 
 	if (AIAPlayerState* PS = NewPlayer ? NewPlayer->GetPlayerState<AIAPlayerState>() : nullptr)
 	{
+		PS->SlotId = NextSlotId++;
 		AssignTeam(PS);
 		UE_LOG(LogInstagib, Log, TEXT("Player joined: %s (character %d, team %d), %d players in the match"),
 			*PS->GetPlayerName(), PS->CharacterIndex, static_cast<int32>(PS->Team), GameState ? GameState->PlayerArray.Num() : 0);
@@ -433,8 +435,8 @@ void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 		}
 	}
 
-	const int32 VictimId = VictimState ? VictimState->GetPlayerId() : -1;
-	GS->MulticastKillFeed(bRealKill ? KillerState->GetPlayerId() : (Killer == Victim ? VictimId : -1), VictimId);
+	const int32 VictimId = VictimState ? VictimState->SlotId : -1;
+	GS->MulticastKillFeed(bRealKill ? KillerState->SlotId : (Killer == Victim ? VictimId : -1), VictimId);
 	if (bRealKill)
 	{
 		AnnounceKillMedals(KillerState, MultiKillCount);
@@ -457,7 +459,7 @@ void AIAGameMode::AnnounceKillMedals(AIAPlayerState* Killer, int32 MultiKillCoun
 	{
 		return;
 	}
-	const int32 Id = Killer->GetPlayerId();
+	const int32 Id = Killer->SlotId;
 
 	if (!bFirstBloodDone)
 	{
@@ -538,7 +540,7 @@ void AIAGameMode::UpdateLeadStates()
 		const uint8 New = (Max > 0 && State->Kills == Max) ? (AtMax == 1 ? 2 : 1) : 0;
 		if (!State->bIsBotPlayer)
 		{
-			Transition(State->LeadState, New, State->GetPlayerId(), 0);
+			Transition(State->LeadState, New, State->SlotId, 0);
 		}
 		State->LeadState = New;
 	}
@@ -599,7 +601,7 @@ void AIAGameMode::CheckScoreLimit()
 		const AIAPlayerState* State = Cast<AIAPlayerState>(PS);
 		if (State && State->Kills >= ScoreLimit)
 		{
-			FinishMatch(FString::Printf(TEXT("%s wins!"), *State->GetPlayerName()), State->GetPlayerId(), IA_NoTeam);
+			FinishMatch(FString::Printf(TEXT("%s wins!"), *State->GetPlayerName()), State->SlotId, IA_NoTeam);
 			return;
 		}
 	}
@@ -647,7 +649,7 @@ void AIAGameMode::DetermineWinnerByScore()
 	}
 	else
 	{
-		FinishMatch(FString::Printf(TEXT("%s wins!"), *Best->GetPlayerName()), Best->GetPlayerId(), IA_NoTeam);
+		FinishMatch(FString::Printf(TEXT("%s wins!"), *Best->GetPlayerName()), Best->SlotId, IA_NoTeam);
 	}
 }
 
@@ -800,20 +802,19 @@ void AIAGameMode::SetupDevHooks()
 		FTimerHandle Handle;
 		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this]()
 		{
+			// The last human in the list: a remote client when there is one, else the local player.
+			APlayerController* Target = nullptr;
+			AIABotController* Shooter = nullptr;
 			for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
 			{
-				if (APlayerController* PC = Cast<APlayerController>(It->Get()))
-				{
-					for (FConstControllerIterator Other = GetWorld()->GetControllerIterator(); Other; ++Other)
-					{
-						AIABotController* Bot = Cast<AIABotController>(Other->Get());
-						if (PC->GetPawn() && Bot && Bot->GetPawn())
-						{
-							UGameplayStatics::ApplyDamage(PC->GetPawn(), 1000.f, Bot, Bot->GetPawn(), UDamageType::StaticClass());
-							return;
-						}
-					}
-				}
+				APlayerController* PC = Cast<APlayerController>(It->Get());
+				if (PC && PC->GetPawn()) { Target = PC; }
+				AIABotController* Bot = Cast<AIABotController>(It->Get());
+				if (Bot && Bot->GetPawn()) { Shooter = Bot; }
+			}
+			if (Target && Shooter)
+			{
+				UGameplayStatics::ApplyDamage(Target->GetPawn(), 1000.f, Shooter, Shooter->GetPawn(), UDamageType::StaticClass());
 			}
 		}), StartDelay + KillMeAt, false);
 	}

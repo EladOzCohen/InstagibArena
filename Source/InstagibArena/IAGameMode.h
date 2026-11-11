@@ -99,6 +99,7 @@ protected:
 
 	/** Raised for every new match, so that timers of the previous one can recognise that they are stale. */
 	int32 MatchGeneration = 0;
+	int32 NextSlotId = 1;
 	bool bFirstBloodDone = false;
 	int32 LastFragsLeft = 0;
 	uint8 TeamLead[2] = { 0, 0 };

@@ -35,7 +35,7 @@ namespace
 		{
 			return GS->WinnerTeam == IA_NoTeam ? 0 : (GS->WinnerTeam == Me->Team ? 1 : -1);
 		}
-		return GS->WinnerPlayerId < 0 ? 0 : (GS->WinnerPlayerId == Me->GetPlayerId() ? 1 : -1);
+		return GS->WinnerPlayerId < 0 ? 0 : (GS->WinnerPlayerId == Me->SlotId ? 1 : -1);
 	}
 }
 

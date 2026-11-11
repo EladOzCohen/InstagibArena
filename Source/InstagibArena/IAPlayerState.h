@@ -34,6 +34,10 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Character")
 	int32 CharacterIndex = 0;
 
+	/** A number that is unique among everybody in this match (the engine's PlayerId is not for AI players). Set by the game mode. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Score")
+	int32 SlotId = -1;
+
 	// ---- per-match statistics, kept by the server and shown on the scoreboard
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Stats")
