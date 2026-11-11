@@ -13,6 +13,10 @@
 #include "InstagibArena.h"
 #include "EngineUtils.h"
 #include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
+#include "Engine/StaticMeshActor.h"
+#include "GameFramework/HUD.h"
+#include "GameFramework/PlayerStart.h"
 #include "Containers/Ticker.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
@@ -134,6 +138,13 @@ void UIADevSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			}
 		}
 
+		if (FParse::Param(FCommandLine::Get(), TEXT("IAShotAuto")))
+		{
+			bAutoShot = true;
+			AutoShotHandle = FTSTicker::GetCoreTicker().AddTicker(
+				FTickerDelegate::CreateUObject(this, &UIADevSubsystem::AutoShotCamera), 0.25f);
+		}
+
 		ShotHandle = FTSTicker::GetCoreTicker().AddTicker(
 			FTickerDelegate::CreateUObject(this, &UIADevSubsystem::TakeScreenshot), Delay);
 	}
@@ -153,6 +164,7 @@ void UIADevSubsystem::Deinitialize()
 	FTSTicker::GetCoreTicker().RemoveTicker(MoveTestHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ShowroomWalkHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(CameraHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(AutoShotHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ShotHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(QuitHandle);
 	Super::Deinitialize();
@@ -370,10 +382,88 @@ bool UIADevSubsystem::PlaceCamera(float DeltaTime)
 	return true;
 }
 
+bool UIADevSubsystem::AutoShotCamera(float DeltaTime)
+{
+	// Runs every quarter second until the screenshot: a respawn gives the view back to the player's pawn.
+	UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	APlayerController* PC = World ? UGameplayStatics::GetPlayerController(World, 0) : nullptr;
+	if (!World || !PC)
+	{
+		return true;
+	}
+
+	if (!AutoCamera.IsValid())
+	{
+		// Bounds of everything solid that the level is made of.
+		FBox Bounds(ForceInit);
+		int32 MeshCount = 0;
+		for (TActorIterator<AStaticMeshActor> It(World); It; ++It)
+		{
+			const FBox Box = It->GetComponentsBoundingBox();
+			if (Box.IsValid)
+			{
+				Bounds += Box;
+				++MeshCount;
+			}
+		}
+		int32 Starts = 0;
+		for (TActorIterator<APlayerStart> It(World); It; ++It)
+		{
+			++Starts;
+		}
+		if (!Bounds.IsValid)
+		{
+			return true;
+		}
+
+		const FVector Center = Bounds.GetCenter();
+		const FVector Extent = Bounds.GetExtent();
+		const float Radius = Extent.Size();
+		const float Fov = 80.f;
+		const FVector Direction = FVector(-0.60f, -0.60f, 0.52f).GetSafeNormal();
+		const float Distance = Radius / FMath::Tan(FMath::DegreesToRadians(Fov * 0.5f)) * 0.78f;
+		FVector Location = Center + Direction * Distance;
+
+		// A closed hall: stop in front of the wall and look from inside.
+		FHitResult Hit;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(IAShotAuto), false);
+		bool bInside = false;
+		if (World->LineTraceSingleByChannel(Hit, Center, Location, ECC_Visibility, Params))
+		{
+			Location = Hit.ImpactPoint - Direction * 60.f;
+			bInside = true;
+		}
+
+		const FRotator Rotation = (Center - Location).Rotation();
+		ACameraActor* NewCamera = World->SpawnActor<ACameraActor>(Location, Rotation);
+		if (NewCamera)
+		{
+			NewCamera->GetCameraComponent()->SetFieldOfView(bInside ? 100.f : Fov);
+			AutoCamera = NewCamera;
+		}
+		UE_LOG(LogInstagib, Log, TEXT("THUMB_INFO map=%s starts=%d meshes=%d size=%.0f,%.0f,%.0f inside=%d camera=%s"),
+			*World->GetMapName(), Starts, MeshCount, Extent.X * 2.f, Extent.Y * 2.f, Extent.Z * 2.f, bInside ? 1 : 0, *Location.ToCompactString());
+	}
+
+	if (AutoCamera.IsValid() && PC->GetViewTarget() != AutoCamera.Get())
+	{
+		PC->SetViewTarget(AutoCamera.Get());
+	}
+	if (APawn* Pawn = PC->GetPawn())
+	{
+		Pawn->SetActorHiddenInGame(true);
+	}
+	if (AHUD* Hud = PC->GetHUD())
+	{
+		Hud->bShowHUD = false;
+	}
+	return true;
+}
+
 bool UIADevSubsystem::TakeScreenshot(float DeltaTime)
 {
 	const FString Path = FPaths::ProjectSavedDir() / TEXT("IAShots") / (ShotName + TEXT(".png"));
-	FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(Path), /*bShowUI*/ true, /*bAddFilenameSuffix*/ false);
+	FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(Path), /*bShowUI*/ !bAutoShot, /*bAddFilenameSuffix*/ false);
 	UE_LOG(LogInstagib, Log, TEXT("DevSubsystem: screenshot requested -> %s"), *Path);
 
 	QuitHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float)

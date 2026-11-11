@@ -3,6 +3,7 @@
 #include "IAMenuPlayerController.h"
 #include "SIAMainMenu.h"
 #include "IAAudioSubsystem.h"
+#include "IALoadingScreen.h"
 #include "IAMenuStateSubsystem.h"
 #include "IAPlayerCharacter.h"
 #include "Engine/GameInstance.h"
@@ -72,6 +73,14 @@ void AIAMenuPlayerController::BeginPlay()
 	if (FParse::Value(FCommandLine::Get(), TEXT("IAMenuPage="), TestPage))
 	{
 		Menu->ShowPageForTest(TestPage, TestTab);
+	}
+
+	// Developer check: -IALoadingPreview[ -IALoadingMap=/Game/Maps/DM-Foundry] covers the screen with the loading screen.
+	if (FParse::Param(FCommandLine::Get(), TEXT("IALoadingPreview")))
+	{
+		FString LoadingMap;
+		FParse::Value(FCommandLine::Get(), TEXT("IALoadingMap="), LoadingMap);
+		Viewport->AddViewportWidgetContent(IALoadingScreen::MakeWidget(LoadingMap), 100);
 	}
 #endif
 

@@ -66,3 +66,35 @@ namespace IASettings
 	INSTAGIBARENA_API bool IsFullscreen();
 	INSTAGIBARENA_API void ApplyDisplayMode(bool bFullscreen);
 }
+
+// ===================================================================================================
+// MENUS block: video, audio, interface and first-run settings. Append new keys below this line.
+// ===================================================================================================
+namespace IASettings
+{
+	/** Extra scale for the menus on top of the automatic one. 0.8 to 1.5 in steps of 0.1, default 1. */
+	INSTAGIBARENA_API float GetUiScale();
+	INSTAGIBARENA_API void SetUiScale(float Scale);
+
+	/** Motion blur on or off (default on). Applies at once. */
+	INSTAGIBARENA_API bool IsMotionBlurEnabled();
+	INSTAGIBARENA_API void SetMotionBlurEnabled(bool bEnabled);
+
+	/** When true (default) the game is silent while its window is not in front. Applies at once. */
+	INSTAGIBARENA_API bool GetMuteWhenUnfocused();
+	INSTAGIBARENA_API void SetMuteWhenUnfocused(bool bMute);
+
+	/** False until the player has been through the welcome screen. */
+	INSTAGIBARENA_API bool IsTutorialDone();
+	INSTAGIBARENA_API void SetTutorialDone(bool bDone);
+
+	/** The last addresses the player joined, newest first (at most 5). */
+	INSTAGIBARENA_API TArray<FString> GetRecentAddresses();
+	INSTAGIBARENA_API void AddRecentAddress(const FString& Address);
+
+	/** Checks what the player typed on the Join screen. Returns false and fills Problem with a sentence if it cannot work. */
+	INSTAGIBARENA_API bool ValidateJoinAddress(const FString& Address, FText& Problem);
+
+	/** Applies the saved settings that Unreal does not apply by itself (motion blur, sound when unfocused). Called once at start. */
+	INSTAGIBARENA_API void ApplyStartupSettings();
+}

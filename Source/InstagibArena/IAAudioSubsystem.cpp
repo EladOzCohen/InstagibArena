@@ -60,6 +60,9 @@ namespace
 		case EIASound::LeadTie:       return TEXT("/Game/Audio/SFX/S_LeadTie.S_LeadTie");
 		case EIASound::Victory:       return TEXT("/Game/Audio/SFX/S_Victory.S_Victory");
 		case EIASound::Defeat:        return TEXT("/Game/Audio/SFX/S_Defeat.S_Defeat");
+
+		// ---- MENUS block (append new sounds below)
+		case EIASound::UIHover:      return TEXT("/Game/Audio/SFX/S_UiHover.S_UiHover");   // made by gen_audio.py "ui_hover" (not generated yet)
 		}
 		return TEXT("");
 	}

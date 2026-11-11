@@ -46,7 +46,10 @@ enum class EIASound : uint8
 	LeadLose,
 	LeadTie,
 	Victory,
-	Defeat
+	Defeat,
+
+	// ---- MENUS block (append new sounds below)
+	UIHover
 };
 
 UENUM(BlueprintType)
