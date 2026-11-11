@@ -5,6 +5,8 @@ One weapon, one hit, one kill.
 
 ![Main menu](docs/images/menu.png)
 
+**Easiest way to get the game, with pictures and step by step help (English and Hebrew): [eladozcohen.github.io/InstagibArena](https://eladozcohen.github.io/InstagibArena/)**
+
 ## Download and play (Windows)
 
 You do not need to know anything about code.

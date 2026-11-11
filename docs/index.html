@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instagib Arena - free arena shooter for Windows</title>
+<meta name="description" content="A fast, free first-person arena shooter. One weapon, one hit, one kill. Download, install in four clicks, and play alone against bots or with friends.">
+<meta property="og:title" content="Instagib Arena">
+<meta property="og:description" content="One shot. One kill. A free arena shooter for Windows. Download and play in a few minutes.">
+<meta property="og:image" content="web/neon.jpg">
+<style>
+  :root {
+    --bg: #0d1017;
+    --bg2: #141925;
+    --card: #1a2030;
+    --line: #2b3347;
+    --text: #eef1f7;
+    --muted: #aab3c5;
+    --accent: #ffaa00;
+    --accent-dark: #3a2a00;
+    --ok: #4ade80;
+    --blue: #1f6fd0;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans Hebrew", sans-serif;
+    font-size: 18px; line-height: 1.55;
+  }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+  h1, h2, h3 { line-height: 1.15; margin: 0 0 .5em; }
+  h2 { font-size: clamp(1.7rem, 4vw, 2.3rem); }
+  h3 { font-size: 1.25rem; }
+  p { margin: 0 0 1em; }
+  .muted { color: var(--muted); }
+
+  /* language switch: both languages are in the page, one is hidden */
+  html[lang="en"] .he, html[lang="he"] .en { display: none !important; }
+
+  header.top { position: sticky; top: 0; z-index: 10; background: rgba(13,16,23,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 58px; gap: 12px; }
+  .brand { font-weight: 800; letter-spacing: .06em; color: var(--accent); text-decoration: none; font-size: 1.05rem; }
+  .lang { display: flex; gap: 6px; }
+  .lang button { background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: .9rem; cursor: pointer; }
+  .lang button[aria-pressed="true"] { background: var(--accent); color: #1b1200; border-color: var(--accent); font-weight: 700; }
+
+  /* hero */
+  .hero { position: relative; overflow: hidden; padding: 56px 0 40px; text-align: center;
+    background: radial-gradient(ellipse at 50% 0%, #2a2140 0%, rgba(13,16,23,0) 62%), var(--bg); }
+  .hero h1 { font-size: clamp(2.6rem, 8vw, 4.6rem); letter-spacing: .04em; color: var(--accent); margin-bottom: .15em; }
+  .hero .tag { font-size: clamp(1.2rem, 3vw, 1.6rem); margin-bottom: .3em; }
+  .hero .sub { color: var(--muted); max-width: 640px; margin: 0 auto 28px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 12px; background: var(--accent); color: #1b1200; text-decoration: none;
+    font-weight: 800; font-size: 1.4rem; padding: 20px 38px; border-radius: 16px; border: 0; cursor: pointer;
+    box-shadow: 0 10px 34px rgba(255,170,0,.28); transition: transform .12s, box-shadow .12s; }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(255,170,0,.4); }
+  .btn svg { width: 28px; height: 28px; flex: none; }
+  .facts { margin-top: 14px; color: var(--muted); font-size: .95rem; }
+  .facts b { color: var(--text); font-weight: 600; }
+  .notwin { display: none; max-width: 560px; margin: 0 auto 18px; background: #3a2a00; border: 1px solid var(--accent); color: #ffe7b0; border-radius: var(--radius); padding: 14px 18px; text-align: start; }
+  .shot-main { margin: 38px auto 0; max-width: 940px; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 24px 70px rgba(0,0,0,.6); overflow: hidden; }
+  .shot-main img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 8.6; object-fit: cover; object-position: 50% 8%; }
+  .reassure { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 26px; margin-top: 26px; color: var(--muted); font-size: 1rem; }
+  .reassure span::before { content: "✓"; color: var(--ok); font-weight: 800; margin-inline-end: 8px; }
+
+  section { padding: 64px 0; }
+  section.alt { background: var(--bg2); border-block: 1px solid var(--line); }
+  .lead { color: var(--muted); max-width: 720px; font-size: 1.1rem; }
+
+  /* steps */
+  .steps { list-style: none; counter-reset: step; padding: 0; margin: 32px 0 0; display: grid; gap: 22px; }
+  .step { counter-increment: step; display: grid; grid-template-columns: 64px 1fr; gap: 20px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+  .step::before { content: counter(step); display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: #1b1200; font-weight: 800; font-size: 1.6rem; }
+  .step h3 { margin-bottom: .3em; }
+  .step p:last-child { margin-bottom: 0; }
+  .key { display: inline-block; background: #0d1017; border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 8px; padding: 1px 10px; font-weight: 700; white-space: nowrap; }
+  .click { color: var(--accent); font-weight: 800; }
+
+  /* illustrations of the Windows warning */
+  .mocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 16px; margin-top: 18px; }
+  .mock { background: #0b1220; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .mock .cap { font-size: .85rem; color: var(--muted); margin: 0 0 8px; }
+  .win { background: var(--blue); color: #fff; border-radius: 4px; padding: 20px 20px 16px; font-family: "Segoe UI", sans-serif; min-height: 190px; display: flex; flex-direction: column; }
+  .win h4 { margin: 0 0 8px; font-size: 1.15rem; font-weight: 600; }
+  .win p { font-size: .82rem; margin: 0 0 8px; opacity: .95; line-height: 1.4; }
+  .win .more { text-decoration: underline; font-size: .85rem; margin-top: auto; }
+  .win .btns { display: flex; gap: 8px; margin-top: auto; justify-content: flex-end; }
+  .win .wb { background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.6); padding: 5px 12px; font-size: .82rem; }
+  .win .wb.go { background: #fff; color: #0b3a78; font-weight: 700; }
+  .pulse { position: relative; display: inline-block; }
+  .pulse::after { content: ""; position: absolute; inset: -7px -9px; border: 3px solid var(--accent); border-radius: 8px; animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(1.08); } }
+  @media (prefers-reduced-motion: reduce) { .pulse::after { animation: none; } html { scroll-behavior: auto; } .btn { transition: none; } }
+
+  .callout { margin-top: 22px; display: grid; grid-template-columns: 40px 1fr; gap: 14px; background: #10261a; border: 1px solid #1f5a3a; border-radius: var(--radius); padding: 18px 20px; }
+  .callout .ic { font-size: 1.6rem; }
+  .callout p { margin: 0; }
+
+  /* features */
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; margin-top: 28px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+  .card h3 { color: var(--accent); }
+  .card p { color: var(--muted); margin: 0; }
+  .gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 30px; }
+  @media (max-width: 640px) { .gallery { grid-template-columns: 1fr; } }
+  .gallery figure { margin: 0; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); background: var(--card); }
+  .gallery img { display: block; width: 100%; height: auto; }
+  .gallery figcaption { padding: 10px 14px; font-size: .95rem; color: var(--muted); }
+
+  /* friends */
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 28px; }
+  ol.simple { padding-inline-start: 1.3em; margin: 0; }
+  ol.simple li { margin-bottom: .5em; }
+
+  table.keys { width: 100%; border-collapse: collapse; margin-top: 26px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  table.keys td { padding: 12px 18px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.keys tr:last-child td { border-bottom: 0; }
+  table.keys td:first-child { white-space: nowrap; width: 1%; }
+
+  details { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 0; margin-bottom: 12px; }
+  summary { cursor: pointer; padding: 18px 22px; font-weight: 700; font-size: 1.1rem; list-style: none; display: flex; justify-content: space-between; gap: 14px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--accent); font-size: 1.5rem; line-height: 1; }
+  details[open] summary::after { content: "–"; }
+  details .ans { padding: 0 22px 20px; color: var(--muted); }
+  details .ans p:last-child { margin-bottom: 0; }
+
+  .final { text-align: center; }
+  footer { padding: 36px 0 60px; color: var(--muted); font-size: .95rem; text-align: center; border-top: 1px solid var(--line); }
+
+  @media (max-width: 640px) {
+    body { font-size: 17px; }
+    .step { grid-template-columns: 1fr; }
+    .step::before { width: 48px; height: 48px; font-size: 1.3rem; }
+    .btn { width: 100%; font-size: 1.25rem; padding: 18px 20px; }
+    section { padding: 46px 0; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top">INSTAGIB ARENA</a>
+    <div class="lang" role="group" aria-label="Language / שפה">
+      <button type="button" data-set="en" aria-pressed="true">English</button>
+      <button type="button" data-set="he" aria-pressed="false">עברית</button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ============================ HERO ============================ -->
+<div class="hero">
+  <div class="wrap">
+    <h1>INSTAGIB ARENA</h1>
+    <p class="tag en">One shot. One kill.</p>
+    <p class="tag he">ירייה אחת. הריגה אחת.</p>
+    <p class="sub en">A fast, free first-person shooter for Windows. Play alone against bots, or with friends. Download it, install it in four clicks, and you are in a match in a few minutes. No account, no extra software.</p>
+    <p class="sub he">משחק יריות מהיר וחינמי בגוף ראשון ל-Windows. משחקים לבד נגד בוטים או עם חברים. מורידים, מתקינים בארבע לחיצות, ותוך כמה דקות כבר במשחק. בלי הרשמה ובלי תוכנות נוספות.</p>
+
+    <div class="notwin" id="notwin">
+      <span class="en"><b>This game is for Windows computers.</b> It looks like you are on a different device, so open this page on a Windows PC (Windows 10 or 11) to download it.</span>
+      <span class="he"><b>המשחק מיועד למחשבי Windows.</b> נראה שאתה במכשיר אחר, אז פתח את הדף הזה במחשב עם Windows 10 או 11 כדי להוריד אותו.</span>
+    </div>
+
+    <a class="btn" id="dl" href="https://github.com/EladOzCohen/InstagibArena/releases/latest" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16"/></svg>
+      <span class="en">Download for Windows</span><span class="he">הורדה ל-Windows</span>
+    </a>
+    <div class="facts">
+      <span class="en">Free · Version <b id="ver">1.2.0</b> · about <b id="size">316 MB</b> · Windows 10 or 11</span>
+      <span class="he">חינם · גרסה <b class="ver2">1.2.0</b> · כ-<b class="size2">316 MB</b> · Windows 10 או 11</span>
+    </div>
+    <div class="reassure">
+      <span class="en">No account needed</span><span class="he">בלי הרשמה</span>
+      <span class="en">No ads</span><span class="he">בלי פרסומות</span>
+      <span class="en">Open source</span><span class="he">קוד פתוח</span>
+      <span class="en">Installs everything it needs</span><span class="he">מתקין לבד כל מה שהוא צריך</span>
+    </div>
+
+    <div class="shot-main"><img src="web/neon.jpg" width="1280" height="720" alt="A match in Neon Street, a night-time arena with glowing signs"></div>
+  </div>
+</div>
+
+<!-- ============================ INSTALL ============================ -->
+<section class="alt" id="install">
+  <div class="wrap">
+    <h2 class="en">How to install: 4 simple steps</h2>
+    <h2 class="he">איך מתקינים: 4 צעדים פשוטים</h2>
+    <p class="lead en">Takes about two minutes. Windows will show a warning screen once. That is normal and the next step explains it, so do not worry.</p>
+    <p class="lead he">לוקח כשתי דקות. Windows יציג פעם אחת מסך אזהרה. זה רגיל, והצעד השני מסביר אותו, אז אין מה לדאוג.</p>
+
+    <ol class="steps">
+      <li class="step">
+        <div>
+          <h3 class="en">Download the installer</h3><h3 class="he">מורידים את קובץ ההתקנה</h3>
+          <p class="en">Press the big orange <b>Download for Windows</b> button at the top of this page (or <a href="#dl-bottom">here</a>). A file called <span class="key">InstagibArena_Setup</span> starts downloading.</p>
+          <p class="he">לוחצים על הכפתור הכתום הגדול <b>הורדה ל-Windows</b> בראש הדף (או <a href="#dl-bottom">כאן</a>). קובץ בשם <span class="key">InstagibArena_Setup</span> מתחיל להיכנס למחשב.</p>
+          <p class="muted en">If your browser asks whether to keep the file, choose <span class="click">Keep</span>. The file is large, so give it a minute.</p>
+          <p class="muted he">אם הדפדפן שואל אם לשמור את הקובץ, בוחרים <span class="click">שמור (Keep)</span>. הקובץ גדול, אז נותנים לו דקה.</p>
+        </div>
+      </li>
+
+      <li class="step">
+        <div>
+          <h3 class="en">Open the file, and if Windows shows a blue screen, click "More info"</h3>
+          <h3 class="he">פותחים את הקובץ, ואם Windows מציג מסך כחול, לוחצים על "More info"</h3>
+          <p class="en">Open your <b>Downloads</b> folder and double-click the file. You will probably see a <b>blue window</b> that says <i>"Windows protected your PC"</i>. This is not a virus. Windows shows it for every new program from a small developer that has not paid for a digital signature yet. Do this:</p>
+          <p class="he">פותחים את תיקיית <b>הורדות (Downloads)</b> ולוחצים פעמיים על הקובץ. סביר שיופיע <b>חלון כחול</b> עם הכיתוב <i>"Windows protected your PC"</i>. זה לא וירוס. Windows מציג אותו לכל תוכנה חדשה של מפתח קטן שעוד לא שילם על חתימה דיגיטלית. עושים כך:</p>
+
+          <div class="mocks" aria-label="Illustration of the Windows warning / המחשה של האזהרה של Windows">
+            <div class="mock">
+              <p class="cap"><b>A.</b> <span class="en">Click “More info”</span><span class="he">לוחצים על “More info”</span></p>
+              <div class="win" dir="ltr" lang="en">
+                <h4>Windows protected your PC</h4>
+                <p>Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.</p>
+                <span class="more"><span class="pulse">More info</span></span>
+              </div>
+            </div>
+            <div class="mock">
+              <p class="cap"><b>B.</b> <span class="en">Then click “Run anyway”</span><span class="he">ואז לוחצים על “Run anyway”</span></p>
+              <div class="win" dir="ltr" lang="en">
+                <h4>Windows protected your PC</h4>
+                <p>App: InstagibArena_Setup<br>Publisher: Unknown publisher</p>
+                <div class="btns"><span class="wb go pulse">Run anyway</span><span class="wb">Don't run</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="muted en" style="margin-top:12px">The pictures are a simple illustration. Your screen may look a little different, but the words “More info” and “Run anyway” are the same.</p>
+          <p class="muted he" style="margin-top:12px">התמונות הן המחשה פשוטה. אצלך זה עשוי להיראות קצת אחרת, אבל המילים “More info” ו-“Run anyway” זהות.</p>
+          <p class="en">If Windows asks <i>"Do you want to allow this app to make changes?"</i>, click <span class="click">Yes</span>. The installer needs that to put the game in the right place.</p>
+          <p class="he">אם Windows שואל <i>"Do you want to allow this app to make changes?"</i>, לוחצים <span class="click">Yes</span>. ההתקנה צריכה את זה כדי לשים את המשחק במקום הנכון.</p>
+        </div>
+      </li>
+
+      <li class="step">
+        <div>
+          <h3 class="en">Follow the installer: just keep pressing "Next"</h3>
+          <h3 class="he">עוברים על אשף ההתקנה: פשוט ממשיכים ללחוץ "Next"</h3>
+          <p class="en">Choose your language (English or Hebrew), then press <span class="click">Next</span> until it says <span class="click">Install</span>. Leave the boxes as they are. The installer puts the game on your computer and adds everything the game needs, so you do not have to install anything else.</p>
+          <p class="he">בוחרים שפה (עברית או אנגלית), ולוחצים <span class="click">Next</span> עד שמופיע <span class="click">Install</span>. משאירים את התיבות כמו שהן. האשף שם את המשחק במחשב ומוסיף כל מה שהוא צריך, אז אין צורך להתקין שום דבר אחר.</p>
+          <p class="muted en">Tip: keep the box “Allow the game through Windows Firewall” ticked. It is what lets your friends join your games.</p>
+          <p class="muted he">טיפ: משאירים מסומנת את התיבה של חומת האש (Firewall). בזכותה חברים יכולים להצטרף למשחקים שלך.</p>
+        </div>
+      </li>
+
+      <li class="step">
+        <div>
+          <h3 class="en">Press "Quick Play" and you are in</h3>
+          <h3 class="he">לוחצים "Quick Play" וזהו, אתה במשחק</h3>
+          <p class="en">At the end, leave “Launch Instagib Arena” ticked and press <span class="click">Finish</span>. Later you can start the game from the <b>desktop icon</b> or the <b>Start menu</b>. In the main menu, press <span class="click">QUICK PLAY</span> to jump straight into a match against bots.</p>
+          <p class="he">בסוף משאירים מסומן “Launch Instagib Arena” ולוחצים <span class="click">Finish</span>. בהמשך מפעילים את המשחק מ<b>הסמל בשולחן העבודה</b> או מ<b>תפריט התחל</b>. בתפריט הראשי לוחצים <span class="click">QUICK PLAY</span> וקופצים ישר למשחק נגד בוטים.</p>
+        </div>
+      </li>
+    </ol>
+
+    <div class="callout">
+      <div class="ic" aria-hidden="true">🛡️</div>
+      <div>
+        <p class="en"><b>Is it safe?</b> Yes. The whole game is open source: anyone can read exactly what it does, at <a href="https://github.com/EladOzCohen/InstagibArena">github.com/EladOzCohen/InstagibArena</a>. The blue warning appears only because the installer is not digitally signed yet (a signature costs money every year). If you would rather not run it, you can simply not install it. Nothing happens to your computer until you click Run anyway.</p>
+        <p class="he"><b>זה בטוח?</b> כן. כל המשחק הוא קוד פתוח: כל אחד יכול לקרוא בדיוק מה הוא עושה, ב-<a href="https://github.com/EladOzCohen/InstagibArena">github.com/EladOzCohen/InstagibArena</a>. האזהרה הכחולה מופיעה רק כי ההתקנה עוד לא חתומה דיגיטלית (חתימה עולה כסף כל שנה). אם אתה מעדיף לא להריץ, פשוט אל תתקין. שום דבר לא קורה למחשב עד שלוחצים Run anyway.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ WHAT IT IS ============================ -->
+<section>
+  <div class="wrap">
+    <h2 class="en">What is Instagib Arena?</h2><h2 class="he">מה זה Instagib Arena?</h2>
+    <p class="lead en">You have one weapon: a rifle that kills with a single hit. So does everyone else. It is all about fast movement, good aim and quick reactions, in the spirit of classic arena shooters.</p>
+    <p class="lead he">יש לך נשק אחד: רובה שהורג בפגיעה אחת. וגם לכל השאר. הכול תלוי בתנועה מהירה, כוונה טובה ותגובה מהירה, ברוח משחקי הזירה הקלאסיים.</p>
+
+    <div class="grid3">
+      <div class="card"><h3 class="en">8 maps</h3><h3 class="he">8 מפות</h3>
+        <p class="en">From an industrial yard to a neon street, a lava forge, an ice outpost and a huge canyon. Jump pads launch you to the high ground.</p>
+        <p class="he">מחצר תעשייתית ועד רחוב ניאון, מפעל לבה, מוצב קרח וקניון ענק. משטחי קפיצה משגרים אותך לעמדות הגבוהות.</p></div>
+      <div class="card"><h3 class="en">Bots, 3 levels</h3><h3 class="he">בוטים בשלוש רמות</h3>
+        <p class="en">Play against 2 to 10 computer opponents: beginner, intermediate or expert. Perfect for learning.</p>
+        <p class="he">משחקים נגד 2 עד 10 יריבים ממוחשבים: מתחיל, בינוני או מומחה. מושלם ללמידה.</p></div>
+      <div class="card"><h3 class="en">Play with friends</h3><h3 class="he">משחקים עם חברים</h3>
+        <p class="en">One of you hosts a game, the others join with an address. Free for all, or team deathmatch (red vs blue).</p>
+        <p class="he">אחד מכם פותח משחק, והשאר מצטרפים עם כתובת. כולם נגד כולם, או קרב קבוצות (אדום נגד כחול).</p></div>
+      <div class="card"><h3 class="en">Fast, fluid movement</h3><h3 class="he">תנועה מהירה וחלקה</h3>
+        <p class="en">Double jump, dodge, wall dodge, crouch and a slow walk. Animated characters with the rifle in their hands.</p>
+        <p class="he">קפיצה כפולה, דודג', דודג' מהקיר, התכופפות והליכה איטית. דמויות מונפשות עם הרובה בידיים.</p></div>
+      <div class="card"><h3 class="en">15 characters</h3><h3 class="he">15 דמויות</h3>
+        <p class="en">Pick your look in a menu with a live 3D preview.</p>
+        <p class="he">בוחרים מראה בתפריט עם תצוגה מקדימה חיה בתלת מימד.</p></div>
+      <div class="card"><h3 class="en">Made for everyone</h3><h3 class="he">מותאם לכולם</h3>
+        <p class="en">Rebind every key, four crosshair styles, camera comfort options, and menus that work with mouse or keyboard.</p>
+        <p class="he">אפשר לשנות כל מקש, יש ארבעה סוגי כוונת, אפשרויות נוחות למצלמה, ותפריטים שעובדים עם עכבר או מקלדת.</p></div>
+    </div>
+
+    <div class="gallery">
+      <figure><img loading="lazy" src="web/custom_game.jpg" width="1280" height="720" alt="The Custom Game screen showing a map picture"><figcaption class="en">Pick a map, bots and rules</figcaption><figcaption class="he">בוחרים מפה, בוטים וחוקים</figcaption></figure>
+      <figure><img loading="lazy" src="web/canyon.jpg" width="1280" height="720" alt="Canyon, a large desert arena with rope bridges"><figcaption class="en">Canyon</figcaption><figcaption class="he">Canyon, הקניון</figcaption></figure>
+      <figure><img loading="lazy" src="web/glacier.jpg" width="1280" height="720" alt="Glacier, an arctic outpost"><figcaption class="en">Glacier</figcaption><figcaption class="he">Glacier, מוצב הקרח</figcaption></figure>
+      <figure><img loading="lazy" src="web/skyline.jpg" width="1280" height="720" alt="Skyline, a rooftop arena"><figcaption class="en">Skyline (rooftops)</figcaption><figcaption class="he">Skyline (גגות)</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FRIENDS ============================ -->
+<section class="alt" id="friends">
+  <div class="wrap">
+    <h2 class="en">Playing with friends</h2><h2 class="he">משחקים עם חברים</h2>
+    <p class="lead en">Everyone needs the game installed. One person hosts, the others join.</p>
+    <p class="lead he">לכולם צריך להיות המשחק מותקן. אחד פותח משחק, והאחרים מצטרפים.</p>
+    <div class="two">
+      <div class="card"><h3 class="en">The host (one person)</h3><h3 class="he">מי שפותח את המשחק (אחד)</h3>
+        <ol class="simple en"><li>Main menu: <b>Multiplayer</b>, then <b>Host a game</b>.</li><li>Press <b>Host game</b>.</li><li>The screen shows an <b>address</b> (like 192.168.1.20). Tell it to your friends, or press <b>Copy address</b>.</li></ol>
+        <ol class="simple he"><li>בתפריט הראשי: <b>Multiplayer</b>, ואז <b>Host a game</b>.</li><li>לוחצים <b>Host game</b>.</li><li>על המסך מופיעה <b>כתובת</b> (כמו 192.168.1.20). אומרים אותה לחברים, או לוחצים <b>Copy address</b>.</li></ol></div>
+      <div class="card"><h3 class="en">Everyone else</h3><h3 class="he">כל השאר</h3>
+        <ol class="simple en"><li>Main menu: <b>Multiplayer</b>, then <b>Join a game</b>.</li><li>Type the address from the host.</li><li>Press <b>Join game</b>.</li></ol>
+        <ol class="simple he"><li>בתפריט הראשי: <b>Multiplayer</b>, ואז <b>Join a game</b>.</li><li>מקלידים את הכתובת שקיבלתם מהמארח.</li><li>לוחצים <b>Join game</b>.</li></ol></div>
+    </div>
+    <p class="muted en" style="margin-top:20px"><b>Same home network (Wi-Fi)?</b> That is all you need. <b>Friends in other places?</b> The easiest way is for everyone to install the free <a href="https://tailscale.com/">Tailscale</a> app, join the same network, and use the host's address from there.</p>
+    <p class="muted he" style="margin-top:20px"><b>באותה רשת ביתית (Wi-Fi)?</b> זה כל מה שצריך. <b>חברים במקומות אחרים?</b> הדרך הקלה ביותר היא שכולם יתקינו את האפליקציה החינמית <a href="https://tailscale.com/">Tailscale</a>, יצטרפו לאותה רשת, וישתמשו שם בכתובת של המארח.</p>
+  </div>
+</section>
+
+<!-- ============================ CONTROLS ============================ -->
+<section>
+  <div class="wrap">
+    <h2 class="en">Controls</h2><h2 class="he">שליטה</h2>
+    <p class="lead en">You can change any key in Settings, under Controls.</p>
+    <p class="lead he">אפשר לשנות כל מקש בהגדרות, תחת Controls.</p>
+    <table class="keys">
+      <tr><td><span class="key">W</span> <span class="key">A</span> <span class="key">S</span> <span class="key">D</span></td><td><span class="en">Move</span><span class="he">תנועה</span></td></tr>
+      <tr><td><span class="key">Mouse</span></td><td><span class="en">Look around</span><span class="he">להסתכל מסביב</span></td></tr>
+      <tr><td><span class="key">Left click</span></td><td><span class="en">Fire (one hit kills)</span><span class="he">ירי (פגיעה אחת הורגת)</span></td></tr>
+      <tr><td><span class="key">Space</span></td><td><span class="en">Jump. Press twice for a double jump</span><span class="he">קפיצה. פעמיים לקפיצה כפולה</span></td></tr>
+      <tr><td><span class="key">W</span> <span class="key">W</span></td><td><span class="en">Double-tap a direction key to dodge. Dodge next to a wall in the air for a wall dodge</span><span class="he">לחיצה כפולה על מקש כיוון לדודג'. דודג' ליד קיר באוויר נותן דודג' מהקיר</span></td></tr>
+      <tr><td><span class="key">Left Ctrl</span></td><td><span class="en">Crouch (hold)</span><span class="he">התכופפות (להחזיק)</span></td></tr>
+      <tr><td><span class="key">Left Shift</span></td><td><span class="en">Slow, quiet walk (hold)</span><span class="he">הליכה איטית ושקטה (להחזיק)</span></td></tr>
+      <tr><td><span class="key">Tab</span></td><td><span class="en">Scoreboard</span><span class="he">לוח תוצאות</span></td></tr>
+      <tr><td><span class="key">Esc</span></td><td><span class="en">Pause menu (resume, settings, leave the match)</span><span class="he">תפריט השהיה (המשך, הגדרות, יציאה מהמשחק)</span></td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ FAQ ============================ -->
+<section class="alt" id="faq">
+  <div class="wrap">
+    <h2 class="en">Questions and problems</h2><h2 class="he">שאלות ובעיות</h2>
+
+    <details><summary><span class="en">Do I need to install anything else, like Unreal Engine?</span><span class="he">צריך להתקין עוד משהו, כמו Unreal Engine?</span></summary>
+      <div class="ans"><p class="en">No. The installer includes everything. You only need Windows 10 or 11 (64-bit) and a graphics card that supports DirectX 12 (almost every computer from the last several years).</p><p class="he">לא. ההתקנה כוללת הכול. צריך רק Windows 10 או 11 (64 ביט) וכרטיס מסך שתומך ב-DirectX 12 (כמעט כל מחשב מהשנים האחרונות).</p></div></details>
+
+    <details><summary><span class="en">Windows says "Windows protected your PC". What do I do?</span><span class="he">Windows כותב "Windows protected your PC". מה עושים?</span></summary>
+      <div class="ans"><p class="en">Click <b>More info</b>, then <b>Run anyway</b>. See step 2 above, with pictures. It appears because the installer has no paid digital signature yet. The game's code is open for anyone to read.</p><p class="he">לוחצים <b>More info</b> ואז <b>Run anyway</b>. ראה צעד 2 למעלה, עם תמונות. זה מופיע כי להתקנה אין עדיין חתימה דיגיטלית בתשלום. הקוד של המשחק פתוח לקריאה לכל אחד.</p></div></details>
+
+    <details><summary><span class="en">The game is slow or choppy</span><span class="he">המשחק איטי או מקרטע</span></summary>
+      <div class="ans"><p class="en">Open <b>Settings</b>, then <b>Video</b>. Lower the <b>Quality</b>, lower the resolution, or turn <b>Motion blur</b> off. Close other heavy programs while you play. A laptop should be plugged in.</p><p class="he">פותחים <b>Settings</b>, ואז <b>Video</b>. מורידים את <b>Quality</b>, מקטינים את הרזולוציה או מכבים את <b>Motion blur</b>. סוגרים תוכנות כבדות אחרות בזמן המשחק. מחשב נייד צריך להיות מחובר לחשמל.</p></div></details>
+
+    <details><summary><span class="en">My friends cannot join my game</span><span class="he">החברים שלי לא מצליחים להצטרף</span></summary>
+      <div class="ans"><p class="en">Check that: (1) you all have the same version of the game, (2) the host ticked the Windows Firewall box during installation (or allows the game when Windows asks), (3) you typed the address exactly as shown, and (4) you are on the same Wi-Fi, or use a free tool like Tailscale if you are in different places.</p><p class="he">בודקים: (1) לכולם אותה גרסה של המשחק, (2) המארח סימן את תיבת חומת האש בהתקנה (או אישר למשחק כש-Windows שאל), (3) הקלדתם את הכתובת בדיוק כמו שהיא מוצגת, (4) אתם על אותו Wi-Fi, או משתמשים בכלי חינמי כמו Tailscale אם אתם במקומות שונים.</p></div></details>
+
+    <details><summary><span class="en">How do I uninstall it?</span><span class="he">איך מסירים את ההתקנה?</span></summary>
+      <div class="ans"><p class="en">Windows Settings, then <b>Apps</b>, find <b>Instagib Arena</b> and click <b>Uninstall</b>. It removes the game and its Firewall rule.</p><p class="he">בהגדרות Windows נכנסים ל-<b>Apps</b>, מוצאים את <b>Instagib Arena</b> ולוחצים <b>Uninstall</b>. זה מסיר את המשחק ואת חוק חומת האש שלו.</p></div></details>
+
+    <details><summary><span class="en">Is there a Mac or phone version?</span><span class="he">יש גרסה ל-Mac או לטלפון?</span></summary>
+      <div class="ans"><p class="en">Not yet. For now the game is only for Windows PCs.</p><p class="he">עדיין לא. כרגע המשחק רק למחשבי Windows.</p></div></details>
+
+    <details><summary><span class="en">Something else is wrong, or I have an idea</span><span class="he">יש בעיה אחרת, או רעיון</span></summary>
+      <div class="ans"><p class="en">Please tell us: <a href="https://github.com/EladOzCohen/InstagibArena/issues/new">open an issue on GitHub</a>. Write what happened and what you expected.</p><p class="he">נשמח לשמוע: <a href="https://github.com/EladOzCohen/InstagibArena/issues/new">פותחים דיווח ב-GitHub</a>. כותבים מה קרה ומה ציפית שיקרה.</p></div></details>
+  </div>
+</section>
+
+<!-- ============================ FINAL CTA ============================ -->
+<section class="final" id="dl-bottom">
+  <div class="wrap">
+    <h2 class="en">Ready to play?</h2><h2 class="he">מוכנים לשחק?</h2>
+    <p class="lead en" style="margin-inline:auto">Download, install, press Quick Play.</p>
+    <p class="lead he" style="margin-inline:auto">מורידים, מתקינים, לוחצים Quick Play.</p>
+    <a class="btn" id="dl2" href="https://github.com/EladOzCohen/InstagibArena/releases/latest" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16"/></svg>
+      <span class="en">Download for Windows</span><span class="he">הורדה ל-Windows</span>
+    </a>
+    <div class="facts"><span class="en">Free · Version <b class="ver2">1.2.0</b> · about <b class="size2">316 MB</b></span><span class="he">חינם · גרסה <b class="ver2">1.2.0</b> · כ-<b class="size2">316 MB</b></span></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="en">Instagib Arena is a free fan project in the spirit of classic arena shooters, built with Unreal Engine 5. Open source (MIT). Character models by Epic Games.</p>
+    <p class="he">Instagib Arena הוא פרויקט חופשי של מעריצים, ברוח משחקי הזירה הקלאסיים, שנבנה עם Unreal Engine 5. קוד פתוח (MIT). דגמי הדמויות מאת Epic Games.</p>
+    <p><a href="https://github.com/EladOzCohen/InstagibArena">GitHub</a> · <a href="https://github.com/EladOzCohen/InstagibArena/releases">All versions</a> · <a href="https://github.com/EladOzCohen/InstagibArena/issues">Report a problem</a></p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var repo = "EladOzCohen/InstagibArena";
+  var root = document.documentElement;
+
+  /* language: remembered choice, else the browser's language */
+  function setLang(l) {
+    root.lang = l; root.dir = l === "he" ? "rtl" : "ltr";
+    document.title = l === "he" ? "Instagib Arena - משחק יריות חינמי ל-Windows" : "Instagib Arena - free arena shooter for Windows";
+    document.querySelectorAll(".lang button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.set === l)); });
+    try { localStorage.setItem("ia-lang", l); } catch (e) {}
+  }
+  var saved = null; try { saved = localStorage.getItem("ia-lang"); } catch (e) {}
+  var asked = null; try { asked = new URLSearchParams(location.search).get("lang"); } catch (e) {}   /* ?lang=he or ?lang=en */
+  var first = (asked === "he" || asked === "en") ? asked : (saved || ((navigator.language || "").toLowerCase().indexOf("he") === 0 ? "he" : "en"));
+  setLang(first);
+  document.querySelectorAll(".lang button").forEach(function (b) { b.addEventListener("click", function () { setLang(b.dataset.set); }); });
+
+  /* not on Windows: say so, but still allow the download */
+  var ua = navigator.userAgent || "";
+  if (!/Windows/i.test(ua)) document.getElementById("notwin").style.display = "block";
+
+  /* a direct link to the newest installer, with its version and size */
+  fetch("https://api.github.com/repos/" + repo + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+    .then(function (rel) {
+      var asset = (rel.assets || []).filter(function (a) { return /Setup.*\.exe$/i.test(a.name); })[0];
+      if (!asset) return;
+      ["dl", "dl2"].forEach(function (id) { document.getElementById(id).href = asset.browser_download_url; });
+      var v = (rel.tag_name || "").replace(/^v/i, "");
+      var mb = Math.round(asset.size / 1000000) + " MB";
+      if (v) { document.getElementById("ver").textContent = v; document.querySelectorAll(".ver2").forEach(function (e) { e.textContent = v; }); }
+      document.getElementById("size").textContent = mb; document.querySelectorAll(".size2").forEach(function (e) { e.textContent = mb; });
+    })
+    .catch(function () { /* keep the link to the releases page */ });
+})();
+</script>
+</body>
+</html>
