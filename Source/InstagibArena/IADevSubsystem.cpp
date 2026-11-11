@@ -42,6 +42,20 @@ void UIADevSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		AutoFireHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UIADevSubsystem::AutoFire), FireEvery);
 	}
 
+	if (FParse::Param(FCommandLine::Get(), TEXT("IAReport")))
+	{
+		FrameStatHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float Dt)
+		{
+			FrameTimeMax = FMath::Max(FrameTimeMax, Dt);
+			FrameTimeSum += Dt;
+			++FrameTimeCount;
+			if (Dt > 0.1f)
+			{
+				++FrameHitches;
+			}
+			return true;
+		}), 0.f);
+	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("IAMoveTest")))
 	{
 		MoveTestHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UIADevSubsystem::MoveTest), 0.f);
@@ -133,6 +147,7 @@ void UIADevSubsystem::Deinitialize()
 	FTSTicker::GetCoreTicker().RemoveTicker(AutoFireHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(FireHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ShowroomHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(FrameStatHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(MoveTestHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ShowroomWalkHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(CameraHandle);
@@ -239,6 +254,12 @@ bool UIADevSubsystem::Report(float DeltaTime)
 	UE_LOG(LogInstagib, Log, TEXT("REPORT %s clock=%d red=%d blue=%d over=%d players=%d pawns=%d local=%s :: %s"),
 		Net, Clock, Red, Blue, bOver ? 1 : 0, Count, Pawns, *Local, *Players);
 	UE_LOG(LogInstagib, Log, TEXT("HUMANS %s clock=%d %s"), Net, Clock, *Humans);
+	UE_LOG(LogInstagib, Log, TEXT("FRAMES %s clock=%d avg=%.1f ms max=%.1f ms over100ms=%d (frames=%d)"), Net, Clock,
+		FrameTimeCount > 0 ? FrameTimeSum / FrameTimeCount * 1000.f : 0.f, FrameTimeMax * 1000.f, FrameHitches, FrameTimeCount);
+	FrameTimeMax = 0.f;
+	FrameTimeSum = 0.f;
+	FrameTimeCount = 0;
+	FrameHitches = 0;
 	return true;
 }
 
@@ -517,10 +538,20 @@ bool UIADevSubsystem::ShowroomWalk(float DeltaTime)
 	// Showroom pawns walk on the spot in different directions (they are put back every now and then).
 	ShowroomWalkTime += DeltaTime;
 	ShowroomResetTimer += DeltaTime;
-	const bool bReset = ShowroomResetTimer > 0.6f;
+	const bool bReset = ShowroomResetTimer > 0.2f;
 	if (bReset)
 	{
 		ShowroomResetTimer = 0.f;
+	}
+
+	// The second pawn jumps shortly before the screenshot (-IAShowroomJump), to look at the air pose.
+	if (!bMoveTestJumped && ShowroomWalkTime > 5.3f && FParse::Param(FCommandLine::Get(), TEXT("IAShowroomJump")))
+	{
+		bMoveTestJumped = true;
+		if (AIAPlayerCharacter* Jumper = ShowroomPawns.IsValidIndex(1) ? ShowroomPawns[1].Get() : nullptr)
+		{
+			Jumper->Jump();
+		}
 	}
 
 	static const FVector2D Dirs[8] = {
@@ -539,7 +570,10 @@ bool UIADevSubsystem::ShowroomWalk(float DeltaTime)
 		Pawn->AddMovementInput(Pawn->GetActorRightVector(), D.Y);
 		if (bReset && ShowroomHome.IsValidIndex(Index))
 		{
-			Pawn->SetActorLocation(ShowroomHome[Index], false, nullptr, ETeleportType::TeleportPhysics);
+			// Back to the spot, but at the height the pawn has now (so that it stays on the floor, or in its jump).
+			FVector Home = ShowroomHome[Index];
+			Home.Z = Pawn->GetActorLocation().Z;
+			Pawn->SetActorLocation(Home, false, nullptr, ETeleportType::TeleportPhysics);
 		}
 	}
 	return true;

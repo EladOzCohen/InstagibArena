@@ -11,6 +11,7 @@
 #include "IASettings.h"
 #include "IAImpactEffect.h"
 #include "IAAnimInstance.h"
+#include "Engine/DamageEvents.h"
 #include "IAHUD.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"

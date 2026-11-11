@@ -76,6 +76,13 @@ private:
 	bool bMoveTestJumped = false;
 	bool bMoveTestDodged = false;
 	TArray<TWeakObjectPtr<class AIAPlayerCharacter>> ShowroomPawns;
+	// Frame time statistics for the report lines (hitch check with many bots).
+	FTSTicker::FDelegateHandle FrameStatHandle;
+	float FrameTimeMax = 0.f;
+	float FrameTimeSum = 0.f;
+	int32 FrameTimeCount = 0;
+	int32 FrameHitches = 0;
+
 	TArray<FVector> ShowroomHome;
 	float ShowroomWalkTime = 0.f;
 	float ShowroomResetTimer = 0.f;
