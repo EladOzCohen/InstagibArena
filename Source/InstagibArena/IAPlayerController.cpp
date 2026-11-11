@@ -5,8 +5,16 @@
 #include "IAAudioSubsystem.h"
 #include "IAHUD.h"
 #include "IAInputConfig.h"
+#include "IACharacterRoster.h"
+#include "IAGameMode.h"
+#include "IAGameState.h"
+#include "IAPlayerCharacter.h"
+#include "IAPlayerState.h"
+#include "SIAMatchResults.h"
 #include "SIAPauseMenu.h"
+#include "Camera/CameraActor.h"
 #include "Engine/GameViewportClient.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Engine/World.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "EnhancedInputComponent.h"
@@ -127,6 +135,8 @@ void AIAPlayerController::BeginPlay()
 void AIAPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	ClosePause();
+	HideResults();
+	EndDeathCamera();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -188,12 +198,221 @@ void AIAPlayerController::ClosePause()
 	bMenuOpen = false;
 	ResetIgnoreLookInput();
 	ResetIgnoreMoveInput();
-	SetShowMouseCursor(false);
-	SetInputMode(FInputModeGameOnly());
+	ApplyInputMode();
 }
 
 void AIAPlayerController::ReturnToMenu()
 {
 	ClosePause();
+	HideResults();
 	ClientTravel(IAMaps::MenuPath, TRAVEL_Absolute);
+}
+
+// ---------------------------------------------------------------- match flow
+
+void AIAPlayerController::ApplyInputMode()
+{
+	if (!IsLocalController() || bMenuOpen)
+	{
+		return;
+	}
+	if (ResultsScreen.IsValid())
+	{
+		// The results screen needs the mouse.
+		SetShowMouseCursor(true);
+		FInputModeGameAndUI InputMode;
+		InputMode.SetWidgetToFocus(ResultsScreen);
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		InputMode.SetHideCursorDuringCapture(false);
+		SetInputMode(InputMode);
+	}
+	else
+	{
+		SetShowMouseCursor(false);
+		SetInputMode(FInputModeGameOnly());
+	}
+}
+
+void AIAPlayerController::ShowResults()
+{
+	UGameViewportClient* Viewport = GetWorld() ? GetWorld()->GetGameViewport() : nullptr;
+	if (ResultsScreen.IsValid() || !IsLocalController() || !Viewport)
+	{
+		return;
+	}
+
+	ResultsScreen = SNew(SIAMatchResults)
+		.OwnerController(this)
+		.OnPlayAgain([this]() { RequestPlayAgain(); })
+		.OnMainMenu([this]() { ReturnToMenu(); });
+	Viewport->AddViewportWidgetContent(ResultsScreen.ToSharedRef(), 12);
+	ApplyInputMode();
+}
+
+void AIAPlayerController::HideResults()
+{
+	if (!ResultsScreen.IsValid())
+	{
+		return;
+	}
+	if (UGameViewportClient* Viewport = GetWorld() ? GetWorld()->GetGameViewport() : nullptr)
+	{
+		Viewport->RemoveViewportWidgetContent(ResultsScreen.ToSharedRef());
+	}
+	ResultsScreen.Reset();
+	ApplyInputMode();
+}
+
+void AIAPlayerController::RequestPlayAgain()
+{
+	if (HasAuthority())
+	{
+		if (AIAGameMode* GM = GetWorld()->GetAuthGameMode<AIAGameMode>())
+		{
+			GM->StartNewMatch();
+		}
+	}
+}
+
+void AIAPlayerController::OnPhaseChanged(uint8 NewPhase)
+{
+	const bool bEnded = NewPhase == static_cast<uint8>(EIAMatchPhase::Ended);
+	bMatchFrozen = bEnded;
+	if (bEnded)
+	{
+		EndDeathCamera();
+		ShowResults();
+	}
+	else
+	{
+		HideResults();
+	}
+}
+
+void AIAPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (const AIAGameState* GS = GetWorld() ? GetWorld()->GetGameState<AIAGameState>() : nullptr)
+	{
+		const uint8 Phase = static_cast<uint8>(GS->Phase);
+		if (Phase != LastPhase)
+		{
+			LastPhase = Phase;
+			OnPhaseChanged(Phase);
+		}
+	}
+
+	UpdateDeathCamera();
+}
+
+// ---------------------------------------------------------------- death camera
+
+void AIAPlayerController::ClientYouDied_Implementation(APlayerState* KillerState, APawn* KillerPawn, FVector KillerLocation, FVector VictimLocation, FRotator VictimView, float RespawnDelay)
+{
+	if (!IsLocalController() || !GetWorld())
+	{
+		return;
+	}
+
+	EndDeathCamera();
+	Death = FDeathInfo();
+	Death.bActive = true;
+	Death.StartTime = GetWorld()->GetTimeSeconds();
+	Death.Duration = RespawnDelay;
+	Death.VictimLocation = VictimLocation;
+	Death.KillerPawn = KillerPawn;
+	Death.KillerLocation = KillerLocation;
+	DeathStartView = VictimView;
+
+	if (const AIAPlayerState* Killer = Cast<AIAPlayerState>(KillerState))
+	{
+		Death.bHasKiller = true;
+		Death.KillerName = Killer->GetPlayerName();
+		Death.KillerCharacter = Killer->CharacterIndex;
+		Death.KillerTeam = Killer->Team;
+	}
+
+	// The camera starts where the eyes were, then pulls back and turns toward the killer.
+	FVector Target;
+	if (Death.bHasKiller)
+	{
+		const FVector Away = (VictimLocation - KillerLocation).GetSafeNormal2D();
+		Target = VictimLocation + Away * 230.f + FVector(0.f, 0.f, 95.f);
+	}
+	else
+	{
+		Target = VictimLocation - DeathStartView.Vector().GetSafeNormal2D() * 220.f + FVector(0.f, 0.f, 120.f);
+	}
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(DeathCam), false);
+	if (GetWorld()->LineTraceSingleByChannel(Hit, VictimLocation, Target, ECC_Visibility, Params))
+	{
+		Target = VictimLocation + (Target - VictimLocation) * FMath::Max(0.f, Hit.Time - 0.08f);
+	}
+	DeathCameraTarget = Target;
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	if (ACameraActor* Camera = GetWorld()->SpawnActor<ACameraActor>(VictimLocation, VictimView, SpawnParams))
+	{
+		DeathCamera = Camera;
+		SetViewTarget(Camera);
+	}
+}
+
+void AIAPlayerController::UpdateDeathCamera()
+{
+	if (!Death.bActive || !GetWorld())
+	{
+		return;
+	}
+
+	const float Elapsed = GetWorld()->GetTimeSeconds() - Death.StartTime;
+
+	// A new body ends it (the engine gives the view back to the pawn).
+	const AIAPlayerCharacter* Body = Cast<AIAPlayerCharacter>(GetPawn());
+	if ((Body && !Body->IsDead() && Elapsed > 0.3f) || Elapsed > Death.Duration + 4.f)
+	{
+		EndDeathCamera();
+		return;
+	}
+
+	ACameraActor* Camera = DeathCamera.Get();
+	if (!Camera)
+	{
+		return;
+	}
+
+	if (const APawn* KillerPawn = Death.KillerPawn.Get())
+	{
+		Death.KillerLocation = KillerPawn->GetActorLocation();
+	}
+
+	const float Blend = FMath::InterpEaseInOut(0.f, 1.f, FMath::Clamp((Elapsed - 0.3f) / 0.8f, 0.f, 1.f), 2.f);
+	const FVector Position = FMath::Lerp(Death.VictimLocation, DeathCameraTarget, Blend);
+	const FVector LookAt = Death.bHasKiller ? Death.KillerLocation + FVector(0.f, 0.f, 40.f) : Death.VictimLocation - FVector(0.f, 0.f, 50.f);
+	const FRotator LookRotation = UKismetMathLibrary::FindLookAtRotation(Position, LookAt);
+	const FRotator Rotation = FQuat::Slerp(DeathStartView.Quaternion(), LookRotation.Quaternion(), Blend).Rotator();
+	Camera->SetActorLocationAndRotation(Position, Rotation);
+}
+
+void AIAPlayerController::EndDeathCamera()
+{
+	Death.bActive = false;
+	if (ACameraActor* Camera = DeathCamera.Get())
+	{
+		if (GetViewTarget() == Camera)
+		{
+			// Back to the pawn if there is one; the engine does it on the next possession otherwise.
+			SetViewTarget(GetPawn() ? static_cast<AActor*>(GetPawn()) : static_cast<AActor*>(this));
+		}
+		Camera->Destroy();
+	}
+	DeathCamera.Reset();
 }

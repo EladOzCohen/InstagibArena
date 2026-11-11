@@ -26,7 +26,25 @@ enum class EIASound : uint8
 	UIClick,
 	UIStart,
 	MatchStart,
-	MatchEnd
+	MatchEnd,
+
+	// ---- match HUD cues (Tools/gen_audio.py hud_cues)
+	CountdownTick,
+	CountdownGo,
+	ClockTick,
+	Warning,
+	FirstBlood,
+	MedalLow,
+	MedalMid,
+	MedalHigh,
+	StreakLow,
+	StreakMid,
+	StreakHigh,
+	LeadGain,
+	LeadLose,
+	LeadTie,
+	Victory,
+	Defeat
 };
 
 UENUM(BlueprintType)
