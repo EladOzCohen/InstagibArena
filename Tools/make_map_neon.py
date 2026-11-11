@@ -189,7 +189,8 @@ for i in range(30):
 
 # ---------------------------------------------------------------- spawns
 # tall partitions (billboard walls) that break the long sight lines of the street
-for i, (x, y0, y1, mat) in enumerate([(-1000, -800, -150, pink), (1000, 150, 800, cyan)]):
+for i, (x, y0, y1, mat) in enumerate([(-1000, -800, -150, pink), (1000, 150, 800, cyan), (-1400, -800, -350, lime),
+                                      (400, 600, 800, amber), (-400, -800, -600, amber)]):
     m.box("Partition_%d" % i, x, (y0 + y1) / 2, 140, 40, y1 - y0, 280, mat=brick)
     m.box("PartitionGlow_%d" % i, x + 22, (y0 + y1) / 2, 200, 6, y1 - y0 - 60, 24, mat=mat, solid=False)
     m.box("PartitionGlowB_%d" % i, x - 22, (y0 + y1) / 2, 200, 6, y1 - y0 - 60, 24, mat=mat, solid=False)
