@@ -324,15 +324,52 @@ namespace IASettings
 			return false;
 		}
 
-		// A bracketed IPv6 address, or a bare one (several colons), is accepted as it is.
+		// A port is whole digits only, from 1 to 65535.
+		auto IsValidPort = [](const FString& PortText)
+		{
+			if (PortText.IsEmpty() || PortText.Len() > 5)
+			{
+				return false;
+			}
+			for (const TCHAR Char : PortText)
+			{
+				if (!FChar::IsDigit(Char))
+				{
+					return false;
+				}
+			}
+			const int32 Port = FCString::Atoi(*PortText);
+			return Port >= 1 && Port <= 65535;
+		};
+		const FText BadPort = INVTEXT("The port must be a whole number from 1 to 65535. Example: 192.168.1.20:7777");
+
 		int32 ColonCount = 0;
 		for (const TCHAR Char : Text)
 		{
 			ColonCount += (Char == TEXT(':')) ? 1 : 0;
 		}
-		if (Text.StartsWith(TEXT("[")) || ColonCount > 1)
+
+		// An IPv6 address must be in square brackets, with an optional port: [::1] or [::1]:7777.
+		if (Text.StartsWith(TEXT("[")))
 		{
+			int32 Close = INDEX_NONE;
+			if (!Text.FindChar(TEXT(']'), Close) || Close < 2)
+			{
+				Problem = INVTEXT("An IPv6 address needs a closing bracket. Example: [::1]:7777");
+				return false;
+			}
+			const FString Rest = Text.Mid(Close + 1);
+			if (!Rest.IsEmpty() && (!Rest.StartsWith(TEXT(":")) || !IsValidPort(Rest.Mid(1))))
+			{
+				Problem = BadPort;
+				return false;
+			}
 			return true;
+		}
+		if (ColonCount > 1)
+		{
+			Problem = INVTEXT("Put an IPv6 address in square brackets, for example [::1]:7777. IPv4 addresses and host names need no brackets.");
+			return false;
 		}
 
 		// "host" or "host:port".
@@ -341,9 +378,9 @@ namespace IASettings
 		{
 			FString PortText;
 			Text.Split(TEXT(":"), &Host, &PortText);
-			if (!PortText.IsNumeric() || PortText.Len() > 5 || FCString::Atoi(*PortText) < 1 || FCString::Atoi(*PortText) > 65535)
+			if (!IsValidPort(PortText))
 			{
-				Problem = INVTEXT("The port must be a number from 1 to 65535. Example: 192.168.1.20:7777");
+				Problem = BadPort;
 				return false;
 			}
 		}
