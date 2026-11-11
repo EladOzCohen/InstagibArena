@@ -1,5 +1,11 @@
 # FEEL engineer handoff
 
+## FINAL STATE (supersedes the sections below where they disagree)
+Everything is built and verified: build green; showroom poses (jog, strafe, jump, idle, aim pitch) look right; all 15 looks checked
+(-IAShowroomFrom=0/5/10, accessories still fit); scorch decals appear (M_Scorch generated, committed asset under Content/Materials);
+10 bots windowed: 36 ms with 10 bots vs 33 ms with 0 bots (machine-limited, no hitches); headless matches Foundry 100 frags, Dock 90, Temple 102, Skyline 154, no errors;
+host+client movement test on Skyline: 0 corrections, no LogNet warnings, MOVETEST_DONE. Not verified: packaged Shipping build, camera effects only seen in motion-blurred screenshots.
+
 Branch: `worktree-agent-a95c2ed04ef78f716` (based on main a3fa032).
 
 ## Compile state
