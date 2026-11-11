@@ -23,7 +23,7 @@ struct INSTAGIBARENA_API FIAMatchSetup
 namespace IASettings
 {
 	/** Shown in the main menu. Keep in step with the installer's AppVersion. */
-	inline const TCHAR* const GameVersion = TEXT("1.1.0");
+	inline const TCHAR* const GameVersion = TEXT("1.2.0");
 
 	INSTAGIBARENA_API float GetMouseSensitivity();            // 0.1 to 3, default 1
 	INSTAGIBARENA_API void SetMouseSensitivity(float Value);

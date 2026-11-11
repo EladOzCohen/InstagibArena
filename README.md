@@ -9,7 +9,7 @@ One weapon, one hit, one kill.
 
 You do not need to know anything about code.
 
-1. Open the **[Releases page](../../releases/latest)** and download **`InstagibArena_Setup_1.1.0.exe`**.
+1. Open the **[Releases page](../../releases/latest)** and download **`InstagibArena_Setup_1.2.0.exe`**.
 2. Run it and follow the wizard. It installs the game and everything the game needs
    (the Microsoft Visual C++ runtime, and optionally a Windows Firewall rule so friends can join your games).
 3. If Windows shows a blue "Windows protected your PC" screen, click **More info** and then **Run anyway**.
@@ -19,7 +19,7 @@ You do not need to know anything about code.
 Requirements: Windows 10 or 11 (64-bit) and a graphics card that supports DirectX 12.
 
 ### עברית - בקצרה
-1. נכנסים לעמוד **Releases** ומורידים את `InstagibArena_Setup_1.1.0.exe`.
+1. נכנסים לעמוד **Releases** ומורידים את `InstagibArena_Setup_1.2.0.exe`.
 2. מפעילים ועוברים על אשף ההתקנה. הוא מתקין את המשחק ואת כל מה שהוא צריך.
 3. אם Windows מציג מסך כחול - לוחצים **More info** ואז **Run anyway** (ההתקנה לא חתומה דיגיטלית).
 4. פותחים את **Instagib Arena** מהסמל בשולחן העבודה.
@@ -35,16 +35,22 @@ Requirements: Windows 10 or 11 (64-bit) and a graphics card that supports Direct
 ## What is in the game
 
 - **Instagib** rifle: hitscan, one hit kills. Glowing beams, spark bursts, a hit marker and kill messages.
-- **UT-style movement:** double jump, dodge (double-tap a direction) and wall dodge.
+- **UT-style movement:** double jump, dodge (double-tap a direction), wall dodge, crouch and a slow walk. Smooth camera with head bob, a lean when strafing and a dip on landing (each can be switched off in the settings).
+- **Animated characters:** walking and running in eight directions, jump, fall and crouch poses, the rifle in the hands, and a body that collapses when it is hit. Scorch marks stay on walls and floors.
+- **A complete match:** a 5 second warm-up with a 3-2-1 countdown, live play, a results screen (rank, kills, deaths, accuracy, best streak) and a quick rematch. Medals for multi-kills, killing sprees and first blood, a kill feed, and a short protection after you respawn.
 - **Free for all** and **team deathmatch** (red vs blue), with a score limit, a time limit, or both.
 - **Bots** (2 to 10) at three skill levels: beginner, intermediate and expert.
 - **15 characters** with their own looks, picked in a menu with a live 3D preview.
-- **4 maps:** Foundry (industrial), Sunken Temple, Orbital Dock and Skyline (rooftops, falling kills).
+- **8 maps:** Foundry (industrial), Sunken Temple, Orbital Dock, Skyline (rooftops, falling kills), Neon Street (night city duel),
+  Forge (lava), Glacier (ice) and Canyon (huge, with jump pads to the spires).
 - **Online multiplayer** for you and your friends (host a game, others join by address).
 - **Sound and music:** footsteps, weapons, hit feedback and three music tracks, with volume settings.
 - **A proper main menu:** Quick Play, Custom Game, Multiplayer (host or join, with your address shown), Character
-  with a 3D preview, Settings (name, volumes, mouse sensitivity, field of view, fullscreen), Credits, and a pause menu
+  with a 3D preview, Settings in tabs (gameplay, video, audio, controls), Credits, and a pause menu
   during matches. It works with the mouse and the keyboard, and remembers your choices.
+- **Settings you would expect:** rebind every key, four crosshair styles with colour and size, field of view, mouse
+  sensitivity, display mode and resolution (with a "keep these settings?" countdown), VSync, frame limit, quality, UI scale,
+  volumes, and camera comfort options.
 
 | | |
 |---|---|
@@ -65,6 +71,8 @@ Requirements: Windows 10 or 11 (64-bit) and a graphics card that supports Direct
 | Space | Jump (press twice for a double jump) |
 | Double-tap W / A / S / D | Dodge |
 | Dodge next to a wall in the air | Wall dodge |
+| Left Ctrl (hold) | Crouch |
+| Left Shift (hold) | Slow walk (quiet and precise) |
 | Left mouse button | Fire |
 | Tab | Scoreboard |
 | Esc | Pause menu (resume, settings, leave the match, quit). In the main menu: back one screen |
