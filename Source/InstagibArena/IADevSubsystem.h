@@ -62,4 +62,21 @@ private:
 	FVector CameraLocation = FVector::ZeroVector;
 	FRotator CameraRotation = FRotator::ZeroRotator;
 	FString ShotName = TEXT("shot_00");
+
+	// ---- FEEL: scripted movement test (-IAMoveTest) and showroom walk (-IAShowroomWalk)
+	bool MoveTest(float DeltaTime);
+	bool ShowroomWalk(float DeltaTime);
+
+	FTSTicker::FDelegateHandle MoveTestHandle;
+	FTSTicker::FDelegateHandle ShowroomWalkHandle;
+	int32 MoveTestStep = -1;
+	float MoveTestStepTime = 0.f;
+	float MoveTestLogTimer = 0.f;
+	float MoveTestYaw = 0.f;
+	bool bMoveTestJumped = false;
+	bool bMoveTestDodged = false;
+	TArray<TWeakObjectPtr<class AIAPlayerCharacter>> ShowroomPawns;
+	TArray<FVector> ShowroomHome;
+	float ShowroomWalkTime = 0.f;
+	float ShowroomResetTimer = 0.f;
 };

@@ -35,11 +35,11 @@ public:
 
 	/** Horizontal speed given by a ground dodge. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dodge")
-	float DodgeSpeed = 880.f;
+	float DodgeSpeed = 800.f;
 
 	/** Upward speed given by a ground dodge. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dodge")
-	float DodgeVerticalSpeed = 300.f;
+	float DodgeVerticalSpeed = 280.f;
 
 	/** Minimum seconds between dodges. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dodge")
