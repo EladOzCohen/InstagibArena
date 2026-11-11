@@ -430,6 +430,16 @@ def render_song(name, spec):
     write_wav(os.path.join(OUT, "music", "%s.wav" % name), left, right)
 
 
+# ---- MENUS block: sounds for the menus (append below this line, above main)
+
+def ui_hover():
+    """A very short, quiet tick for the pointer moving onto a button."""
+    n = int(0.035 * SR)
+    return normalize([
+        math.sin(TAU * 2300 * (i / SR)) * math.exp(-(i / SR) * 140) * min(1.0, (i / SR) / 0.002)
+        for i in range(n)], 0.28)
+
+
 # ------------------------------------------------------------------------- main
 
 def main():
@@ -452,6 +462,8 @@ def main():
         "ui_start": ui_start(),
         "match_start": match_start(),
         "match_end": match_end(),
+        # ---- MENUS block (append new sounds below)
+        "ui_hover": ui_hover(),
     }
     print("Sound effects:")
     for name, samples in sfx.items():

@@ -160,7 +160,7 @@ namespace IAMenu
 		for (const EUINavigation Direction : { EUINavigation::Left, EUINavigation::Right, EUINavigation::Up, EUINavigation::Down,
 			EUINavigation::Next, EUINavigation::Previous })
 		{
-			Nav->SetNavigationRule(Direction, EUINavigationRule::Wrap);
+			Nav->SetNavigationWrap(Direction);
 		}
 		Container.AddMetadata(Nav);
 	}
@@ -389,7 +389,10 @@ namespace
 		void Construct(const FArguments& InArgs)
 		{
 			Modal = InArgs._Modal;
-			ChildSlot[ InArgs._Content ];
+			ChildSlot
+			[
+				InArgs._Content.Widget
+			];
 		}
 
 		virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override

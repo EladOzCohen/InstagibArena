@@ -55,6 +55,14 @@ namespace IASettings
 	INSTAGIBARENA_API float GetCrosshairScale();              // 0.5 to 2, default 1
 	INSTAGIBARENA_API void SetCrosshairScale(float Scale);
 
+	// ---- camera comfort: FEEL reads these, MENUS shows them. Same text in both branches on purpose.
+	INSTAGIBARENA_API bool IsCameraBobEnabled();        // default true
+	INSTAGIBARENA_API void SetCameraBobEnabled(bool bEnabled);
+	INSTAGIBARENA_API bool IsViewRollEnabled();         // default true
+	INSTAGIBARENA_API void SetViewRollEnabled(bool bEnabled);
+	INSTAGIBARENA_API bool IsReducedMotion();           // default false; when true all camera motion is off
+	INSTAGIBARENA_API void SetReducedMotion(bool bEnabled);
+
 	INSTAGIBARENA_API bool IsFullscreen();
 	INSTAGIBARENA_API void ApplyDisplayMode(bool bFullscreen);
 }

@@ -19,7 +19,9 @@ public class InstagibArena : ModuleRules
 			"UMG",
 			"Slate",
 			"SlateCore",
-			"Sockets"
+			"Sockets",
+			"ApplicationCore",
+			"MoviePlayer"
 		});
 	}
 }
