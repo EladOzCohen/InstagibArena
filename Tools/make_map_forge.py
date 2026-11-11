@@ -120,8 +120,8 @@ for k in range(4):
     m.box("BalconyGlow_%d" % k, a, b, GZ - 12, 800 if horiz else 8, 8 if horiz else 800, 8, mat=lava, solid=False)
 
     # ramp from the floor up to the gantry, along the wall
-    p0 = R(k, -500, 2000)
-    p1 = R(k, -1600, 2000)
+    p0 = R(k, -1200, 700)        # the ramp runs straight into the front edge of the gantry
+    p1 = R(k, -1200, RING_IN)
     m.slope("Ramp_%d" % k, (p0[0], p0[1], 0), (p1[0], p1[1], GZ), 380, mat=plate)
     # a jump pad on the island sends the player to the balcony of this side
     px, py = R(k, 330, 330)
@@ -139,7 +139,7 @@ for k in range(4):
         m.column("TowerBand_%d_%d" % (k, j), x, y, 400 + j * 350, 440 + j * 350, 450, mat=iron, solid=False)
 
 # crates and anvils as cover on the open floor
-cover = [(-1500, -1500, 20), (1500, 1500, 70), (-1400, 1450, 0), (1450, -1400, 50), (0, -1700, 0), (0, 1700, 90),
+cover = [(-1700, -1800, 20), (1700, 1800, 70), (-1900, 1500, 0), (1900, -1500, 50), (0, -1700, 0), (0, 1700, 90),
          (-1750, 0, 90), (1750, 0, 0), (-1300, -400, 30), (1300, 400, 60)]
 for i, (x, y, yaw) in enumerate(cover):
     m.box("Crate_%d" % i, x, y, 70, 260, 200, 140, yaw=yaw, mat=rust if i % 2 else iron)

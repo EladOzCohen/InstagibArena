@@ -33,7 +33,7 @@ cloth2 = m.glow("MI_CanyonClothB", (0.1, 0.55, 0.75), 0.6)
 
 FX, FY = 3000.0, 2400.0      # floor half sizes (x, y) between the mesas
 RAV = 350.0                  # half width of the ravine
-MESA_Z = 700.0
+MESA_Z = 450.0   # ramps must stay under about 18 degrees or the nav grid cannot place nodes on them
 LAYERS = [orange, red, pale, orange, shadow, pale]
 
 # ---------------------------------------------------------------- ground
@@ -96,9 +96,9 @@ SPIRE_X = FX - 550
 for sx in (-1, 1):
     for sy in (-1, 1):
         x, y = sx * SPIRE_X, sy * 900
-        m.column("SpireBase", x, y, -300, 250, 640, mat=red)
-        m.column("SpireMid", x, y, 250, 520, 560, mat=orange)
-        m.column("SpireTop", x, y, 520, MESA_Z, 520, mat=pale)
+        m.column("SpireBase", x, y, -300, 150, 640, mat=red)
+        m.column("SpireMid", x, y, 150, 320, 560, mat=orange)
+        m.column("SpireTop", x, y, 320, MESA_Z, 520, mat=pale)
         m.column("SpireCap", x, y, MESA_Z - 12, MESA_Z, 540, mat=sand)
         # plank bridge to the mesa edge
         m.box("SpirePlank", sx * (FX - 150), y, MESA_Z - 15, 520, 260, 30, mat=wood)

@@ -96,12 +96,12 @@ for sy in (-1, 1):
     m.point_light("RidgeGlow", (0, sy * 800, 120), COLD, 120.0, 1400.0)
 
 # relay deck on the ridge
-DECK_Z = 650.0
+DECK_Z = 440.0
 m.box("Deck", 0, 0, DECK_Z - 20, 700, 700, 40, mat=metal)
 for sx in (-1, 1):
     for sy in (-1, 1):
         m.column("DeckPost", sx * 310, sy * 310, 300, DECK_Z - 40, 50, mat=metal)
-m.stairs("DeckStairs", 830, 0, 300, 180, 260, 12, 29.2, 40, mat=metal)
+m.slope("DeckRamp", (850, 0, 300), (350, 0, DECK_Z), 260, thickness=40, mat=metal)
 for sy in (-1, 1):
     m.box("DeckRail", 0, sy * 345, DECK_Z + 50, 700, 10, 100, mat=metal)
 m.box("DeckRailW", -345, 0, DECK_Z + 50, 10, 700, 100, mat=metal)
@@ -122,7 +122,7 @@ for sy in (-1, 1):                                                  # pads from 
 def hut(s, mat, tag):
     def P(x, y):
         return rot(s, x, y)
-    x0, x1, y0, y1, wh, t = -2800.0, -2100.0, -1000.0, -400.0, 300.0, 40.0
+    x0, x1, y0, y1, wh, t = -2800.0, -2100.0, -1000.0, -400.0, 210.0, 40.0
     cx, cy = P((x0 + x1) / 2, (y0 + y1) / 2)
     # four walls; the east wall (facing the ridge) has a door gap
     for (ax, ay, sx, sy) in [((x0 + x1) / 2, y0 + t / 2, x1 - x0, t), ((x0 + x1) / 2, y1 - t / 2, x1 - x0, t),
@@ -141,16 +141,18 @@ def hut(s, mat, tag):
     # windows and the lamp inside
     for wy in (y0 + 150, y1 - 150):
         wx, wy2 = P(x0 + 150, wy)
-        m.box("HutWindow_" + tag, wx, wy2, 180, 140, 10, 90, mat=window, solid=False)
+        m.box("HutWindow_" + tag, wx, wy2, 130, 140, 10, 70, mat=window, solid=False)
     wx, wy2 = P((x0 + x1) / 2, y0 - 4)
-    m.box("HutWindowS_" + tag, wx, wy2, 180, 160, 8, 90, mat=window, solid=False)
-    m.point_light("HutLamp_" + tag, (*P((x0 + x1) / 2, (y0 + y1) / 2), 210), WARM, 140.0, 700.0)
+    m.box("HutWindowS_" + tag, wx, wy2, 130, 160, 8, 70, mat=window, solid=False)
+    m.point_light("HutLamp_" + tag, (*P((x0 + x1) / 2, (y0 + y1) / 2), 150), WARM, 140.0, 700.0)
     # a crate pile and a barrel outside
     bx, by = P(x1 + 120, y1 + 200)
     m.box("Crates_" + tag, bx, by, 60, 160, 160, 120, yaw=25, mat=wood)
     # stairs to the roof, along the north face
-    sx, sy = P(-2100, -300)
-    m.stairs("HutStairs_" + tag, sx, sy, 0, 180 if s > 0 else 0, 200, 11, 30, 40, mat=wood)
+    # ramp (not stairs: the navigation grid cannot place nodes on stairs with runs under 60 cm), head-on into the roof edge
+    sx, sy = P(-2450, 420)
+    ex, ey = P(-2450, -380)
+    m.slope("HutRamp_" + tag, (sx, sy, 0), (ex, ey, wh + 30), 220, thickness=50, mat=wood)
     # roof props
     rx, ry = P(-2650, -700)
     m.box("RoofVent_" + tag, rx, ry, wh + 90, 120, 120, 120, mat=metal)
@@ -218,7 +220,7 @@ for i, (x, y) in enumerate([(-2350, -1150), (2350, 1150), (-1500, 1300), (1500, 
     m.column("Drum2_%d" % i, x + 80, y + 20, 0, 110, 70, mat=metal)
 
 # ---------------------------------------------------------------- spawns and light
-m.auto_starts(12, (-3000, 3000), (-2000, 2000), [0, 300, 330, 650], step=150.0, seed=11, min_sep=800.0)
+m.auto_starts(12, (-3000, 3000), (-2000, 2000), [0, 240, 300, DECK_Z], step=150.0, seed=11, min_sep=800.0)
 m.check_starts()
 
 m.sky(sun_pitch=-28.0, sun_yaw=60.0, sun_intensity=4.0, sun_rgb=(0.85, 0.92, 1.0), sky_intensity=1.6)
