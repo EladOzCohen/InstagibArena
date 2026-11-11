@@ -228,6 +228,7 @@ void AIAGameMode::EndSpawnProtection(APawn* Pawn)
 		State->SpawnProtectEndTime = 0.f;
 	}
 	Protected.Remove(Pawn);
+	UE_LOG(LogInstagib, Verbose, TEXT("Spawn protection ended for %s"), *Pawn->GetName());
 }
 
 void AIAGameMode::StartNewMatch()
@@ -471,6 +472,14 @@ void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 	UE_LOG(LogInstagib, Log, TEXT("%s was fragged by %s"),
 		VictimState ? *VictimState->GetPlayerName() : TEXT("?"),
 		KillerState ? *KillerState->GetPlayerName() : TEXT("the world"));
+	if (APawn* VictimPawn = Victim->GetPawn())
+	{
+		if (const ACharacter* VictimBody = Cast<ACharacter>(VictimPawn); VictimBody && Protected.Contains(VictimPawn))
+		{
+			UE_LOG(LogInstagib, Warning, TEXT("Spawn protection did not stop the shot (capsule response to pawn trace: %d)"),
+				static_cast<int32>(VictimBody->GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Pawn)));
+		}
+	}
 
 	// Tell the victim who did it and where from (death camera and killer panel).
 	if (AIAPlayerController* VictimPC = Cast<AIAPlayerController>(Victim))
@@ -855,12 +864,59 @@ void AIAGameMode::SetupDevHooks()
 	float KillMeAt = 0.f;
 	const bool bFake = FParse::Value(FCommandLine::Get(), TEXT("IAFakeKills="), FakeKillsAt);
 	const bool bKillMe = FParse::Value(FCommandLine::Get(), TEXT("IAKillMe="), KillMeAt);
-	if (!bFake && !bKillMe)
+	const bool bProbe = FParse::Param(FCommandLine::Get(), TEXT("IAProtProbe"));
+	if (!bFake && !bKillMe && !bProbe)
 	{
 		return;
 	}
 
 	const float StartDelay = WarmupSeconds + 1.f;
+	if (bProbe)
+	{
+		// -IAProtProbe: 3 s into the fight, shoots the same line at the first human with and without spawn protection.
+		FTimerHandle Handle;
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this]()
+		{
+			APawn* Target = nullptr;
+			for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+			{
+				if (APlayerController* PC = Cast<APlayerController>(It->Get()))
+				{
+					if (PC->GetPawn()) { Target = PC->GetPawn(); }
+				}
+			}
+			if (!Target)
+			{
+				UE_LOG(LogInstagib, Log, TEXT("PROTECTION PROBE: no human body to test"));
+				return;
+			}
+			EndSpawnProtection(Target);
+			const FVector Center = Target->GetActorLocation();
+			auto Hits = [&](const FVector& From)
+			{
+				FHitResult Hit;
+				FCollisionQueryParams Params(SCENE_QUERY_STAT(ProtectionProbe), true);
+				return GetWorld()->LineTraceSingleByChannel(Hit, From, Center, ECC_Pawn, Params) && Hit.GetActor() == Target;
+			};
+			FVector From = FVector::ZeroVector;
+			bool bOpen = false;
+			for (int32 I = 0; I < 8 && !bOpen; ++I)
+			{
+				From = Center + FRotator(0.f, I * 45.f, 0.f).Vector() * 250.f;
+				bOpen = Hits(From);
+			}
+			if (!bOpen)
+			{
+				UE_LOG(LogInstagib, Log, TEXT("PROTECTION PROBE: no clear line to the body, inconclusive"));
+				return;
+			}
+			BeginSpawnProtection(Target);
+			const bool bDuring = Hits(From);
+			EndSpawnProtection(Target);
+			const bool bAfter = Hits(From);
+			UE_LOG(LogInstagib, Log, TEXT("PROTECTION PROBE: unprotected hit=1, protected hit=%d, after protection hit=%d"), bDuring ? 1 : 0, bAfter ? 1 : 0);
+		}), StartDelay + 3.f, false);
+	}
 	if (bFake)
 	{
 		for (int32 I = 0; I < 5; ++I)
