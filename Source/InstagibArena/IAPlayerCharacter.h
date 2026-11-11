@@ -40,6 +40,12 @@ public:
 
 	bool IsDead() const { return bDead; }
 
+	/** View pitch in degrees (up is positive) for the third-person animation. Works on every machine. */
+	float GetAimPitchForAnimation() const;
+
+	/** Developer showroom only: a fixed view pitch for pawns without a controller. Below -900 = not used. */
+	float DevAimPitch = -1000.f;
+
 	/** Shows a roster look without any player state. Used by the developer showroom. */
 	void SetForcedLook(int32 CharacterIndex) { ForcedLook = CharacterIndex; }
 
@@ -71,6 +77,17 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Dead)
 	bool bDead = false;
+
+	/** Direction and place of the killing shot. Set on the server just before bDead, so the ragdoll can be pushed. */
+	UPROPERTY(Replicated)
+	FVector_NetQuantizeNormal DeathShotDir = FVector::ZeroVector;
+
+	UPROPERTY(Replicated)
+	FVector_NetQuantize DeathHitLocation = FVector::ZeroVector;
+
+	float DeathAge = 0.f;
+	bool bDeathBurstDone = false;
+	void UpdateDeath(float DeltaSeconds);
 
 	UFUNCTION()
 	void OnRep_Dead();

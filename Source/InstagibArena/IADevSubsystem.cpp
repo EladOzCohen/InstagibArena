@@ -310,6 +310,11 @@ bool UIADevSubsystem::SpawnShowroom(float DeltaTime)
 			if (FParse::Param(FCommandLine::Get(), TEXT("IAShowroomWalk")))
 			{
 				Pawn->GetCharacterMovement()->bRunPhysicsWithNoController = true;
+				Pawn->DevAimPitch = (I - 2) * 22.f; // looking down ... up across the row
+				if (FParse::Param(FCommandLine::Get(), TEXT("IAShowroomCrouch")) && I == 4)
+				{
+					Pawn->Crouch();
+				}
 			}
 		}
 	}

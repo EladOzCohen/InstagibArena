@@ -10,7 +10,10 @@
 #include "IABeam.h"
 #include "IASettings.h"
 #include "IAImpactEffect.h"
+#include "IAAnimInstance.h"
 #include "IAHUD.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "InstagibArena.h"
 #include "Animation/AnimInstance.h"
 #include "AnimationRuntime.h"
@@ -76,6 +79,8 @@ void AIAPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AIAPlayerCharacter, bDead);
+	DOREPLIFETIME(AIAPlayerCharacter, DeathShotDir);
+	DOREPLIFETIME(AIAPlayerCharacter, DeathHitLocation);
 }
 
 void AIAPlayerCharacter::BeginPlay()
@@ -96,6 +101,46 @@ void AIAPlayerCharacter::Tick(float DeltaSeconds)
 	UpdateMovementAudio(DeltaSeconds);
 	UpdateWeaponView(DeltaSeconds);
 	UpdateCamera(DeltaSeconds);
+	UpdateDeath(DeltaSeconds);
+}
+
+void AIAPlayerCharacter::UpdateDeath(float DeltaSeconds)
+{
+	if (!bDead)
+	{
+		return;
+	}
+	DeathAge += DeltaSeconds;
+
+	// The body lies there for a moment, then bursts into sparks of its color and is gone.
+	if (!bDeathBurstDone && DeathAge > 3.6f)
+	{
+		bDeathBurstDone = true;
+		if (GetNetMode() != NM_DedicatedServer && GetWorld())
+		{
+			FVector Where = GetMesh() ? GetMesh()->GetBoneLocation(TEXT("pelvis")) : GetActorLocation();
+			if (AIAImpactEffect* Burst = GetWorld()->SpawnActor<AIAImpactEffect>(Where, FRotator::ZeroRotator))
+			{
+				Burst->Init(FVector::UpVector, GetBodyColor(), 1.2f, 22);
+			}
+		}
+		SetActorHiddenInGame(true);
+		if (GetMesh())
+		{
+			GetMesh()->SetSimulatePhysics(false);
+			GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+	}
+}
+
+float AIAPlayerCharacter::GetAimPitchForAnimation() const
+{
+	if (DevAimPitch > -900.f)
+	{
+		return DevAimPitch;
+	}
+	// The controller knows the view of the local player and of bots; other machines get it through RemoteViewPitch.
+	return FRotator::NormalizeAxis(GetBaseAimRotation().Pitch);
 }
 
 // ---------------------------------------------------------------- camera feel
@@ -571,6 +616,16 @@ float AIAPlayerCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 		}
 	}
 
+	// Remember where the shot came from, the ragdoll is pushed that way.
+	DeathHitLocation = GetActorLocation();
+	DeathShotDir = FVector::ZeroVector;
+	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
+	{
+		const FPointDamageEvent& Point = static_cast<const FPointDamageEvent&>(DamageEvent);
+		DeathHitLocation = Point.HitInfo.ImpactPoint;
+		DeathShotDir = Point.ShotDirection.GetSafeNormal();
+	}
+
 	Die(EventInstigator);
 	return DamageAmount;
 }
@@ -592,7 +647,7 @@ void AIAPlayerCharacter::Die(AController* Killer)
 	}
 
 	DetachFromControllerPendingDestroy();
-	SetLifeSpan(3.f);
+	SetLifeSpan(4.2f); // the body is removed (with sparks) at 3.6 s, see UpdateDeath
 }
 
 void AIAPlayerCharacter::FellOutOfWorld(const UDamageType& DamageType)
@@ -618,11 +673,35 @@ void AIAPlayerCharacter::OnRep_Dead()
 		}
 
 		// Real characters collapse as a ragdoll; their accessories ride along on the bones.
-		if (GetMesh() && GetMesh()->GetSkeletalMeshAsset() && AppliedLookKey != INT32_MIN)
+		// The body starts from the pose it had, and is pushed by the shot that killed it.
+		if (GetMesh() && GetMesh()->GetSkeletalMeshAsset() && AppliedLookKey != INT32_MIN && GetNetMode() != NM_DedicatedServer)
 		{
-			GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
-			GetMesh()->SetSimulatePhysics(true);
-			GetMesh()->WakeAllRigidBodies();
+			USkeletalMeshComponent* Skel = GetMesh();
+			// Bodies collide with the level only: shots and players pass through, nothing jitters against the capsule.
+			Skel->SetCollisionObjectType(ECC_PhysicsBody);
+			Skel->SetCollisionResponseToAllChannels(ECR_Ignore);
+			Skel->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+			Skel->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
+			Skel->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+			Skel->SetAllBodiesSimulatePhysics(true);
+			Skel->SetSimulatePhysics(true);
+			Skel->SetAllUseCCD(true);           // fast bodies do not tunnel through floors
+			Skel->SetLinearDamping(0.6f);
+			Skel->SetAngularDamping(2.0f);
+			Skel->WakeAllRigidBodies();
+
+			const FVector Dir = DeathShotDir.IsNearlyZero() ? FVector::ZeroVector : FVector(DeathShotDir);
+			if (!Dir.IsZero())
+			{
+				const FName Bone = Skel->FindClosestBone(DeathHitLocation);
+				Skel->AddImpulse(Dir * 520.f + FVector(0.f, 0.f, 160.f), Bone, /*bVelChange*/ true);
+				Skel->AddImpulse(Dir * 140.f, NAME_None, /*bVelChange*/ true);
+			}
+			else
+			{
+				// A fall or a suicide: the body just drops.
+				Skel->AddImpulse(FVector(0.f, 0.f, 60.f), NAME_None, /*bVelChange*/ true);
+			}
 		}
 
 		if (UIAAudioSubsystem* Audio = UIAAudioSubsystem::Get(this))
@@ -737,11 +816,9 @@ void AIAPlayerCharacter::ApplyLook(int32 CharacterIndex, uint8 Team)
 	Skel->SetVisibility(true);
 	Skel->SetOwnerNoSee(true);
 	Skel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	if (UClass* AnimClass = LoadClass<UAnimInstance>(nullptr, TEXT("/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed.ABP_Unarmed_C")))
-	{
-		Skel->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-		Skel->SetAnimInstanceClass(AnimClass);
-	}
+	// Third-person animation is done in code (rifle poses, 8-way locomotion, aim, crouch, jump and landing).
+	Skel->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+	Skel->SetAnimInstanceClass(UIAAnimInstance::StaticClass());
 	BodyMesh->SetVisibility(false);
 
 	// Colors. Roster entries past the first five reuse a look with the hue turned.
@@ -897,6 +974,11 @@ namespace
 	};
 
 	const FVector RifleMuzzle(56.f, 0.f, 0.5f);
+
+	// How the rifle sits in the right hand of the third-person character (bone space of hand_r).
+	const FVector TPRifleHandOffset(2.f, -3.5f, 6.3f);
+	const FRotator TPRifleHandRotation(-2.f, 155.f, 20.f);
+	constexpr float TPRifleScale = 0.85f;
 }
 
 void AIAPlayerCharacter::DestroyWeapon(bool bFirstPerson)
@@ -964,23 +1046,38 @@ void AIAPlayerCharacter::BuildWeapon(bool bFirstPerson, USkeletalMesh* MeshAsset
 			Root->DestroyComponent();
 			return;
 		}
-		const int32 BoneIndex = MeshAsset->GetRefSkeleton().FindBoneIndex(TEXT("spine_05"));
-		if (BoneIndex == INDEX_NONE)
+		if (MeshAsset->GetRefSkeleton().FindBoneIndex(TEXT("hand_r")) == INDEX_NONE)
 		{
 			Root->DestroyComponent();
 			return;
 		}
 
-		// Carried at the right hip-height of the chest, pointing forward (character-space offset).
-		const FQuat MeshToActor = FRotator(0.f, -90.f, 0.f).Quaternion();
-		const FTransform BoneInMesh = FAnimationRuntime::GetComponentSpaceTransformRefPose(MeshAsset->GetRefSkeleton(), BoneIndex);
-		const FVector LocalOffset = BoneInMesh.GetRotation().UnrotateVector(MeshToActor.UnrotateVector(FVector(20.f, 22.f, -12.f)));
-		const FQuat LocalRotation = BoneInMesh.GetRotation().Inverse() * MeshToActor.Inverse();
-
-		Root->SetRelativeLocationAndRotation(LocalOffset, LocalRotation.Rotator());
-		Root->SetRelativeScale3D(FVector(0.85f));
+		// Held in the right hand. The offset (bone space of hand_r) fits the rifle poses of the animation.
+		FVector HandOffset(TPRifleHandOffset);
+		FRotator HandRotation(TPRifleHandRotation);
+		float HandScale = TPRifleScale;
+#if !UE_BUILD_SHIPPING
+		// Developer tuning without a rebuild:  -IARifleOffset=x,y,z,pitch,yaw,roll,scale
+		FString Tuning;
+		TArray<FString> Numbers;
+		if (FParse::Value(FCommandLine::Get(), TEXT("IARifleOffset="), Tuning, /*bShouldStopOnSeparator*/ false))
+		{
+			Tuning.ParseIntoArray(Numbers, TEXT(","));
+			if (Numbers.Num() >= 6)
+			{
+				HandOffset = FVector(FCString::Atof(*Numbers[0]), FCString::Atof(*Numbers[1]), FCString::Atof(*Numbers[2]));
+				HandRotation = FRotator(FCString::Atof(*Numbers[3]), FCString::Atof(*Numbers[4]), FCString::Atof(*Numbers[5]));
+			}
+			if (Numbers.Num() >= 7)
+			{
+				HandScale = FCString::Atof(*Numbers[6]);
+			}
+		}
+#endif
+		Root->SetRelativeLocationAndRotation(HandOffset, HandRotation);
+		Root->SetRelativeScale3D(FVector(HandScale));
 		Root->RegisterComponent();
-		Root->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, TEXT("spine_05"));
+		Root->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, TEXT("hand_r"));
 		TPWeaponRoot = Root;
 	}
 
