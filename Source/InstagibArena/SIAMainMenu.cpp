@@ -204,6 +204,20 @@ FReply SIAMainMenu::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 	return FReply::Handled().SetUserFocus(SharedThis(this), EFocusCause::Mouse);
 }
 
+FReply SIAMainMenu::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	// Arrow keys and Tab move the focus: inside the message box while one is open, inside the welcome overlay, or on the screen.
+	// This runs before the focused button sees the key (a button would answer with Slate's own navigation, which does not
+	// know about our layout).
+	const TSharedPtr<SWidget> NavRoot = Modal->IsOpen() ? Modal->GetDialogWidget()
+		: (Welcome.IsValid() ? TSharedPtr<SWidget>(WelcomeHost) : TSharedPtr<SWidget>(PageHost));
+	if (NavRoot.IsValid() && HandleNavKey(NavRoot.ToSharedRef(), InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
+}
+
 FReply SIAMainMenu::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	if (InKeyEvent.GetKey() == EKeys::Escape)
@@ -870,6 +884,7 @@ void SIAMainMenu::DevCommand(const FString& Command)
 	else if (Name == TEXT("quit")) { QuitGame(); }
 	else if (Name == TEXT("modal-cancel")) { Modal->Cancel(); }
 	else if (Name == TEXT("quickplay")) { StartGame(false); }
+	else if (Name == TEXT("host")) { StartGame(true); }
 	else if (Name == TEXT("map")) { Setup.MapIndex = FMath::Clamp(FCString::Atoi(*Value), 0, IAMaps::Count - 1); }
 	else if (Name == TEXT("join")) { JoinAddress = Value; JoinGame(); }
 	else if (Name == TEXT("copy")) { CopiedUntil = FPlatformTime::Seconds() + 2.0; }

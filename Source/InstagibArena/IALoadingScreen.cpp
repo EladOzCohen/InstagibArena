@@ -38,7 +38,10 @@ namespace
 	void OnPreLoadMap(const FWorldContext& Context, const FString& MapName)
 	{
 		// Not in the editor, not on a server, and not for the very first map (the game starts without delay).
-		if (GIsEditor || IsRunningDedicatedServer() || IsRunningCommandlet() || !IsMoviePlayerEnabled() || !GetMoviePlayer() || !Context.World())
+		static bool bFirstMap = true;
+		const bool bSkip = bFirstMap;
+		bFirstMap = false;
+		if (bSkip || GIsEditor || IsRunningDedicatedServer() || IsRunningCommandlet() || !IsMoviePlayerEnabled() || !GetMoviePlayer() || !Context.World())
 		{
 			return;
 		}
@@ -118,6 +121,15 @@ namespace IALoadingScreen
 							SNew(SBorder)
 							.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 							.BorderBackgroundColor(FLinearColor(0.06f, 0.07f, 0.10f))
+						]
+						+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text(INVTEXT("INSTAGIB\nARENA"))
+							.Justification(ETextJustify::Center)
+							.Font(IAMenu::Font(72, true))
+							.ColorAndOpacity(FLinearColor(0.16f, 0.17f, 0.22f))
+							.Visibility(Thumbnail ? EVisibility::Collapsed : EVisibility::HitTestInvisible)
 						]
 						+ SOverlay::Slot()
 						[

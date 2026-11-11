@@ -114,14 +114,21 @@ void SIAControlsPanel::Construct(const FArguments& InArgs)
 	];
 }
 
+SIAControlsPanel::~SIAControlsPanel()
+{
+	KeyCaptureActive() = false;
+}
+
 void SIAControlsPanel::BeginListen(FName Id)
 {
 	ListeningId = Id;
+	KeyCaptureActive() = true;
 }
 
 void SIAControlsPanel::CancelListen()
 {
 	ListeningId = NAME_None;
+	KeyCaptureActive() = false;
 }
 
 void SIAControlsPanel::ResetToDefaults()

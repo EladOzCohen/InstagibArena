@@ -13,6 +13,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SLeafWidget.h"
 #include "Widgets/SOverlay.h"
@@ -163,39 +164,194 @@ namespace IAMenu
 
 	namespace
 	{
-		SWidget* FindFocusable(SWidget& Widget)
+		/** Every widget under Widget that can take keyboard focus, in tree order. A widget switcher only offers its active page. */
+		void CollectFocusables(SWidget& Widget, TArray<TSharedRef<SWidget>>& Out)
 		{
-			if (Widget.GetVisibility() != EVisibility::Visible && !Widget.GetVisibility().IsVisible())
+			if (!Widget.GetVisibility().IsVisible())
 			{
-				return nullptr;
+				return;
 			}
 			if (Widget.GetVisibility() == EVisibility::Visible && Widget.SupportsKeyboardFocus() && Widget.IsEnabled())
 			{
-				return &Widget;
+				Out.Add(Widget.AsShared());
+				return;
+			}
+			if (Widget.GetType() == FName(TEXT("SWidgetSwitcher")))
+			{
+				if (const TSharedPtr<SWidget> Active = static_cast<SWidgetSwitcher&>(Widget).GetActiveWidget())
+				{
+					CollectFocusables(Active.ToSharedRef().Get(), Out);
+				}
+				return;
 			}
 			if (FChildren* Children = Widget.GetChildren())
 			{
 				for (int32 Index = 0; Index < Children->Num(); ++Index)
 				{
 					TSharedRef<SWidget> Child = Children->GetChildAt(Index);
-					if (SWidget* Found = FindFocusable(Child.Get()))
-					{
-						return Found;
-					}
+					CollectFocusables(Child.Get(), Out);
 				}
 			}
-			return nullptr;
 		}
 	}
 
 	bool FocusFirst(const TSharedRef<SWidget>& Root)
 	{
-		if (SWidget* Found = FindFocusable(Root.Get()))
+		TArray<TSharedRef<SWidget>> List;
+		CollectFocusables(Root.Get(), List);
+		if (List.Num() > 0)
 		{
-			FSlateApplication::Get().SetKeyboardFocus(Found->AsShared(), EFocusCause::SetDirectly);
+			FSlateApplication::Get().SetKeyboardFocus(List[0], EFocusCause::SetDirectly);
 			return true;
 		}
 		return false;
+	}
+
+	bool& KeyCaptureActive()
+	{
+		static bool bActive = false;
+		return bActive;
+	}
+
+	bool NavigateFocus(const TSharedRef<SWidget>& Root, EUINavigation Direction)
+	{
+		TArray<TSharedRef<SWidget>> List;
+		CollectFocusables(Root.Get(), List);
+		if (List.Num() == 0)
+		{
+			return false;
+		}
+
+		// Which of the candidates has the focus (the focused widget may sit inside one of them, like a text box).
+		int32 Current = INDEX_NONE;
+		TSharedPtr<SWidget> Walker = FSlateApplication::Get().GetKeyboardFocusedWidget();
+		while (Walker.IsValid() && Current == INDEX_NONE)
+		{
+			for (int32 Index = 0; Index < List.Num(); ++Index)
+			{
+				if (List[Index] == Walker.ToSharedRef())
+				{
+					Current = Index;
+					break;
+				}
+			}
+			Walker = Walker.IsValid() ? Walker->GetParentWidget() : nullptr;
+		}
+
+		int32 Target = INDEX_NONE;
+		if (Current == INDEX_NONE)
+		{
+			Target = (Direction == EUINavigation::Up || Direction == EUINavigation::Previous) ? List.Num() - 1 : 0;
+		}
+		else if (Direction == EUINavigation::Next || Direction == EUINavigation::Previous)
+		{
+			const int32 Step = Direction == EUINavigation::Next ? 1 : List.Num() - 1;
+			Target = (Current + Step) % List.Num();
+		}
+		else
+		{
+			auto Center = [](const TSharedRef<SWidget>& Widget)
+			{
+				const FGeometry& Geometry = Widget->GetCachedGeometry();
+				return FVector2D(Geometry.GetAbsolutePosition()) + FVector2D(Geometry.GetAbsoluteSize()) * 0.5;
+			};
+			auto Extent = [](const TSharedRef<SWidget>& Widget) { return FVector2D(Widget->GetCachedGeometry().GetAbsoluteSize()); };
+
+			const FVector2D From = Center(List[Current]);
+			const FVector2D FromSize = Extent(List[Current]);
+			float BestScore = TNumericLimits<float>::Max();
+			for (int32 Index = 0; Index < List.Num(); ++Index)
+			{
+				if (Index == Current)
+				{
+					continue;
+				}
+				const FVector2D To = Center(List[Index]);
+				const FVector2D ToSize = Extent(List[Index]);
+				const float Dx = static_cast<float>(To.X - From.X);
+				const float Dy = static_cast<float>(To.Y - From.Y);
+				float Score = -1.f;
+				switch (Direction)
+				{
+				case EUINavigation::Down:
+					if (Dy > FMath::Max(4.f, FromSize.Y * 0.3f)) { Score = Dy + FMath::Abs(Dx) * 2.f; }
+					break;
+				case EUINavigation::Up:
+					if (-Dy > FMath::Max(4.f, FromSize.Y * 0.3f)) { Score = -Dy + FMath::Abs(Dx) * 2.f; }
+					break;
+				case EUINavigation::Right:
+					if (Dx > 4.f && FMath::Abs(Dy) < FMath::Max(FromSize.Y, ToSize.Y) * 0.75f) { Score = Dx + FMath::Abs(Dy) * 4.f; }
+					break;
+				case EUINavigation::Left:
+					if (-Dx > 4.f && FMath::Abs(Dy) < FMath::Max(FromSize.Y, ToSize.Y) * 0.75f) { Score = -Dx + FMath::Abs(Dy) * 4.f; }
+					break;
+				default: break;
+				}
+				if (Score >= 0.f && Score < BestScore)
+				{
+					BestScore = Score;
+					Target = Index;
+				}
+			}
+
+			// Past the last row (or the first) the focus wraps around.
+			if (Target == INDEX_NONE && (Direction == EUINavigation::Down || Direction == EUINavigation::Up))
+			{
+				float BestWrap = TNumericLimits<float>::Max();
+				for (int32 Index = 0; Index < List.Num(); ++Index)
+				{
+					const FVector2D To = Center(List[Index]);
+					const float Y = static_cast<float>(To.Y);
+					const float Key = (Direction == EUINavigation::Down ? Y : -Y) + FMath::Abs(static_cast<float>(To.X - From.X)) * 2.f;
+					if (Index != Current && Key < BestWrap)
+					{
+						BestWrap = Key;
+						Target = Index;
+					}
+				}
+			}
+		}
+
+		if (Target != INDEX_NONE && Target != Current)
+		{
+			FSlateApplication::Get().SetKeyboardFocus(List[Target], EFocusCause::Navigation);
+		}
+		return true;
+	}
+
+	bool HandleNavKey(const TSharedRef<SWidget>& Root, const FKeyEvent& KeyEvent)
+	{
+		const FKey Key = KeyEvent.GetKey();
+		EUINavigation Direction = EUINavigation::Invalid;
+		if (Key == EKeys::Down) { Direction = EUINavigation::Down; }
+		else if (Key == EKeys::Up) { Direction = EUINavigation::Up; }
+		else if (Key == EKeys::Left) { Direction = EUINavigation::Left; }
+		else if (Key == EKeys::Right) { Direction = EUINavigation::Right; }
+		else if (Key == EKeys::Tab) { Direction = KeyEvent.IsShiftDown() ? EUINavigation::Previous : EUINavigation::Next; }
+		if (Direction == EUINavigation::Invalid)
+		{
+			return false;
+		}
+		// While a key is being chosen for an action every key belongs to that screen.
+		if (KeyCaptureActive())
+		{
+			return false;
+		}
+		const TSharedPtr<SWidget> Before = FSlateApplication::Get().GetKeyboardFocusedWidget();
+		// Sliders and text boxes use Left and Right themselves.
+		if (Before.IsValid() && (Direction == EUINavigation::Left || Direction == EUINavigation::Right))
+		{
+			const FString Type = Before->GetTypeAsString();
+			if (Type == TEXT("SIASlider") || Type.Contains(TEXT("EditableText")))
+			{
+				return false;
+			}
+		}
+		const bool bResult = NavigateFocus(Root, Direction);
+		const TSharedPtr<SWidget> After = FSlateApplication::Get().GetKeyboardFocusedWidget();
+		UE_LOG(LogInstagib, Log, TEXT("Nav %s: focus %s -> %s (changed=%d)"), *Key.ToString(), Before.IsValid() ? *Before->GetTypeAsString() : TEXT("none"),
+			After.IsValid() ? *After->GetTypeAsString() : TEXT("none"), Before != After ? 1 : 0);
+		return bResult;
 	}
 
 	void KeepNavigationInside(SWidget& Container)
@@ -450,6 +606,11 @@ namespace
 	private:
 		TWeakPtr<FIAModal> Modal;
 	};
+}
+
+TSharedPtr<SWidget> FIAModal::GetDialogWidget() const
+{
+	return DialogHost;
 }
 
 TSharedRef<SWidget> FIAModal::GetWidget()

@@ -67,6 +67,24 @@ void UIADevSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		MoveTestHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UIADevSubsystem::MoveTest), 0.f);
 	}
 
+	// MENUS: -IAPauseAt=20 opens the pause menu 20 seconds after start (use -IAPauseScript to drive it).
+	float PauseAt = 0.f;
+	if (FParse::Value(FCommandLine::Get(), TEXT("IAPauseAt="), PauseAt) && PauseAt > 0.f)
+	{
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float)
+		{
+			UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+			if (World)
+			{
+				if (AIAPlayerController* PC = Cast<AIAPlayerController>(UGameplayStatics::GetPlayerController(World, 0)))
+				{
+					PC->OpenPause();
+				}
+			}
+			return false;
+		}), PauseAt);
+	}
+
 	float Delay = 0.f;
 	if (FParse::Value(FCommandLine::Get(), TEXT("IAShotDelay="), Delay) && Delay > 0.f)
 	{

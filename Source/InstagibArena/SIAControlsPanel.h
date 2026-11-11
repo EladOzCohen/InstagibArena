@@ -29,6 +29,7 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
+	virtual ~SIAControlsPanel();
 
 	bool IsListening() const { return !ListeningId.IsNone(); }
 

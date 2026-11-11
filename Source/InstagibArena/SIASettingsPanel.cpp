@@ -98,7 +98,7 @@ namespace
 		}
 	};
 
-	TSharedRef<SWidget> Section(const FString& Title)
+	TSharedRef<SWidget> SectionLabel(const FString& Title)
 	{
 		return SNew(STextBlock)
 			.Text(FText::FromString(Title))
@@ -208,7 +208,7 @@ TSharedRef<SWidget> SIASettingsPanel::BuildGameplayTab(const FArguments& Args)
 			[](float Value) { return FText::Format(INVTEXT("{0}°"), FText::AsNumber(FMath::RoundToInt(Value))); }),
 		220.f, INVTEXT("How wide the view is. A wider view shows more of the arena but makes targets smaller.")));
 
-	Add(Section("CROSSHAIR"), 14.f, 4.f);
+	Add(SectionLabel("CROSSHAIR"), 14.f, 4.f);
 
 	{
 		TSharedRef<SHorizontalBox> Styles = SNew(SHorizontalBox);
@@ -255,7 +255,7 @@ TSharedRef<SWidget> SIASettingsPanel::BuildGameplayTab(const FArguments& Args)
 			]
 		], 220.f, INVTEXT("This is how the crosshair looks in a match (shown at twice the size).")));
 
-	Add(Section("CAMERA"), 14.f, 4.f);
+	Add(SectionLabel("CAMERA"), 14.f, 4.f);
 	Add(Row(INVTEXT("Camera bob"),
 		Toggle(Owner, []() { return IASettings::IsCameraBobEnabled(); }, [](bool bValue) { IASettings::SetCameraBobEnabled(bValue); }),
 		220.f, INVTEXT("The view sways a little while you run.")));
@@ -268,7 +268,7 @@ TSharedRef<SWidget> SIASettingsPanel::BuildGameplayTab(const FArguments& Args)
 
 	if (Args._OnResetTutorial)
 	{
-		Add(Section("WELCOME SCREEN"), 14.f, 4.f);
+		Add(SectionLabel("WELCOME SCREEN"), 14.f, 4.f);
 		const TFunction<void()> OnReset = Args._OnResetTutorial;
 		Add(Row(INVTEXT("Tutorial"),
 			Chip(Owner, INVTEXT("RESET TUTORIAL"), [OnReset]() { OnReset(); }, nullptr, 0.f, 15),
@@ -480,7 +480,7 @@ TSharedRef<SWidget> SIASettingsPanel::BuildVideoTab()
 			Note([]() { return INVTEXT("You get 10 seconds to confirm."); })
 		], 220.f), 2.f, 8.f);
 
-	Add(Section("PERFORMANCE"), 14.f, 4.f);
+	Add(SectionLabel("PERFORMANCE"), 14.f, 4.f);
 
 	Add(Row(INVTEXT("VSync"),
 		Toggle(Owner,
@@ -533,7 +533,7 @@ TSharedRef<SWidget> SIASettingsPanel::BuildVideoTab()
 		Toggle(Owner, []() { return IASettings::IsMotionBlurEnabled(); }, [](bool bValue) { IASettings::SetMotionBlurEnabled(bValue); }),
 		220.f, INVTEXT("Smears the picture while the view moves fast. Turn it off for a sharper image.")));
 
-	Add(Section("INTERFACE"), 14.f, 4.f);
+	Add(SectionLabel("INTERFACE"), 14.f, 4.f);
 	Add(Row(INVTEXT("UI scale"),
 		Stepper(Owner,
 			[]() { return FText::Format(INVTEXT("{0}%"), FText::AsNumber(FMath::RoundToInt(IASettings::GetUiScale() * 100.f))); },
