@@ -11,6 +11,7 @@ class UStaticMeshComponent;
 class UPointLightComponent;
 class UMaterialInstanceDynamic;
 class UPrimitiveComponent;
+class ACharacter;
 
 /**
  * A pad that throws any character that steps on it along a fixed velocity.
@@ -67,6 +68,15 @@ private:
 
 	/** Time of the last launch per character, so that one step does not fire twice. */
 	TMap<TWeakObjectPtr<AActor>, double> LastLaunch;
+
+#if !UE_BUILD_SHIPPING
+	/** Development test (-IAPadTest): the server drops every human player onto the first pad every few seconds,
+	 *  and every machine logs the launched character's position so that server and client can be compared. */
+	void PadTestStep();
+	bool bPadTest = false;
+	FTimerHandle PadTestTimer;
+	TArray<TPair<TWeakObjectPtr<ACharacter>, double>> Watched;
+#endif
 
 	double FlashUntil = 0.0;
 	float Phase = 0.f;

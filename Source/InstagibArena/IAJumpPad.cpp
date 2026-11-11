@@ -2,6 +2,12 @@
 
 #include "IAJumpPad.h"
 #include "IAAudioSubsystem.h"
+#include "InstagibArena.h"
+#include "EngineUtils.h"
+#include "TimerManager.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "GameFramework/PlayerController.h"
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PointLightComponent.h"
@@ -44,7 +50,10 @@ AIAJumpPad::AIAJumpPad()
 	Trigger->SetupAttachment(Root);
 	Trigger->SetBoxExtent(FVector(85.f, 85.f, 55.f));
 	Trigger->SetRelativeLocation(FVector(0.f, 0.f, 55.f));
-	Trigger->SetCollisionProfileName(TEXT("OverlapOnlyPawn"));
+	Trigger->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	Trigger->SetCollisionObjectType(ECC_WorldDynamic);
+	Trigger->SetCollisionResponseToAllChannels(ECR_Ignore);
+	Trigger->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	Trigger->SetGenerateOverlapEvents(true);
 
 	Light = CreateDefaultSubobject<UPointLightComponent>(TEXT("Light"));
@@ -62,7 +71,31 @@ void AIAJumpPad::BeginPlay()
 	Trigger->OnComponentBeginOverlap.AddDynamic(this, &AIAJumpPad::OnPadOverlap);
 	Light->SetLightColor(PadColor);
 
-	if (GetNetMode() == NM_DedicatedServer)
+#if !UE_BUILD_SHIPPING
+	bPadTest = FParse::Param(FCommandLine::Get(), TEXT("IAPadTest"));
+	if (bPadTest && HasAuthority())
+	{
+		// Only the first pad of the level runs the test.
+		bool bFirst = true;
+		for (TActorIterator<AIAJumpPad> It(GetWorld()); It; ++It)
+		{
+			if (*It != this && It->GetName() < GetName())
+			{
+				bFirst = false;
+			}
+		}
+		if (bFirst)
+		{
+			GetWorldTimerManager().SetTimer(PadTestTimer, this, &AIAJumpPad::PadTestStep, 7.f, true, 10.f);
+		}
+	}
+#endif
+
+	if (GetNetMode() == NM_DedicatedServer
+#if !UE_BUILD_SHIPPING
+		&& !bPadTest
+#endif
+		)
 	{
 		SetActorTickEnabled(false);
 		return;
@@ -91,6 +124,21 @@ void AIAJumpPad::BeginPlay()
 void AIAJumpPad::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+#if !UE_BUILD_SHIPPING
+	for (int32 I = Watched.Num() - 1; I >= 0; --I)
+	{
+		ACharacter* Watch = Watched[I].Key.Get();
+		const double Age = GetWorld()->GetTimeSeconds() - Watched[I].Value;
+		if (!Watch || Age > 3.0)
+		{
+			Watched.RemoveAtSwap(I);
+			continue;
+		}
+		UE_LOG(LogInstagib, Log, TEXT("PADWATCH %s t=%.2f pos=%s vel=%s %s"), *Watch->GetName(), Age,
+			*Watch->GetActorLocation().ToCompactString(), *Watch->GetVelocity().ToCompactString(),
+			GetNetMode() == NM_Client ? TEXT("client") : TEXT("server"));
+	}
+#endif
 	if (!GlowMaterial)
 	{
 		return;
@@ -139,8 +187,31 @@ void AIAJumpPad::OnPadOverlap(UPrimitiveComponent* OverlappedComponent, AActor* 
 
 	// The server launches everyone it simulates; the controlling client launches its own character at the
 	// same moment so that prediction and server agree.
-	if (HasAuthority() || Character->IsLocallyControlled())
+	const bool bLaunch = HasAuthority() || Character->IsLocallyControlled();
+	if (bLaunch)
 	{
 		Character->LaunchCharacter(LaunchVelocity, true, true);
 	}
+#if !UE_BUILD_SHIPPING
+	if (bPadTest)
+	{
+		UE_LOG(LogInstagib, Log, TEXT("PADLAUNCH %s on %s %s at %s"), *GetName(), *Character->GetName(),
+			bLaunch ? TEXT("launched") : TEXT("saw (not launched here)"), *Character->GetActorLocation().ToCompactString());
+		Watched.Add(TPair<TWeakObjectPtr<ACharacter>, double>(Character, Now));
+	}
+#endif
 }
+
+#if !UE_BUILD_SHIPPING
+void AIAJumpPad::PadTestStep()
+{
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (APawn* Pawn = It->IsValid() ? It->Get()->GetPawn() : nullptr)
+		{
+			Pawn->SetActorLocation(GetActorLocation() + FVector(0.f, 0.f, 100.f), false, nullptr, ETeleportType::None);
+			UE_LOG(LogInstagib, Log, TEXT("PADTEST dropped %s on %s"), *Pawn->GetName(), *GetName());
+		}
+	}
+}
+#endif

@@ -28,12 +28,14 @@ dark = m.material("MI_NeonDark", (0.03, 0.03, 0.045), 0.4)
 paint = m.material("MI_NeonLine", (0.75, 0.72, 0.50), 0.6)
 carA = m.material("MI_NeonCarA", (0.55, 0.05, 0.12), 0.25)
 carB = m.material("MI_NeonCarB", (0.07, 0.28, 0.55), 0.25)
-pink = m.glow("MI_NeonGlowPink", (1.0, 0.08, 0.55), 7.0)
-cyan = m.glow("MI_NeonGlowCyan", (0.0, 0.85, 1.0), 7.0)
-amber = m.glow("MI_NeonGlowAmber", (1.0, 0.55, 0.10), 6.0)
-violet = m.glow("MI_NeonGlowViolet", (0.55, 0.2, 1.0), 6.0)
-lime = m.glow("MI_NeonGlowLime", (0.3, 1.0, 0.35), 6.0)
-warmwin = m.glow("MI_NeonWindow", (1.0, 0.75, 0.40), 2.5)
+pink = m.glow("MI_NeonGlowPink", (1.0, 0.08, 0.55), 2.2)
+cyan = m.glow("MI_NeonGlowCyan", (0.0, 0.85, 1.0), 2.2)
+amber = m.glow("MI_NeonGlowAmber", (1.0, 0.55, 0.10), 2.0)
+violet = m.glow("MI_NeonGlowViolet", (0.55, 0.2, 1.0), 2.0)
+lime = m.glow("MI_NeonGlowLime", (0.3, 1.0, 0.35), 2.0)
+warmwin = m.glow("MI_NeonWindow", (1.0, 0.75, 0.40), 0.9)
+_pl = m.point_light
+m.point_light = lambda label, loc, rgb, intensity, radius: _pl(label, loc, rgb, intensity * 0.1, radius)
 glass = m.glow("MI_NeonGlass", (0.04, 0.07, 0.12), 0.0)
 
 PINK, CYAN, AMBER, VIOLET = (1.0, 0.1, 0.55), (0.0, 0.85, 1.0), (1.0, 0.6, 0.15), (0.6, 0.25, 1.0)
@@ -183,16 +185,18 @@ for i in range(30):
               yaw=0, mat=rng.choice([pink, cyan, violet, amber]), solid=False)
 
 # ---------------------------------------------------------------- spawns
-starts = [
-    (-1500, 600, 600, 0), (-900, 700, 300, 0), (1500, -600, 600, 180), (900, -700, 300, 180),
-    (-1650, -300, 0, 20), (-1650, 300, 0, -20), (1650, 300, 0, 200), (1650, -300, 0, 160),
-    (-700, -650, 0, 0), (700, 650, 0, 180),
-]
-m.starts(starts)
+# tall partitions (billboard walls) that break the long sight lines of the street
+for i, (x, y0, y1, mat) in enumerate([(-1000, -800, -150, pink), (1000, 150, 800, cyan), (-550, -800, -480, lime),
+                                      (550, 480, 800, amber), (-1250, -800, -300, violet), (1250, 300, 800, violet)]):
+    m.box("Partition_%d" % i, x, (y0 + y1) / 2, 140, 40, y1 - y0, 280, mat=brick)
+    m.box("PartitionGlow_%d" % i, x + 22, (y0 + y1) / 2, 200, 6, y1 - y0 - 60, 24, mat=mat, solid=False)
+    m.box("PartitionGlowB_%d" % i, x - 22, (y0 + y1) / 2, 200, 6, y1 - y0 - 60, 24, mat=mat, solid=False)
+m.auto_starts(10, (-1700, 1700), (-750, 750), [0, 300, 600, 700], step=100.0, seed=3, min_sep=500.0)
 m.check_starts()
 
 # ---------------------------------------------------------------- light: night
 m.sky(sun_pitch=-35.0, sun_yaw=210.0, sun_intensity=0.9, sun_rgb=(0.45, 0.55, 1.0), sky_intensity=0.35)
-m.fog(rgb=(0.20, 0.10, 0.35), density=0.012, falloff=0.25, start=300)
+m.fog(rgb=(0.06, 0.04, 0.12), density=0.004, falloff=0.25, start=400)
+m.post(exposure_bias=-0.8, bloom=0.5)
 m.point_light("FillCyan", (0, 0, 650), (0.3, 0.7, 1.0), 120.0, 3500.0)
 m.finish(kill_z=-1200)
