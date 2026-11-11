@@ -40,6 +40,7 @@ glass = m.glow("MI_NeonGlass", (0.04, 0.07, 0.12), 0.0)
 
 PINK, CYAN, AMBER, VIOLET = (1.0, 0.1, 0.55), (0.0, 0.85, 1.0), (1.0, 0.6, 0.15), (0.6, 0.25, 1.0)
 HX, HY = 1800.0, 800.0
+ARCADE_Z = 240.0
 
 # ---------------------------------------------------------------- street shell
 m.box("Street", 0, 0, -50, HX * 2, HY * 2, 100, mat=asphalt)
@@ -90,34 +91,37 @@ def side(s):
     yawo = 0.0 if s > 0 else 180.0
     tag = "N" if s > 0 else "S"
     # lower podium (z 300)
-    x, y = P(-1200, 610)
-    m.box("Podium1_" + tag, x, y, 150, 1000, 380, 300, mat=sidewalk)
-    # upper podium (z 600)
-    x, y = P(-1375, 610)
-    m.box("Podium2_" + tag, x, y, 450, 650, 380, 300, mat=sidewalk)
+    # (stairs: rise 24 / run 44 keeps the slope under what the 150 cm navigation grid can link)
+    x, y = P(-1220, 610)
+    m.box("Podium1_" + tag, x, y, 60, 960, 380, 120, mat=sidewalk)
+    # upper podium (z 480)
+    x, y = P(-1405, 610)
+    m.box("Podium2_" + tag, x, y, 180, 590, 380, 120, mat=sidewalk)
     # stairs
-    x, y = P(-300, 610)
-    m.stairs("StairsA_" + tag, x, y, 0, 180 + yawo, 260, 10, 30, 40, mat=metal)
-    x, y = P(-750, 520)
-    m.stairs("StairsB_" + tag, x, y, 300, 180 + yawo, 220, 10, 30, 30, mat=metal)
+    x, y = P(-300, 700)
+    xe, ye = P(-740, 700)
+    m.slope("RampA_" + tag, (x, y, 0), (xe, ye, 120), 200, thickness=50, mat=metal)
+    x, y = P(-740, 520)
+    xe, ye = P(-1110, 520)
+    m.slope("RampB_" + tag, (x, y, 120), (xe, ye, 240), 220, thickness=50, mat=metal)
     # glowing edge lines along the street side of each podium
-    x, y = P(-1200, 421)
-    m.box("Edge1_" + tag, x, y, 302, 1000, 10, 6, mat=pink if s > 0 else cyan, solid=False)
-    x, y = P(-1375, 421)
-    m.box("Edge2_" + tag, x, y, 602, 650, 10, 6, mat=pink if s > 0 else cyan, solid=False)
+    x, y = P(-1220, 421)
+    m.box("Edge1_" + tag, x, y, 122, 960, 10, 6, mat=pink if s > 0 else cyan, solid=False)
+    x, y = P(-1405, 421)
+    m.box("Edge2_" + tag, x, y, 242, 590, 10, 6, mat=pink if s > 0 else cyan, solid=False)
     # railings on the open sides
-    x, y = P(-1200, 424)
-    m.box("Rail1_" + tag, x, y, 340, 1000, 12, 80, mat=metal)
-    x, y = P(-1375, 424)
-    m.box("Rail2_" + tag, x, y, 640, 650, 12, 80, mat=metal)
-    # shop awning and a vent unit up top
-    x, y = P(-1500, 700)
-    m.box("Vent_" + tag, x, y, 680, 220, 160, 160, mat=metal)
-    x, y = P(-1250, 650)
-    m.box("Crate_" + tag, x, y, 355, 120, 120, 110, yaw=20, mat=brick)
+    x, y = P(-1220, 424)
+    m.box("Rail1_" + tag, x, y, 160, 960, 12, 80, mat=metal)
+    x, y = P(-1405, 424)
+    m.box("Rail2_" + tag, x, y, 280, 590, 12, 80, mat=metal)
+    # a vent unit up top
+    x, y = P(-1550, 700)
+    m.box("Vent_" + tag, x, y, 320, 220, 160, 160, mat=metal)
+    x, y = P(-1300, 650)
+    m.box("Crate_" + tag, x, y, 295, 120, 120, 110, yaw=20, mat=brick)
     # pad from the street lane to the arcade roof
-    x, y = P(0, 650)
-    m.jump_pad("RoofPad_" + tag, x, y, 0, (0, s * 250, 700), color=CYAN if s > 0 else PINK)
+    x, y = P(0, 560)
+    m.jump_pad("RoofPad_" + tag, x, y, 0, (0, s * 220, ARCADE_Z), color=CYAN if s > 0 else PINK)
     # lane lamp posts
     for lx in (-1000, 1000):
         px, py = P(lx, 440)
@@ -131,24 +135,23 @@ side(1)
 side(-1)
 
 # ---------------------------------------------------------------- arcade hall in the middle
-m.box("Arcade", 0, 0, 350, 500, 860, 700, mat=wallblue)
-m.box("ArcadeRoofTrim", 0, 0, 712, 540, 900, 24, mat=dark)
+m.box("Arcade", 0, 0, ARCADE_Z / 2, 500, 860, ARCADE_Z, mat=wallblue)
+m.box("ArcadeRoofTrim", 0, 0, ARCADE_Z - 6, 540, 900, 12, mat=dark, solid=False)
 for sx in (-1, 1):                                                   # marquee on the long faces
-    m.box("MarqueePanel", sx * 253, 0, 520, 8, 700, 130, mat=dark, solid=False)
-    m.box("MarqueeA", sx * 258, -200, 520, 8, 220, 40, mat=pink, solid=False)
-    m.box("MarqueeB", sx * 258, 150, 560, 8, 220, 40, mat=cyan, solid=False)
-    m.box("MarqueeC", sx * 258, 150, 480, 8, 320, 40, mat=amber, solid=False)
-    m.point_light("MarqueeLight", (sx * 380, 0, 520), PINK if sx > 0 else CYAN, 70.0, 1200.0)
+    m.box("MarqueePanel", sx * 253, 0, 150, 8, 700, 130, mat=dark, solid=False)
+    m.box("MarqueeA", sx * 258, -200, 150, 8, 220, 40, mat=pink, solid=False)
+    m.box("MarqueeB", sx * 258, 150, 190, 8, 220, 40, mat=cyan, solid=False)
+    m.box("MarqueeC", sx * 258, 150, 110, 8, 320, 40, mat=amber, solid=False)
+    m.point_light("MarqueeLight", (sx * 380, 0, 200), PINK if sx > 0 else CYAN, 70.0, 1200.0)
 for sy in (-1, 1):                                                   # arcade doorways facing the lanes
     m.frame("ArcadeDoor", 0, sy * 432, 0, 260, 300, 24, 16, 0, cyan if sy > 0 else pink, solid=False)
     m.box("ArcadeDoorGlow", 0, sy * 433, 150, 220, 6, 270, mat=warmwin, solid=False)
 # roof access stairs along the east face (24 steps)
-m.stairs("ArcadeStairs", 350, -430, 0, 90, 200, 20, 35, 42, mat=metal)
-m.box("ArcadeRoofRail", 0, 0, 760, 12, 860, 80, mat=metal)
-m.box("ArcadeRoofRailW", 244, 0, 760, 12, 860, 80, mat=metal)
-m.point_light("RoofLight", (0, 0, 900), VIOLET, 80.0, 1400.0)
-m.box("RoofAntenna", -150, 200, 950, 14, 14, 500, mat=metal, solid=False)
-m.box("RoofAntennaTip", -150, 200, 1200, 24, 24, 24, mat=pink, solid=False)
+m.slope("ArcadeRamp", (1000, 0, 0), (250, 0, ARCADE_Z), 260, thickness=50, mat=metal)   # runs head-on into the roof edge
+m.box("ArcadeRoofRailW", -244, 0, ARCADE_Z + 40, 12, 860, 80, mat=metal)
+m.point_light("RoofLight", (0, 0, ARCADE_Z + 250), VIOLET, 80.0, 1400.0)
+m.box("RoofAntenna", -150, 200, ARCADE_Z + 250, 14, 14, 500, mat=metal, solid=False)
+m.box("RoofAntennaTip", -150, 200, ARCADE_Z + 500, 24, 24, 24, mat=pink, solid=False)
 
 # ---------------------------------------------------------------- plazas: partitions, cars, planters, gates
 for sx in (-1, 1):
@@ -158,11 +161,11 @@ for sx in (-1, 1):
     m.box("EndGateGlow", sx * (HX - 30), 0, 280, 8, 560, 520, mat=violet, solid=False)
     m.point_light("GateLight", (sx * (HX - 200), 0, 300), PINK if sx > 0 else CYAN, 110.0, 1500.0)
 
-m.box("CarA_body", 850, 130, 55, 460, 190, 80, yaw=12, mat=carA)
-m.box("CarA_cabin", 840, 130, 125, 230, 170, 66, yaw=12, mat=dark)
+m.box("CarA_body", 1450, 300, 55, 460, 190, 80, yaw=12, mat=carA)
+m.box("CarA_cabin", 1440, 300, 125, 230, 170, 66, yaw=12, mat=dark)
 m.box("CarB_body", -900, -220, 55, 460, 190, 80, yaw=-8, mat=carB)
 m.box("CarB_cabin", -910, -220, 125, 230, 170, 66, yaw=-8, mat=dark)
-for sx, y in ((850, 130), (-900, -220)):
+for sx, y in ((1450, 300), (-900, -220)):
     m.box("CarLights", sx, y, 62, 470, 160, 14, mat=amber, solid=False)
 
 for i, (x, y) in enumerate([(-450, 250), (450, -250), (1200, -230), (-1200, 230), (1000, 420), (-1000, -420)]):
@@ -186,12 +189,12 @@ for i in range(30):
 
 # ---------------------------------------------------------------- spawns
 # tall partitions (billboard walls) that break the long sight lines of the street
-for i, (x, y0, y1, mat) in enumerate([(-1000, -800, -150, pink), (1000, 150, 800, cyan), (-550, -800, -480, lime),
-                                      (550, 480, 800, amber), (-1250, -800, -300, violet), (1250, 300, 800, violet)]):
+for i, (x, y0, y1, mat) in enumerate([(-1000, -800, -150, pink), (1000, 150, 800, cyan), (-1400, -800, -350, lime),
+                                      (400, 600, 800, amber), (-400, -800, -600, amber)]):
     m.box("Partition_%d" % i, x, (y0 + y1) / 2, 140, 40, y1 - y0, 280, mat=brick)
     m.box("PartitionGlow_%d" % i, x + 22, (y0 + y1) / 2, 200, 6, y1 - y0 - 60, 24, mat=mat, solid=False)
     m.box("PartitionGlowB_%d" % i, x - 22, (y0 + y1) / 2, 200, 6, y1 - y0 - 60, 24, mat=mat, solid=False)
-m.auto_starts(10, (-1700, 1700), (-750, 750), [0, 300, 600, 700], step=100.0, seed=3, min_sep=500.0)
+m.auto_starts(10, (-1700, 1700), (-750, 750), [0, 120, 240], step=100.0, seed=3, min_sep=450.0)
 m.check_starts()
 
 # ---------------------------------------------------------------- light: night

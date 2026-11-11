@@ -93,6 +93,7 @@ class MapBuilder:
         if mat is not None:
             comp.set_material(0, mat)
         if not solid:
+            comp.set_collision_profile_name("NoCollision")
             comp.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
         self.box_count += 1
         return actor

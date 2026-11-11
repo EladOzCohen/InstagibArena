@@ -23,6 +23,15 @@ namespace IAMaps
 		  TEXT("A closed space-station hangar with mezzanines and two reactor cores.") },
 		{ TEXT("Skyline"), TEXT("/Game/Maps/DM-Skyline"),
 		  TEXT("Rooftops joined by bridges at sunset. Fall off and you are out.") },
+		// --- MAPS: new maps
+		{ TEXT("Neon Street"), TEXT("/Game/Maps/DM-Neon"),
+		  TEXT("A rain-slick neon street at night. Small, fast duels around an arcade hall.") },
+		{ TEXT("Forge"), TEXT("/Game/Maps/DM-Forge"),
+		  TEXT("A volcanic foundry around a lava pit, with bridges, gantries and jump pads.") },
+		{ TEXT("Glacier"), TEXT("/Game/Maps/DM-Glacier"),
+		  TEXT("An arctic outpost with an ice ridge, covered tunnels and a radio tower.") },
+		{ TEXT("Canyon"), TEXT("/Game/Maps/DM-Canyon"),
+		  TEXT("A huge desert canyon with rope bridges, high mesas and rock spires.") },
 	};
 
 	inline constexpr int32 Count = UE_ARRAY_COUNT(List);
