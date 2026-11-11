@@ -181,16 +181,9 @@ void AIAGameMode::BeginSpawnProtection(APawn* Pawn)
 		return;
 	}
 
-	// Shots are traces against the pawn channel: while the body ignores it, they fly through.
-	FProtection Saved;
-	Saved.CapsuleResponse = Body->GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Pawn);
-	Body->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	if (Body->GetMesh())
-	{
-		Saved.MeshResponse = Body->GetMesh()->GetCollisionResponseToChannel(ECC_Pawn);
-		Body->GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	}
-	Protected.Add(Pawn, Saved);
+	// The body keeps its collision (the clients predict movement with it). A shot passes through a protected
+	// player because ServerFire ignores bodies whose SpawnProtectEndTime has not passed yet.
+	Protected.Add(Pawn, FProtection());
 	State->SpawnProtectEndTime = GetWorld()->GetTimeSeconds() + SpawnProtectSeconds;
 
 	TWeakObjectPtr<APawn> WeakPawn(Pawn);
@@ -214,14 +207,6 @@ void AIAGameMode::EndSpawnProtection(APawn* Pawn)
 	if (!Saved)
 	{
 		return;
-	}
-	if (ACharacter* Body = Cast<ACharacter>(Pawn))
-	{
-		Body->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, Saved->CapsuleResponse);
-		if (Body->GetMesh())
-		{
-			Body->GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, Saved->MeshResponse);
-		}
 	}
 	if (AIAPlayerState* State = Pawn->GetPlayerState<AIAPlayerState>())
 	{
@@ -476,8 +461,7 @@ void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 	{
 		if (const ACharacter* VictimBody = Cast<ACharacter>(VictimPawn); VictimBody && Protected.Contains(VictimPawn))
 		{
-			UE_LOG(LogInstagib, Warning, TEXT("Spawn protection did not stop the shot (capsule response to pawn trace: %d)"),
-				static_cast<int32>(VictimBody->GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Pawn)));
+			UE_LOG(LogInstagib, Verbose, TEXT("%s was fragged while protected (a fall or a kill volume ignores protection)"), *VictimBody->GetName());
 		}
 	}
 

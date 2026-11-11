@@ -258,6 +258,8 @@ void AIAPlayerCharacter::UpdateCamera(float DeltaSeconds)
 	const float Punch = bCamReduced ? 0.f : 0.7f * Recoil * Recoil; // fire kick, display only
 
 	FirstPersonCamera->SetRelativeLocation(FVector(0.f, 0.f, BaseEyeHeight + CamEyeOffset + BobZ + CamDip));
+	// AddAdditiveOffset accumulates on every call, so start from nothing each frame.
+	FirstPersonCamera->ClearAdditiveOffset();
 	FirstPersonCamera->AddAdditiveOffset(FTransform(FRotator(Punch, 0.f, Roll)), 6.f * Kick);
 }
 
@@ -475,6 +477,15 @@ void AIAPlayerCharacter::TryFire()
 		return;
 	}
 
+	// No firing, and no recoil on screen, during the countdown and on the results screen.
+	if (const AIAGameState* GS = GetWorld() ? GetWorld()->GetGameState<AIAGameState>() : nullptr)
+	{
+		if (!GS->IsFiringAllowed())
+		{
+			return;
+		}
+	}
+
 	const float Now = GetWorld()->GetTimeSeconds();
 	if (Now - LastFireTime < FireInterval)
 	{
@@ -519,7 +530,19 @@ void AIAPlayerCharacter::ServerFire_Implementation()
 
 	FHitResult Hit;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(InstagibShot), true, this);
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Eye, End, ECC_Pawn, Params);
+	bool bHit = false;
+	// A player in spawn protection cannot be hit: the shot goes on through the body.
+	for (int32 Pass = 0; Pass < 6; ++Pass)
+	{
+		bHit = GetWorld()->LineTraceSingleByChannel(Hit, Eye, End, ECC_Pawn, Params);
+		const AIAPlayerState* HitState = bHit && Hit.GetActor() ? Cast<AIAPlayerState>(Cast<APawn>(Hit.GetActor()) ? Cast<APawn>(Hit.GetActor())->GetPlayerState() : nullptr) : nullptr;
+		if (!HitState || HitState->SpawnProtectEndTime <= Now)
+		{
+			break;
+		}
+		Params.AddIgnoredActor(Hit.GetActor());
+		bHit = false;
+	}
 	const FVector ImpactPoint = bHit ? Hit.ImpactPoint : End;
 
 	if (bHit && Hit.GetActor())

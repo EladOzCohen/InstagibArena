@@ -240,28 +240,9 @@ void AIAPlayerController::ApplyInputMode()
 
 void AIAPlayerController::SetFireLocked(bool bLock)
 {
-	if (bFireLocked == bLock || !MappingContext || !FireAction)
-	{
-		return;
-	}
+	// The pawn refuses to fire while the game state says so (TryFire), so the key mapping is never edited:
+	// editing it broke after a mid-match rebind. This flag only records the phase for the HUD.
 	bFireLocked = bLock;
-
-	const FKey FireKey = IAInput::GetKey(TEXT("Fire"));
-	if (bLock)
-	{
-		MappingContext->UnmapKey(FireAction, FireKey);
-	}
-	else
-	{
-		MappingContext->MapKey(FireAction, FireKey);
-	}
-	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-		{
-			Subsystem->RequestRebuildControlMappings();
-		}
-	}
 }
 
 void AIAPlayerController::ShowResults()

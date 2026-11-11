@@ -23,6 +23,13 @@ param(
 $ErrorActionPreference = "Stop"
 $project = Split-Path -Parent $PSScriptRoot
 $uproject = Join-Path $project "InstagibArena.uproject"
+
+# The characters' animations are Epic's content and are not stored in git. Without the Rifle clips the
+# packaged game would show T-posing characters, so make sure they are here before packaging.
+if (-not (Test-Path (Join-Path $project "Content\Characters\Mannequins\Anims\Rifle"))) {
+    Write-Host "Mannequin Rifle animations missing, restoring them from the engine install..."
+    & (Join-Path $PSScriptRoot "restore_mannequins.ps1")
+}
 $builds = Join-Path $project "Builds"
 $package = Join-Path $builds "Windows"
 

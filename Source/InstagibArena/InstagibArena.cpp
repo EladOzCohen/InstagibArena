@@ -13,8 +13,12 @@ public:
 	virtual void StartupModule() override
 	{
 		FDefaultGameModuleImpl::StartupModule();
-		IALoadingScreen::Register();
-		FCoreDelegates::GetOnPostEngineInit().AddStatic(&IASettings::ApplyStartupSettings);
+		// The editor and commandlets (map scripts, builds) must not get the player's video and sound tweaks.
+		if (!GIsEditor && !IsRunningCommandlet())
+		{
+			IALoadingScreen::Register();
+			FCoreDelegates::GetOnPostEngineInit().AddStatic(&IASettings::ApplyStartupSettings);
+		}
 	}
 };
 
