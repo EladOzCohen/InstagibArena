@@ -7,6 +7,8 @@
 #include "EngineUtils.h"
 #include "CollisionQueryParams.h"
 #include "Algo/Reverse.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "GameFramework/PlayerStart.h"
 
 namespace
@@ -203,6 +205,48 @@ void UIANavGrid::Build(UWorld& World)
 				*(Sum / FMath::Max(1, AreaSizes[Order[K]])).ToCompactString());
 		}
 	}
+#if !UE_BUILD_SHIPPING
+	{
+		// -IANavDump=X,Y,Z,Radius : lists the nodes near a point (area id, links) to debug connections.
+		FString DumpArg;
+		if (FParse::Value(FCommandLine::Get(), TEXT("IANavDump="), DumpArg, false))
+		{
+			TArray<FString> Parts;
+			DumpArg.ParseIntoArray(Parts, TEXT(","));
+			if (Parts.Num() == 4)
+			{
+				const FVector Center(FCString::Atof(*Parts[0]), FCString::Atof(*Parts[1]), FCString::Atof(*Parts[2]));
+				const float Radius = FCString::Atof(*Parts[3]);
+				for (int32 I = 0; I < Nodes.Num(); ++I)
+				{
+					if (FVector::Dist(Nodes[I].Location, Center) < Radius)
+					{
+						UE_LOG(LogInstagib, Log, TEXT("NAVDUMP node %d at %s area %d links %d"), I,
+							*Nodes[I].Location.ToCompactString(), Nodes[I].ComponentId, Nodes[I].Links.Num());
+					}
+				}
+			}
+		}
+	}
+#endif
+
+	// The reference area is the one holding the most player starts (the largest one can be an unreachable roof).
+	TMap<int32, int32> StartsPerArea;
+	for (TActorIterator<APlayerStart> It(&World); It; ++It)
+	{
+		const int32 N = FindNearestNode(It->GetActorLocation() - FVector(0.f, 0.f, 110.f));
+		++StartsPerArea.FindOrAdd(N == INDEX_NONE ? INDEX_NONE : Nodes[N].ComponentId);
+	}
+	int32 RefArea = INDEX_NONE, RefCount = 0;
+	for (const TPair<int32, int32>& Pair : StartsPerArea)
+	{
+		if (Pair.Key != INDEX_NONE && Pair.Value > RefCount)
+		{
+			RefArea = Pair.Key;
+			RefCount = Pair.Value;
+		}
+	}
+	Largest = RefArea != INDEX_NONE ? RefArea : Largest;
 	int32 Starts = 0, StartsOutside = 0;
 	for (TActorIterator<APlayerStart> It(&World); It; ++It)
 	{
@@ -211,8 +255,9 @@ void UIANavGrid::Build(UWorld& World)
 		if (Node == INDEX_NONE || Nodes[Node].ComponentId != Largest)
 		{
 			++StartsOutside;
-			UE_LOG(LogInstagib, Warning, TEXT("NavGrid: PlayerStart %s at %s is not in the largest area"),
-				*It->GetName(), *It->GetActorLocation().ToString());
+			UE_LOG(LogInstagib, Warning, TEXT("NavGrid: PlayerStart %s at %s is not in the start area (area %d has %d nodes)"),
+				*It->GetName(), *It->GetActorLocation().ToString(), Node == INDEX_NONE ? -1 : Nodes[Node].ComponentId,
+				Node == INDEX_NONE ? 0 : AreaSizes[Nodes[Node].ComponentId]);
 		}
 	}
 	UE_LOG(LogInstagib, Log, TEXT("NavGrid: largest area %d of %d nodes; %d of %d player starts outside it"),
