@@ -2,6 +2,16 @@
 
 Written 2026-11-10 (late evening) when the owner went to sleep. Read this first when resuming.
 
+## UPDATE 2026-11-11 (second interruption, token limit)
+
+The four agents were resumed in the morning and worked for a while, then the owner's token limit forced another stop
+(about 3 hours). Before stopping, each agent was asked to commit a final `WIP:` commit, refresh its
+`HANDOFF_<NAME>.md` and release the heavy-job lock. **The `HANDOFF_*.md` files in the worktrees are newer than the table
+below: trust them over the "Real state" section.** The MAPS branch already contains `main` (merged), and FEEL and MENUS
+were given the same camera-settings snippet to add to `IASettings.*`.
+Next session: check for leftover processes, read the four handoff files, check `git log --oneline main..<branch>` per branch,
+resume the agents with SendMessage (or start new ones from the handoff files), then follow "How to continue".
+
 ## The big picture
 
 Goal of this round: take Instagib Arena toward industry standard: **more maps, better UX and UI, more realistic
