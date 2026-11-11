@@ -4,6 +4,7 @@
 #include "IAMapList.h"
 #include "IAAudioSubsystem.h"
 #include "IAHUD.h"
+#include "IAInputConfig.h"
 #include "SIAPauseMenu.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
@@ -36,19 +37,25 @@ void AIAPlayerController::BuildInput()
 	DodgeRightAction = MakeAction(TEXT("IA_DodgeRight"), false);
 	MenuAction = MakeAction(TEXT("IA_Menu"), false);
 
-	// Move: W/S go on the Y axis (swizzle), S and A are negated.
+	// The keys come from the player's bindings (see IAInputConfig.h).
+	const FKey ForwardKey = IAInput::GetKey(TEXT("Forward"));
+	const FKey BackKey = IAInput::GetKey(TEXT("Back"));
+	const FKey LeftKey = IAInput::GetKey(TEXT("Left"));
+	const FKey RightKey = IAInput::GetKey(TEXT("Right"));
+
+	// Move: forward/back go on the Y axis (swizzle), back and left are negated.
 	{
-		FEnhancedActionKeyMapping& W = MappingContext->MapKey(MoveAction, EKeys::W);
-		W.Modifiers.Add(NewObject<UInputModifierSwizzleAxis>(this));
+		FEnhancedActionKeyMapping& Forward = MappingContext->MapKey(MoveAction, ForwardKey);
+		Forward.Modifiers.Add(NewObject<UInputModifierSwizzleAxis>(this));
 
-		FEnhancedActionKeyMapping& S = MappingContext->MapKey(MoveAction, EKeys::S);
-		S.Modifiers.Add(NewObject<UInputModifierSwizzleAxis>(this));
-		S.Modifiers.Add(NewObject<UInputModifierNegate>(this));
+		FEnhancedActionKeyMapping& Back = MappingContext->MapKey(MoveAction, BackKey);
+		Back.Modifiers.Add(NewObject<UInputModifierSwizzleAxis>(this));
+		Back.Modifiers.Add(NewObject<UInputModifierNegate>(this));
 
-		FEnhancedActionKeyMapping& A = MappingContext->MapKey(MoveAction, EKeys::A);
-		A.Modifiers.Add(NewObject<UInputModifierNegate>(this));
+		FEnhancedActionKeyMapping& Left = MappingContext->MapKey(MoveAction, LeftKey);
+		Left.Modifiers.Add(NewObject<UInputModifierNegate>(this));
 
-		MappingContext->MapKey(MoveAction, EKeys::D);
+		MappingContext->MapKey(MoveAction, RightKey);
 	}
 
 	// Look: mouse, with Y inverted so that moving the mouse up looks up.
@@ -62,14 +69,14 @@ void AIAPlayerController::BuildInput()
 	}
 
 	MappingContext->MapKey(MenuAction, EKeys::Escape);
-	MappingContext->MapKey(JumpAction, EKeys::SpaceBar);
-	MappingContext->MapKey(FireAction, EKeys::LeftMouseButton);
+	MappingContext->MapKey(JumpAction, IAInput::GetKey(TEXT("Jump")));
+	MappingContext->MapKey(FireAction, IAInput::GetKey(TEXT("Fire")));
 
 	// The same keys also feed the double-tap dodge detection.
-	MappingContext->MapKey(DodgeForwardAction, EKeys::W);
-	MappingContext->MapKey(DodgeBackAction, EKeys::S);
-	MappingContext->MapKey(DodgeLeftAction, EKeys::A);
-	MappingContext->MapKey(DodgeRightAction, EKeys::D);
+	MappingContext->MapKey(DodgeForwardAction, ForwardKey);
+	MappingContext->MapKey(DodgeBackAction, BackKey);
+	MappingContext->MapKey(DodgeLeftAction, LeftKey);
+	MappingContext->MapKey(DodgeRightAction, RightKey);
 }
 
 void AIAPlayerController::SetupInputComponent()

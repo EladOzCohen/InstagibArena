@@ -43,6 +43,18 @@ namespace IASettings
 	/** Best guess of this PC's address on the local network, for telling friends. Empty if unknown. */
 	INSTAGIBARENA_API FString GetLocalAddressText();
 
+	// ---- crosshair: the HUD draws it from these, the settings screen changes them
+	inline constexpr int32 CrosshairStyleCount = 4;   // 0 cross, 1 dot, 2 circle, 3 cross with a dot
+	inline constexpr int32 CrosshairColorCount = 6;   // white, green, cyan, yellow, orange, red
+
+	INSTAGIBARENA_API int32 GetCrosshairStyle();
+	INSTAGIBARENA_API void SetCrosshairStyle(int32 Style);
+	INSTAGIBARENA_API int32 GetCrosshairColorIndex();
+	INSTAGIBARENA_API void SetCrosshairColorIndex(int32 Index);
+	INSTAGIBARENA_API FLinearColor GetCrosshairColor();
+	INSTAGIBARENA_API float GetCrosshairScale();              // 0.5 to 2, default 1
+	INSTAGIBARENA_API void SetCrosshairScale(float Scale);
+
 	INSTAGIBARENA_API bool IsFullscreen();
 	INSTAGIBARENA_API void ApplyDisplayMode(bool bFullscreen);
 }

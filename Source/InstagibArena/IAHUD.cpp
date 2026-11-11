@@ -3,6 +3,7 @@
 #include "IAHUD.h"
 #include "IAAudioSubsystem.h"
 #include "IAGameState.h"
+#include "IAInputConfig.h"
 #include "IAPlayerState.h"
 #include "Engine/Canvas.h"
 #include "Engine/World.h"
@@ -132,7 +133,7 @@ void AIAHUD::DrawHUD()
 	}
 
 	// Scoreboard: always visible after the match, otherwise while Tab is held.
-	const bool bShowBoard = GS->bMatchOver || (PlayerOwner && PlayerOwner->IsInputKeyDown(EKeys::Tab));
+	const bool bShowBoard = GS->bMatchOver || (PlayerOwner && PlayerOwner->IsInputKeyDown(IAInput::GetKey(TEXT("Scoreboard"))));
 	if (!bShowBoard)
 	{
 		return;

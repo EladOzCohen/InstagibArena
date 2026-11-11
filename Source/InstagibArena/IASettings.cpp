@@ -124,6 +124,44 @@ namespace IASettings
 		return FString();
 	}
 
+	int32 GetCrosshairStyle()
+	{
+		int32 Style = 0;
+		GConfig->GetInt(Section, TEXT("CrosshairStyle"), Style, GGameUserSettingsIni);
+		return FMath::Clamp(Style, 0, CrosshairStyleCount - 1);
+	}
+
+	void SetCrosshairStyle(int32 Style)
+	{
+		GConfig->SetInt(Section, TEXT("CrosshairStyle"), FMath::Clamp(Style, 0, CrosshairStyleCount - 1), GGameUserSettingsIni);
+		GConfig->Flush(false, GGameUserSettingsIni);
+	}
+
+	int32 GetCrosshairColorIndex()
+	{
+		int32 Index = 0;
+		GConfig->GetInt(Section, TEXT("CrosshairColor"), Index, GGameUserSettingsIni);
+		return FMath::Clamp(Index, 0, CrosshairColorCount - 1);
+	}
+
+	void SetCrosshairColorIndex(int32 Index)
+	{
+		GConfig->SetInt(Section, TEXT("CrosshairColor"), FMath::Clamp(Index, 0, CrosshairColorCount - 1), GGameUserSettingsIni);
+		GConfig->Flush(false, GGameUserSettingsIni);
+	}
+
+	FLinearColor GetCrosshairColor()
+	{
+		static const FLinearColor Palette[CrosshairColorCount] = {
+			FLinearColor(1.0f, 1.0f, 1.0f), FLinearColor(0.25f, 1.0f, 0.3f), FLinearColor(0.2f, 0.9f, 1.0f),
+			FLinearColor(1.0f, 0.9f, 0.2f), FLinearColor(1.0f, 0.5f, 0.1f), FLinearColor(1.0f, 0.2f, 0.2f)
+		};
+		return Palette[GetCrosshairColorIndex()];
+	}
+
+	float GetCrosshairScale() { return FMath::Clamp(ReadFloat(TEXT("CrosshairScale"), 1.f), 0.5f, 2.f); }
+	void SetCrosshairScale(float Scale) { WriteFloat(TEXT("CrosshairScale"), FMath::Clamp(Scale, 0.5f, 2.f)); }
+
 	bool IsFullscreen()
 	{
 		const UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
