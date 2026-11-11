@@ -9,6 +9,8 @@
 #include "IASettings.h"
 #include "SIAScoreboard.h"
 #include "CanvasItem.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/SlateRenderer.h"
@@ -55,6 +57,22 @@ void AIAHUD::BeginPlay()
 {
 	Super::BeginPlay();
 	HudFont = GEngine ? GEngine->GetLargeFont() : nullptr;
+
+#if !UE_BUILD_SHIPPING
+	// Test helpers: -IACrosshair=style,color,scale sets (and saves) the crosshair, for screenshots.
+	FString CrosshairText;
+	if (FParse::Value(FCommandLine::Get(), TEXT("IACrosshair="), CrosshairText, /*bShouldStopOnSeparator*/ false))
+	{
+		TArray<FString> Parts;
+		CrosshairText.ParseIntoArray(Parts, TEXT(","));
+		if (Parts.Num() == 3)
+		{
+			IASettings::SetCrosshairStyle(FCString::Atoi(*Parts[0]));
+			IASettings::SetCrosshairColorIndex(FCString::Atoi(*Parts[1]));
+			IASettings::SetCrosshairScale(FCString::Atof(*Parts[2]));
+		}
+	}
+#endif
 }
 
 void AIAHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)

@@ -754,7 +754,8 @@ AActor* AIAGameMode::ChoosePlayerStart_Implementation(AController* Player)
 	if (Best)
 	{
 		StartLastUse.Add(Best, Now);
-		UE_LOG(LogInstagib, Verbose, TEXT("Spawn point %s chosen (score %.1f, %d threats)"), *Best->GetName(), BestScore, Threats.Num());
+		UE_LOG(LogInstagib, Log, TEXT("Spawn for %s: %s (score %.1f, %d enemies alive, of %d spawn points)"),
+			MyState ? *MyState->GetPlayerName() : TEXT("?"), *Best->GetName(), BestScore, Threats.Num(), Starts.Num());
 	}
 	return Best;
 }

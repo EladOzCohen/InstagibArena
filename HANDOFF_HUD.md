@@ -1,62 +1,38 @@
-# HUD engineer handoff (WIP)
+# HUD engineer handoff (state after the second interruption)
 
-Branch: `worktree-agent-a2aa4a07693255a52` (based on main a3fa032). Nothing has been built or run yet.
+Branch `worktree-agent-a2aa4a07693255a52`. The branch COMPILES (last editor build succeeded, including the newest edits).
+No editor/game process is left running and the heavy-job lock is released.
 
-## Compiles?
-NO. `IAGameMode.h` is rewritten but `IAGameMode.cpp` is still the old file, so the module does not build until the .cpp is updated
-(new members: `ChoosePlayerStart_Implementation`, `StartNewMatch`, `BeginWarmup`, `StartLive`, `ScheduleRespawn`, `AnnounceKillMedals`,
-`UpdateLeadStates`, `CheckFragsLeft`, `FinishMatch(Text, WinnerPlayerId, WinnerTeam)`, dev hooks `SetupDevHooks`).
-`IAPlayerState.*` and `IAGameState.*` are new/finished but never compiled.
+## Done and verified (run, looked at screenshots, read logs)
+- Match flow in place (IAGameMode/IAGameState): Warmup (5 s countdown, bots enter at FIGHT) -> Live -> Ended (results) -> soft restart
+  without a map reload (`StartNewMatch`, host button or automatic after `RestartDelay` = 20 s). Verified standalone and with
+  host + client (headless): 2 full cycles of warmup/live/ended/new match, the client followed every phase (log lines
+  `Client sees match phase N`), no LogNet warnings/errors on either side, REPORT scores/players identical (clock differs only by sampling time).
+  Logs: scratchpad `hud/mp1_server.log`, `hud/mp1_client.log`.
+- Fire gate: `AIAPlayerState::RegisterShot` (server) refuses shots outside the Live phase; two hook lines added in `IAPlayerCharacter.cpp` (ServerFire).
+- Stats in `AIAPlayerState` (shots, hits, streak, best streak, multi-kill), unique `SlotId` (engine PlayerId is not unique for bots).
+- Kill feed, medals (first blood, double..monster, spree..god like), lead changes, frags left, countdown, FIGHT!, death panel with
+  respawn bar and arrow, death camera on the killer (screenshots `Saved/IAShots/a_*.png`, `b_*.png` in the worktree, not committed).
+- HUD (canvas, crisp Slate fonts via UFont Roboto), top bar FFA/TDM, bottom-left stats, crosshair (4 styles read from IASettings), Tab scoreboard (Slate `SIAScoreboard`), results screen (`SIAMatchResults`).
+- Sounds: 16 cues generated (`Tools/gen_audio.py hud_cues`), imported (`/Game/Audio/SFX/S_*`, committed uassets), `EIASound` values + path cases added at the end.
+  Import log showed all 16 assets loaded; actual playback not heard (game runs with -nosound in tests).
 
-## Done (written, unbuilt, unverified)
-- `Tools/gen_audio.py`: `hud_cues()` appended at the END (16 cues: count_tick, count_go, clock_tick, warning, first_blood,
-  medal_low/mid/high, streak_low/mid/high, lead_gain/lose/tie, victory, defeat). Generated once into `Tools/audio_out/sfx`
-  (gitignored) with UE's python (`C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\ThirdParty\Python3\Win64\python.exe`,
-  run in `Tools`: `python -c "import gen_audio; gen_audio.hud_cues()"`). Not listened to, not imported yet.
-- `IAPlayerState`: replicated ShotsFired, ShotsHit, Streak, BestStreak, MultiKill; server-only LastKillTime, LeadState;
-  `RegisterKill/RegisterDeath/ResetMatchStats`; static `RegisterShot(const APawn*)` (counts the shot AND returns false when the
-  phase is not Live, i.e. it is the server-side fire gate) and `RegisterHit`.
-- `IAGameState`: `EIAMatchPhase {Warmup, Live, Ended}`, replicated Phase, PhaseEndTime (server time), WinnerPlayerId, WinnerTeam;
-  `IsFiringAllowed()`, `GetPhaseSecondsLeft()`; `EIAAnnounce` enum; reliable multicasts `MulticastKillFeed(KillerId, VictimId)` and
-  `MulticastAnnounce(Kind, Subject, Param)`; local kill feed list `GetKillFeed()` and `OnAnnounce` delegate for the HUD.
-- `IAGameMode.h`: new design (see its header comment). RestartDelay is now the results time (20 s), WarmupSeconds 5, MultiKillWindow 4.
+## Done but NOT yet looked at
+- Crosshair styles: `Saved/IAShots/c_x0..c_x3.png` exist (styles 0 cross, 1 dot green 1.5x, 2 circle cyan 1.5x, 3 cross+dot red 1.5x) but were not viewed yet. View them (crop/zoom the centre) and fix if needed.
+- Dev flag `-IACrosshair=style,color,scale` (in IAHUD BeginPlay) SAVES the crosshair settings: run once with `-IACrosshair=0,0,1` afterwards to restore defaults in `Saved/Config`.
 
-## Not started
-IAGameMode.cpp rewrite, IAPlayerController (death cam, `ClientYouDied`, phase polling in `PlayerTick`, results widget lifecycle,
-`IsMenuOpen()` returning true when frozen in Ended, input mode restore after pause closes), IAHUD redesign, `SIAScoreboard` and
-`SIAMatchResults` Slate widgets, audio enum/path entries, import of the audio, the two ServerFire lines, dev flags, all testing.
+## Not done / next steps in order
+1. View `c_x*.png`. Then run `hud/batch.ps1 -Set C` remainder: `c_wide` (1400x600 wide aspect) and `c_restart` (standalone soft restart screenshot; check log for `New match starts`).
+   NOTE: this PC's desktop clamps windows to about 1400x875, so true 1920x1080 / 2560x1080 screenshots are impossible; screenshots were taken at 1280x720 and 1400x875 only.
+   UI scale = ClipY / 900 (clamped 0.7 to 2.5), so layout scales linearly; say this honestly in the report.
+2. Spawn kills: in mp1 the headless client (-IAWalk, expert bots) died every ~3 s. New log line `Spawn for <name>: <start> (score, enemies alive, spawn points)` was added (compiled, not yet run). Run `hud/mp.ps1 -Tag mp2` and compare spawn time vs `was fragged by` times; if spawn kills show up, strengthen the line-of-sight penalty / add a minimum distance, and add the "spawn protection" idea to the report only (capsule ECC_Pawn ignore, needs no character edit, risky).
+3. Client leaves mid-countdown and mid-results: run `hud/mp.ps1 -Tag mp2 -ServerArgs "-IAWarmup=12 -IAResults=12" -ScoreLimit 3 -ClientDelay 6 -ClientSeconds 9` (kills the client in the countdown) and `... -ClientDelay 8 -ClientSeconds 24` (kills it near the results); the server log must continue with new matches and no errors.
+4. Client-side death camera on a remote client: add `-IAKillMe=3` to `-ServerArgs` (it kills the last human, i.e. the remote client) and check the client log for errors (view target set locally with a client-spawned camera actor; a visual check on a client is not possible headless).
+5. Bots on a second map (60-70 s headless, `was fragged by` lines) and a clean full rebuild check. Then final report.
+6. Optional polish: warmup fire lock on the client (unmap Fire key; today the rifle only recoils), kill feed weapon icon.
 
-## Next steps, in order
-1. Rewrite `IAGameMode.cpp` per the header: 
-   - `HandleMatchHasStarted`: create bot controllers WITHOUT `RestartPlayer`, then `BeginWarmup()`.
-   - `BeginWarmup`: Phase=Warmup, PhaseEndTime=now+WarmupSeconds, timer -> `StartLive`.
-   - `StartLive`: Phase=Live, start the 1 s clock timer (TickClock only when Phase==Live), `RestartPlayer` every pawn-less controller (bots spawn here).
-   - `FinishMatch`: Phase=Ended, bMatchOver, winner fields, PhaseEndTime=now+RestartDelay, timer -> `StartNewMatch` (do NOT call EndMatch/RestartGame).
-   - `StartNewMatch`: ++MatchGeneration, reset GS scores/clock/winner, `ResetMatchStats` on all PlayerStates, destroy all pawns, `BeginWarmup`, `RestartPlayer` humans.
-   - `OnPlayerKilled`: ignore scoring unless Live (in Warmup just respawn humans after 1 s); stats via `RegisterKill/RegisterDeath`; `GS->MulticastKillFeed(killerId or -1, victimId)`;
-     medals (first blood; multi 2/3/4/5+ = double/multi/ultra/monster; streak 5/10/15/20/25 = spree/rampage/dominating/unstoppable/godlike);
-     then `CheckScoreLimit`, and if still Live `UpdateLeadStates` (took/lost/tied, per human by PlayerId; TDM per team with Subject=-1, Param=team) and `CheckFragsLeft` (Left 3/2/1);
-     `ClientYouDied` to the victim; respawn via `ScheduleRespawn` (captures MatchGeneration; skips bots in Warmup and everyone in Ended).
-   - `ChoosePlayerStart_Implementation`: score every `APlayerStart` (distance to nearest living other pawn, line of sight penalty, occupied < 220 uu, recently used penalty, small random), pick best.
-   - Dev hooks (`#if !UE_BUILD_SHIPPING`, command line): `-IAWarmup=S`, `-IAResults=S`, `-IAFakeKills=delay` (fake 5 kills by the local human on bots via OnPlayerKilled), `-IAKillMe=delay` (ApplyDamage from a bot to the local pawn).
-2. Add to `IAPlayerCharacter.cpp` ServerFire exactly two lines (FEEL owns the file): after `LastFireTime = Now;` add
-   `if (!AIAPlayerState::RegisterShot(this)) { return; }` and before `ClientHitConfirm(Victim->IsDead());` add `AIAPlayerState::RegisterHit(this);`.
-3. Append to `EIASound` (after MatchEnd) the 16 cues and the path switch in `IAAudioSubsystem.cpp` (names -> `/Game/Audio/SFX/S_CountTick` etc.:
-   import_audio names are `S_` + capitalised words, e.g. `count_tick` -> `S_CountTick`). Run `Tools/import_audio.py` via the editor commandlet
-   (needs `Tools/audio_out/sfx` and an existing `music` folder; only the 16 new wavs are there in this worktree, so existing assets are not re-imported).
-4. `IAPlayerController`: `ClientYouDied` (RPC), local `ACameraActor` death cam (start at victim eye, ease to a pulled-back point looking at the killer, line-trace for walls),
-   `PlayerTick` polling of the phase, results widget, freeze (`IsMenuOpen()` includes frozen), `ApplyInputMode` after the pause menu closes.
-5. Slate: `SIAScoreboard` (rank, name, kills, deaths, K/D, acc %, best streak, ping; TDM grouped by team; local highlighted; bots tagged and "BOT" ping) and
-   `SIAMatchResults` (winner banner, scoreboard, PLAY AGAIN host-only + countdown, MAIN MENU via `ReturnToMenu`). Use `IAMenuStyle` (use only).
-6. `IAHUD` redesign (canvas): top bar (FFA rank + leader score + timer; TDM red vs blue), bottom-left stats, 4 crosshair styles from `IASettings`,
-   kill feed top-right (5 entries, fade, local highlight, suicide/fell wording), centred banner queue, countdown numerals + FIGHT!, last-10-s clock ticks,
-   death panel (killer name, character, distance, respawn timer, arrow toward killer), Tab scoreboard via the `Scoreboard` key. Scale by `ClipY/1080`.
-   Remove the MatchStart sound in `AIAHUD::BeginPlay`.
-7. Build (via `Tools\exclusive.ps1`), screenshots at 1280x720, 1920x1080, 2560x1080, bot matches on two maps, host+client test with match end and restart,
-   no LogNet warnings. Commit.
-
-## Known problems / notes
-- Path is long: `subst W:` was mapped to the worktree for builds (`subst W: <worktree>`); it may still exist. The `Saved_build0.txt` stray file was removed.
-- `python` is not on PATH; use UE's bundled python (above).
-- Idea not decided: spawn protection without touching the character, by setting the capsule's ECC_Pawn response to Ignore for ~1.5 s on the server (shots pass through). Risky for pawn collision; probably only report it.
-- Warmup fire lock on the client (recoil without shot) could be improved by unmapping the Fire key in the mapping context during Warmup.
+## Helpers (scratchpad is SHARED between agents: use the `hud/` subfolder only)
+`scratchpad/hud/build.ps1`, `shot.ps1`, `batch.ps1 -Set A|B|C`, `mp.ps1`. `subst W:` maps to the worktree (recreate: `subst W: <worktree path>`).
+Run everything through `Tools\exclusive.ps1`; the lock queue can be 10+ minutes.
+`Config/DefaultEngine.ini` is marked `skip-worktree` locally so the editor's AndroidFileServer block never gets committed.
+Dev flags added: `-IAWarmup=S`, `-IAResults=S`, `-IAFakeKills=S`, `-IAKillMe=S`, `-IACrosshair=style,color,scale`.
