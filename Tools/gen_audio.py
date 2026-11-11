@@ -583,6 +583,10 @@ def hud_cues():
 
     print("Match cues:")
     for name, samples in cues.items():
+        # A short fade-out so that a cue never ends on a click.
+        tail = min(len(samples), int(0.04 * SR))
+        for i in range(tail):
+            samples[len(samples) - tail + i] *= 1.0 - (i + 1) / tail
         write_wav(os.path.join(OUT, "sfx", name + ".wav"), samples)
 
 
