@@ -34,7 +34,7 @@ hot = m.glow("MI_ForgeHot", (1.0, 0.50, 0.12), 1.4)
 
 ORANGE, RED = (1.0, 0.45, 0.12), (1.0, 0.18, 0.05)
 _pl = m.point_light
-m.point_light = lambda label, loc, rgb, intensity, radius: _pl(label, loc, rgb, intensity * 0.15, radius)
+m.point_light = lambda label, loc, rgb, intensity, radius: _pl(label, loc, rgb, intensity * 0.11, radius)
 
 H = 2600.0            # half size of the hall
 PIT = 900.0           # half size of the lava pit
@@ -173,6 +173,6 @@ for k in range(4):
 m.auto_starts(12, (-2450, 2450), (-2450, 2450), [0, 450], step=120.0, seed=5, min_sep=500.0)
 m.check_starts()
 
-m.post(exposure_bias=-0.2, bloom=0.5)
+m.post(exposure_bias=-0.2, bloom=0.4)
 m.fog(rgb=(0.25, 0.08, 0.04), density=0.003, falloff=0.2, start=300)
 m.finish(kill_z=-150)
