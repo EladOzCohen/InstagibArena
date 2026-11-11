@@ -7,6 +7,7 @@
 #include "EngineUtils.h"
 #include "CollisionQueryParams.h"
 #include "Algo/Reverse.h"
+#include "GameFramework/PlayerStart.h"
 
 namespace
 {
@@ -167,6 +168,55 @@ void UIANavGrid::Build(UWorld& World)
 
 	UE_LOG(LogInstagib, Log, TEXT("NavGrid: %d nodes, %d links, %d connected areas, built in %.0f ms"),
 		Nodes.Num(), LinkCount, ComponentCount, (FPlatformTime::Seconds() - StartTime) * 1000.0);
+
+	// Map check: every player start should sit in the largest connected area (the one bots can roam).
+	TArray<int32> AreaSizes;
+	AreaSizes.Init(0, ComponentCount);
+	for (const FNavNode& Node : Nodes)
+	{
+		++AreaSizes[Node.ComponentId];
+	}
+	int32 Largest = 0;
+	for (int32 I = 1; I < ComponentCount; ++I)
+	{
+		Largest = AreaSizes[I] > AreaSizes[Largest] ? I : Largest;
+	}
+	{
+		// The few biggest areas with their centre, to see what is cut off from what.
+		TArray<int32> Order;
+		for (int32 I = 0; I < ComponentCount; ++I)
+		{
+			Order.Add(I);
+		}
+		Order.Sort([&AreaSizes](int32 A, int32 B) { return AreaSizes[A] > AreaSizes[B]; });
+		for (int32 K = 0; K < FMath::Min(6, Order.Num()); ++K)
+		{
+			FVector Sum = FVector::ZeroVector;
+			for (const FNavNode& Node : Nodes)
+			{
+				if (Node.ComponentId == Order[K])
+				{
+					Sum += Node.Location;
+				}
+			}
+			UE_LOG(LogInstagib, Log, TEXT("NavGrid: area %d has %d nodes around %s"), Order[K], AreaSizes[Order[K]],
+				*(Sum / FMath::Max(1, AreaSizes[Order[K]])).ToCompactString());
+		}
+	}
+	int32 Starts = 0, StartsOutside = 0;
+	for (TActorIterator<APlayerStart> It(&World); It; ++It)
+	{
+		++Starts;
+		const int32 Node = FindNearestNode(It->GetActorLocation() - FVector(0.f, 0.f, 110.f));
+		if (Node == INDEX_NONE || Nodes[Node].ComponentId != Largest)
+		{
+			++StartsOutside;
+			UE_LOG(LogInstagib, Warning, TEXT("NavGrid: PlayerStart %s at %s is not in the largest area"),
+				*It->GetName(), *It->GetActorLocation().ToString());
+		}
+	}
+	UE_LOG(LogInstagib, Log, TEXT("NavGrid: largest area %d of %d nodes; %d of %d player starts outside it"),
+		Largest < ComponentCount ? AreaSizes[Largest] : 0, Nodes.Num(), StartsOutside, Starts);
 }
 
 int32 UIANavGrid::FindNearestNode(const FVector& Location) const
