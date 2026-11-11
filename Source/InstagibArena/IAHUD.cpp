@@ -744,7 +744,7 @@ void AIAHUD::DrawBanner(float Now)
 void AIAHUD::DrawCountdown(const AIAGameState& GS, float Now)
 {
 	const float CX = Canvas->ClipX * 0.5f;
-	const float CY = Canvas->ClipY * 0.34f;
+	const float CY = Canvas->ClipY * 0.29f;
 
 	if (GS.Phase == EIAMatchPhase::Warmup)
 	{
@@ -827,6 +827,65 @@ void AIAHUD::DrawDeath(float Now)
 		const FVector2D Base = FVector2D(CX, CY) + Dir * Radius;
 		const FLinearColor ArrowColor(1.f, 0.25f, 0.2f, Alpha);
 		DrawTriangle(Base + Dir * 22.f * S, Base - Dir * 8.f * S + Side * 18.f * S, Base - Dir * 8.f * S - Side * 18.f * S, ArrowColor);
+	}
+}
+
+// ---------------------------------------------------------------- spawn protection cue
+
+void AIAHUD::DrawProtection(const AIAGameState& GS, float Now)
+{
+	const float ServerNow = GS.GetServerWorldTimeSeconds();
+	const AIAPlayerState* Me = GetLocalState();
+	const FLinearColor Cyan(0.25f, 0.85f, 1.f);
+	const float Pulse = 0.65f + 0.35f * FMath::Sin(Now * 14.f);
+
+	// You: a soft cyan glow along the screen edges and a short bar.
+	if (Me && Me->SpawnProtectEndTime > ServerNow)
+	{
+		const float Left = Me->SpawnProtectEndTime - ServerNow;
+		const float Fade = FMath::Clamp(Left / 0.3f, 0.f, 1.f);
+		for (int32 I = 0; I < 5; ++I)
+		{
+			const float T = (5 - I) * 9.f * S;
+			const FLinearColor Glow(Cyan.R, Cyan.G, Cyan.B, 0.07f * Fade * Pulse);
+			DrawRect(Glow, 0.f, 0.f, Canvas->ClipX, T);
+			DrawRect(Glow, 0.f, Canvas->ClipY - T, Canvas->ClipX, T);
+			DrawRect(Glow, 0.f, 0.f, T, Canvas->ClipY);
+			DrawRect(Glow, Canvas->ClipX - T, 0.f, T, Canvas->ClipY);
+		}
+		const float BarW = 200.f * S;
+		const float Y = Canvas->ClipY * 0.80f;
+		Text(TEXT("SPAWN PROTECTION"), Canvas->ClipX * 0.5f, Y, 15.f * S, FLinearColor(Cyan.R, Cyan.G, Cyan.B, Fade), 1);
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f * Fade), Canvas->ClipX * 0.5f - BarW * 0.5f, Y + 24.f * S, BarW, 4.f * S);
+		DrawRect(FLinearColor(Cyan.R, Cyan.G, Cyan.B, Fade), Canvas->ClipX * 0.5f - BarW * 0.5f, Y + 24.f * S, BarW * FMath::Clamp(Left / 1.5f, 0.f, 1.f), 4.f * S);
+	}
+
+	// Others: a ring around the protected body.
+	for (APlayerState* PS : GS.PlayerArray)
+	{
+		const AIAPlayerState* State = Cast<AIAPlayerState>(PS);
+		const APawn* Pawn = State ? State->GetPawn() : nullptr;
+		if (!State || State == Me || !Pawn || State->SpawnProtectEndTime <= ServerNow)
+		{
+			continue;
+		}
+		const FVector Location = Pawn->GetActorLocation();
+		const FVector Top = Project(Location + FVector(0.f, 0.f, 90.f));
+		const FVector Bottom = Project(Location - FVector(0.f, 0.f, 90.f));
+		if (Top.Z <= 0.f || Bottom.Z <= 0.f)
+		{
+			continue;
+		}
+		const FVector2D Center((Top.X + Bottom.X) * 0.5f, (Top.Y + Bottom.Y) * 0.5f);
+		const float Radius = FMath::Max(8.f, FMath::Abs(Bottom.Y - Top.Y) * 0.55f);
+		const FLinearColor Ring(Cyan.R, Cyan.G, Cyan.B, 0.75f * Pulse);
+		for (int32 I = 0; I < 24; ++I)
+		{
+			const float A0 = TWO_PI * I / 24.f;
+			const float A1 = TWO_PI * (I + 1) / 24.f;
+			DrawLine(Center.X + Radius * FMath::Cos(A0), Center.Y + Radius * FMath::Sin(A0),
+				Center.X + Radius * FMath::Cos(A1), Center.Y + Radius * FMath::Sin(A1), Ring, 2.f * FMath::Clamp(S, 0.8f, 2.f));
+		}
 	}
 }
 
@@ -948,6 +1007,7 @@ void AIAHUD::DrawHUD()
 
 	DrawTopBar(*GS, Now);
 	DrawStats(*GS);
+	DrawProtection(*GS, Now);
 	DrawKillFeed(*GS, Now);
 	DrawMessages(Now);
 	DrawBanner(Now);

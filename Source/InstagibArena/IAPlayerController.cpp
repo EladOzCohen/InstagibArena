@@ -234,6 +234,32 @@ void AIAPlayerController::ApplyInputMode()
 	}
 }
 
+void AIAPlayerController::SetFireLocked(bool bLock)
+{
+	if (bFireLocked == bLock || !MappingContext || !FireAction)
+	{
+		return;
+	}
+	bFireLocked = bLock;
+
+	const FKey FireKey = IAInput::GetKey(TEXT("Fire"));
+	if (bLock)
+	{
+		MappingContext->UnmapKey(FireAction, FireKey);
+	}
+	else
+	{
+		MappingContext->MapKey(FireAction, FireKey);
+	}
+	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+		{
+			Subsystem->RequestRebuildControlMappings();
+		}
+	}
+}
+
 void AIAPlayerController::ShowResults()
 {
 	UGameViewportClient* Viewport = GetWorld() ? GetWorld()->GetGameViewport() : nullptr;
@@ -278,6 +304,8 @@ void AIAPlayerController::RequestPlayAgain()
 void AIAPlayerController::OnPhaseChanged(uint8 NewPhase)
 {
 	UE_LOG(LogInstagib, Log, TEXT("%s sees match phase %d"), GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Local player"), static_cast<int32>(NewPhase));
+	// Nobody fires in the countdown or on the results screen: the key does nothing, so there is no recoil either.
+	SetFireLocked(NewPhase != static_cast<uint8>(EIAMatchPhase::Live));
 	const bool bEnded = NewPhase == static_cast<uint8>(EIAMatchPhase::Ended);
 	bMatchFrozen = bEnded;
 	if (bEnded)
@@ -322,6 +350,8 @@ void AIAPlayerController::ClientYouDied_Implementation(APlayerState* KillerState
 		return;
 	}
 
+	UE_LOG(LogInstagib, Log, TEXT("%s: death camera on %s (%.0f m away, respawn in %.1f s)"), GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Local player"),
+		KillerState ? *KillerState->GetPlayerName() : TEXT("nobody"), FVector::Dist(KillerLocation, VictimLocation) / 100.f, RespawnDelay);
 	EndDeathCamera();
 	Death = FDeathInfo();
 	Death.bActive = true;

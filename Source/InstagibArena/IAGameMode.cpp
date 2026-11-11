@@ -9,6 +9,8 @@
 #include "IACharacterRoster.h"
 #include "InstagibArena.h"
 #include "Algo/RandomShuffle.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/GameState.h"
@@ -146,6 +148,86 @@ void AIAGameMode::StartLive()
 	{
 		RestartPlayer(C);
 	}
+
+	// Everybody is protected for a moment when the fight begins (the new bodies already are, see FinishRestartPlayer).
+	for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+	{
+		if (const AController* C = It->Get())
+		{
+			BeginSpawnProtection(C->GetPawn());
+		}
+	}
+}
+
+// ---------------------------------------------------------------- spawn protection
+
+void AIAGameMode::FinishRestartPlayer(AController* NewPlayer, const FRotator& StartRotation)
+{
+	Super::FinishRestartPlayer(NewPlayer, StartRotation);
+
+	const AIAGameState* GS = GetGameState<AIAGameState>();
+	if (NewPlayer && GS && GS->Phase == EIAMatchPhase::Live)
+	{
+		BeginSpawnProtection(NewPlayer->GetPawn());
+	}
+}
+
+void AIAGameMode::BeginSpawnProtection(APawn* Pawn)
+{
+	ACharacter* Body = Cast<ACharacter>(Pawn);
+	AIAPlayerState* State = Pawn ? Pawn->GetPlayerState<AIAPlayerState>() : nullptr;
+	if (!Body || !State || SpawnProtectSeconds <= 0.f || Protected.Contains(Pawn))
+	{
+		return;
+	}
+
+	// Shots are traces against the pawn channel: while the body ignores it, they fly through.
+	FProtection Saved;
+	Saved.CapsuleResponse = Body->GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Pawn);
+	Body->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	if (Body->GetMesh())
+	{
+		Saved.MeshResponse = Body->GetMesh()->GetCollisionResponseToChannel(ECC_Pawn);
+		Body->GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	}
+	Protected.Add(Pawn, Saved);
+	State->SpawnProtectEndTime = GetWorld()->GetTimeSeconds() + SpawnProtectSeconds;
+
+	TWeakObjectPtr<APawn> WeakPawn(Pawn);
+	FTimerHandle Handle;
+	GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this, WeakPawn]()
+	{
+		if (APawn* P = WeakPawn.Get())
+		{
+			EndSpawnProtection(P);
+		}
+		else
+		{
+			Protected.Remove(WeakPawn);
+		}
+	}), SpawnProtectSeconds, false);
+}
+
+void AIAGameMode::EndSpawnProtection(APawn* Pawn)
+{
+	const FProtection* Saved = Pawn ? Protected.Find(Pawn) : nullptr;
+	if (!Saved)
+	{
+		return;
+	}
+	if (ACharacter* Body = Cast<ACharacter>(Pawn))
+	{
+		Body->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, Saved->CapsuleResponse);
+		if (Body->GetMesh())
+		{
+			Body->GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, Saved->MeshResponse);
+		}
+	}
+	if (AIAPlayerState* State = Pawn->GetPlayerState<AIAPlayerState>())
+	{
+		State->SpawnProtectEndTime = 0.f;
+	}
+	Protected.Remove(Pawn);
 }
 
 void AIAGameMode::StartNewMatch()
@@ -174,6 +256,8 @@ void AIAGameMode::StartNewMatch()
 			State->ResetMatchStats();
 		}
 	}
+
+	Protected.Reset();
 
 	// Every body goes, including the ones still lying around from the last fight.
 	TArray<AController*> Controllers;

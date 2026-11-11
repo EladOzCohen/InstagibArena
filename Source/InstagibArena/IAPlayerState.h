@@ -57,6 +57,10 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Stats")
 	int32 MultiKill = 0;
 
+	/** Server time until which this player's body cannot be hit (spawn protection). 0 = not protected. The HUD shows it. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Stats")
+	float SpawnProtectEndTime = 0.f;
+
 	/** Server only: time of the last kill, for the multi-kill window. */
 	float LastKillTime = -100.f;
 

@@ -118,6 +118,8 @@ private:
 	void ShowResults();
 	void HideResults();
 	void ApplyInputMode();
+	void SetFireLocked(bool bLock);
+	bool bFireLocked = false;
 	void UpdateDeathCamera();
 	void EndDeathCamera();
 
