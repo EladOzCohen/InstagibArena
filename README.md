@@ -5,7 +5,7 @@
 ### A fast, free first-person arena shooter for Windows.
 One weapon. One hit. One kill. Play alone against bots, or with your friends.
 
-[![Download for Windows](docs/images/download.svg)](https://github.com/EladOzCohen/InstagibArena/releases/latest/download/InstagibArena_Setup.exe)
+<a href="https://github.com/EladOzCohen/InstagibArena/releases/latest/download/InstagibArena_Setup.exe"><img src="docs/images/download.png" width="440" alt="Download for Windows"></a>
 
 **Free · Windows 10 or 11 · about 316 MB · no account needed**
 
