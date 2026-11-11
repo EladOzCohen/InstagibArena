@@ -173,6 +173,17 @@ FReply SIAPauseMenu::OnMouseButtonDown(const FGeometry& MyGeometry, const FPoint
 	return FReply::Handled().SetUserFocus(SharedThis(this), EFocusCause::Mouse);
 }
 
+FReply SIAPauseMenu::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	// Arrow keys and Tab move the focus (inside the message box while one is open). See SIAMainMenu::OnPreviewKeyDown.
+	const TSharedPtr<SWidget> NavRoot = Modal->IsOpen() ? Modal->GetDialogWidget() : ContentRoot;
+	if (NavRoot.IsValid() && HandleNavKey(NavRoot.ToSharedRef(), InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
+}
+
 FReply SIAPauseMenu::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	if (InKeyEvent.GetKey() == EKeys::Escape)

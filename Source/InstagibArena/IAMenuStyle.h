@@ -80,6 +80,15 @@ namespace IAMenu
 	/** Gives keyboard focus to the first button (or other focusable widget) found under Root. Returns whether one was found. */
 	bool FocusFirst(const TSharedRef<SWidget>& Root);
 
+	/** True while the controls screen waits for a key to bind: the menu then leaves arrow keys and Tab alone. */
+	bool& KeyCaptureActive();
+
+	/** Moves keyboard focus to the nearest button (or slider, or text box) under Root in that direction. Next and Previous follow the tab order. */
+	bool NavigateFocus(const TSharedRef<SWidget>& Root, EUINavigation Direction);
+
+	/** Arrow keys and Tab: moves focus under Root. Returns true when the key was one of those (and was used). */
+	bool HandleNavKey(const TSharedRef<SWidget>& Root, const FKeyEvent& KeyEvent);
+
 	/** Keeps arrow keys and Tab inside the widget instead of leaving it for widgets behind. */
 	void KeepNavigationInside(SWidget& Container);
 
@@ -131,6 +140,9 @@ public:
 	void Cancel();
 	bool IsOpen() const { return bOpen; }
 	float GetSecondsLeft() const;
+
+	/** The box itself, to restrict keyboard navigation to it while it is open. */
+	TSharedPtr<SWidget> GetDialogWidget() const;
 
 	/** Called by the layer every frame while open. */
 	void TickAutoCancel();
