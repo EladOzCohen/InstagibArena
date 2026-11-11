@@ -2,6 +2,7 @@
 
 #include "IAMenuStyle.h"
 #include "IAAudioSubsystem.h"
+#include "InstagibArena.h"
 #include "Brushes/SlateNoResource.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
@@ -517,7 +518,7 @@ void FIAModal::Show(const FText& Title, TFunction<FText()> Body, const TArray<FC
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight()
 				[
-					SNew(STextBlock).Text(Title).Font(IAMenu::Font(28, true)).ColorAndOpacity(IAMenu::Accent)
+					SNew(STextBlock).Text(Title).AutoWrapText(true).Font(IAMenu::Font(26, true)).ColorAndOpacity(IAMenu::Accent)
 				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 8.f, 0.f, 0.f)
 				[
@@ -692,8 +693,11 @@ namespace IAMenu
 		FInputKeyManager::Get().GetCodesFromKey(Key, KeyCode, CharCode);
 		const FKeyEvent Event(Key, FModifierKeysState(), FSlateApplicationBase::SlateAppPrimaryPlatformUser, false,
 			CharCode ? *CharCode : 0, KeyCode ? *KeyCode : 0);
-		FSlateApplication::Get().ProcessKeyDownEvent(Event);
+		const bool bHandled = FSlateApplication::Get().ProcessKeyDownEvent(Event);
 		FSlateApplication::Get().ProcessKeyUpEvent(Event);
+		const TSharedPtr<SWidget> Focused = FSlateApplication::Get().GetKeyboardFocusedWidget();
+		UE_LOG(LogInstagib, Log, TEXT("SimulateKey %s handled=%d focus=%s"), *Key.ToString(), bHandled ? 1 : 0,
+			Focused.IsValid() ? *Focused->GetTypeAsString() : TEXT("none"));
 	}
 
 	TSharedRef<SWidget> ChipDyn(const TWeakObjectPtr<APlayerController>& Owner, TFunction<FText()> Label, TFunction<void()> OnClick,

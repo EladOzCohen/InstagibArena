@@ -347,8 +347,13 @@ bool SIASettingsPanel::HasPendingVideo() const
 	{
 		return false;
 	}
-	return PendingMode != Settings->GetFullscreenMode()
-		|| EffectiveResolution(PendingMode, PendingResolution) != Settings->GetScreenResolution();
+	if (PendingMode != Settings->GetFullscreenMode())
+	{
+		return true;
+	}
+	// Borderless always uses the desktop resolution, so only the mode counts there.
+	return PendingMode != EWindowMode::WindowedFullscreen
+		&& EffectiveResolution(PendingMode, PendingResolution) != Settings->GetScreenResolution();
 }
 
 void SIASettingsPanel::ApplyPendingVideo()
@@ -377,7 +382,7 @@ void SIASettingsPanel::ApplyPendingVideo()
 	}
 
 	const TWeakPtr<FIAModal> WeakModal = Modal;
-	Modal->Show(INVTEXT("KEEP THESE DISPLAY SETTINGS?"),
+	Modal->Show(INVTEXT("KEEP THESE SETTINGS?"),
 		[WeakModal]()
 		{
 			const TSharedPtr<FIAModal> Pinned = WeakModal.Pin();

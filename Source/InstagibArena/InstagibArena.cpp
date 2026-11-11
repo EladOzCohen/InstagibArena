@@ -14,7 +14,7 @@ public:
 	{
 		FDefaultGameModuleImpl::StartupModule();
 		IALoadingScreen::Register();
-		FCoreDelegates::OnPostEngineInit.AddStatic(&IASettings::ApplyStartupSettings);
+		FCoreDelegates::GetOnPostEngineInit().AddStatic(&IASettings::ApplyStartupSettings);
 	}
 };
 

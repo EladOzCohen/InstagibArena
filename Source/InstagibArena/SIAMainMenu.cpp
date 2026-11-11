@@ -560,7 +560,10 @@ TSharedRef<SWidget> SIAMainMenu::BuildMultiplayerPage()
 					.Text_Lambda([this]() { return FText::FromString(JoinAddress); })
 					.HintText(INVTEXT("for example 192.168.1.20"))
 					.Font(Font(18))
-					.OnTextChanged_Lambda([this](const FText& NewText) { JoinAddress = NewText.ToString(); JoinStatus = FText::GetEmpty(); })
+					.OnTextChanged_Lambda([this](const FText& NewText)
+					{
+						if (NewText.ToString() != JoinAddress) { JoinAddress = NewText.ToString(); JoinStatus = FText::GetEmpty(); }
+					})
 					.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type CommitType)
 					{
 						if (CommitType == ETextCommit::OnEnter) { JoinGame(); }

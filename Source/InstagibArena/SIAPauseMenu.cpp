@@ -136,7 +136,7 @@ void SIAPauseMenu::ShowSettings(bool bShow)
 				[
 					Chip(Owner, INVTEXT("BACK"), [this]() { ShowSettings(false); }, nullptr, 130.f, 18)
 				]
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(18.f, 0.f, 0.f, 0.f)
+				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center).Padding(18.f, 0.f, 0.f, 0.f)
 				[
 					Note([]() { return INVTEXT("New keys apply from the next match."); })
 				]

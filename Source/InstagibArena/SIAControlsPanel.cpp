@@ -29,7 +29,7 @@ namespace
 	/** A key shown as a flat dark plate (used when the panel is read-only, and for the fixed keys). */
 	TSharedRef<SWidget> Plate(TFunction<FText()> Text, float Width)
 	{
-		return SNew(SBox).WidthOverride(Width)
+		return SNew(SBox).MinDesiredWidth(Width)
 			[
 				SNew(SBorder)
 				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
