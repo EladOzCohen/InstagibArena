@@ -470,16 +470,17 @@ bool UIADevSubsystem::AutoShotCamera(float DeltaTime)
 		const FVector Extent = Bounds.GetExtent();
 		const float Radius = Extent.Size();
 		const float Fov = 80.f;
-		const FVector Direction = FVector(-0.60f, -0.60f, 0.52f).GetSafeNormal();
 		const float Distance = Radius / FMath::Tan(FMath::DegreesToRadians(Fov * 0.5f)) * 0.78f;
-		FVector Location = Center + Direction * Distance;
 
-		// A closed hall: stop in front of the wall and look from inside. Open levels are seen from outside, from above.
+		// Look at the middle from a corner, from above. If a wall or ceiling is in the way, stop in front of it and look from
+		// inside (halls, streets between buildings). If something blocks the view right next to the middle (a pyramid, a tower
+		// in the centre) the trace is not trusted and the camera stays outside.
+		const FVector Direction = FVector(-0.60f, -0.60f, 0.52f).GetSafeNormal();
+		FVector Location = Center + Direction * Distance;
 		bool bInside = false;
-		if (bClosed)
 		{
 			FHitResult Hit;
-			if (World->LineTraceSingleByChannel(Hit, Center, Location, ECC_Visibility, Params))
+			if (World->LineTraceSingleByChannel(Hit, Center, Location, ECC_Visibility, Params) && Hit.Distance >= Distance * 0.25f)
 			{
 				Location = Hit.ImpactPoint - Direction * 60.f;
 				bInside = true;
@@ -492,11 +493,12 @@ bool UIADevSubsystem::AutoShotCamera(float DeltaTime)
 		{
 			UCameraComponent* CameraComponent = NewCamera->GetCameraComponent();
 			CameraComponent->SetFieldOfView(bInside ? 100.f : Fov);
-			if (bInside)
+			float Exposure = 0.f;
+			if (FParse::Value(FCommandLine::Get(), TEXT("IAShotExposure="), Exposure) && Exposure != 0.f)
 			{
-				// Dark halls: brighten the picture a little.
+				// Dark levels: brighten the picture (Tools/make_thumbnails.ps1 passes this for the ones that need it).
 				CameraComponent->PostProcessSettings.bOverride_AutoExposureBias = true;
-				CameraComponent->PostProcessSettings.AutoExposureBias = 1.2f;
+				CameraComponent->PostProcessSettings.AutoExposureBias = Exposure;
 			}
 			AutoCamera = NewCamera;
 		}
