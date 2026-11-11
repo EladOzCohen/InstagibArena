@@ -59,11 +59,47 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientShowMessage(const FString& Text, FLinearColor Color, float Duration);
 
-	/** True while the pause menu is open. The character ignores firing, jumping and dodging then. */
-	bool IsMenuOpen() const { return bMenuOpen; }
+	/**
+	 * True while the pause menu is open or the match is over (results screen). The character ignores
+	 * firing, jumping and dodging then.
+	 */
+	bool IsMenuOpen() const { return bMenuOpen || bMatchFrozen; }
 
 	void OpenPause();
 	void ClosePause();
+
+	/** Server to the dead player: who killed you, from where, and how long until you respawn. Drives the death camera and the HUD panel. */
+	UFUNCTION(Client, Reliable)
+	void ClientYouDied(APlayerState* KillerState, APawn* KillerPawn, FVector KillerLocation, FVector VictimLocation, FRotator VictimView, float RespawnDelay);
+
+	/** What the HUD needs to show the "you were killed by" panel. Valid while bActive. */
+	struct FDeathInfo
+	{
+		bool bActive = false;
+		bool bHasKiller = false;
+		float StartTime = 0.f;
+		float Duration = 2.f;
+		FString KillerName;
+		int32 KillerCharacter = 0;
+		uint8 KillerTeam = 255;
+		FVector KillerLocation = FVector::ZeroVector;
+		FVector VictimLocation = FVector::ZeroVector;
+		TWeakObjectPtr<APawn> KillerPawn;
+	};
+	const FDeathInfo& GetDeathInfo() const { return Death; }
+
+	/** The results screen: leaves the match for the main menu. */
+	void LeaveToMenu() { ReturnToMenu(); }
+
+	/** The results screen: the host starts the next match without waiting. Does nothing on a client. */
+	void RequestPlayAgain();
+
+	/** True from the end of the match until the next one begins. */
+	bool IsMatchFrozen() const { return bMatchFrozen; }
+
+	virtual void PlayerTick(float DeltaTime) override;
+	virtual bool IsMoveInputIgnored() const override { return Super::IsMoveInputIgnored() || bMatchFrozen; }
+	virtual bool IsLookInputIgnored() const override { return Super::IsLookInputIgnored() || bMatchFrozen; }
 
 protected:
 	virtual void SetupInputComponent() override;
@@ -82,4 +118,21 @@ private:
 
 	TSharedPtr<class SIAPauseMenu> PauseMenu;
 	bool bMenuOpen = false;
+
+	// ---- match flow (local controller only)
+	void OnPhaseChanged(uint8 NewPhase);
+	void ShowResults();
+	void HideResults();
+	void ApplyInputMode();
+	void UpdateDeathCamera();
+	void EndDeathCamera();
+
+	TSharedPtr<class SIAMatchResults> ResultsScreen;
+	bool bMatchFrozen = false;
+	uint8 LastPhase = 255;
+
+	FDeathInfo Death;
+	FRotator DeathStartView = FRotator::ZeroRotator;
+	FVector DeathCameraTarget = FVector::ZeroVector;
+	TWeakObjectPtr<class ACameraActor> DeathCamera;
 };

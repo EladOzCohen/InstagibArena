@@ -42,6 +42,24 @@ namespace
 		case EIASound::MatchEnd:     return TEXT("/Game/Audio/SFX/S_MatchEnd.S_MatchEnd");
 		// --- MAPS: added at the end
 		case EIASound::JumpPad:      return TEXT("/Game/Audio/SFX/S_JumpPad.S_JumpPad");
+
+		// ---- match HUD cues
+		case EIASound::CountdownTick: return TEXT("/Game/Audio/SFX/S_CountTick.S_CountTick");
+		case EIASound::CountdownGo:   return TEXT("/Game/Audio/SFX/S_CountGo.S_CountGo");
+		case EIASound::ClockTick:     return TEXT("/Game/Audio/SFX/S_ClockTick.S_ClockTick");
+		case EIASound::Warning:       return TEXT("/Game/Audio/SFX/S_Warning.S_Warning");
+		case EIASound::FirstBlood:    return TEXT("/Game/Audio/SFX/S_FirstBlood.S_FirstBlood");
+		case EIASound::MedalLow:      return TEXT("/Game/Audio/SFX/S_MedalLow.S_MedalLow");
+		case EIASound::MedalMid:      return TEXT("/Game/Audio/SFX/S_MedalMid.S_MedalMid");
+		case EIASound::MedalHigh:     return TEXT("/Game/Audio/SFX/S_MedalHigh.S_MedalHigh");
+		case EIASound::StreakLow:     return TEXT("/Game/Audio/SFX/S_StreakLow.S_StreakLow");
+		case EIASound::StreakMid:     return TEXT("/Game/Audio/SFX/S_StreakMid.S_StreakMid");
+		case EIASound::StreakHigh:    return TEXT("/Game/Audio/SFX/S_StreakHigh.S_StreakHigh");
+		case EIASound::LeadGain:      return TEXT("/Game/Audio/SFX/S_LeadGain.S_LeadGain");
+		case EIASound::LeadLose:      return TEXT("/Game/Audio/SFX/S_LeadLose.S_LeadLose");
+		case EIASound::LeadTie:       return TEXT("/Game/Audio/SFX/S_LeadTie.S_LeadTie");
+		case EIASound::Victory:       return TEXT("/Game/Audio/SFX/S_Victory.S_Victory");
+		case EIASound::Defeat:        return TEXT("/Game/Audio/SFX/S_Defeat.S_Defeat");
 		}
 		return TEXT("");
 	}

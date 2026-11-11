@@ -10,8 +10,12 @@
 #include "InstagibArena.h"
 #include "Algo/RandomShuffle.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/GameState.h"
+#include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "TimerManager.h"
 
 AIAGameMode::AIAGameMode()
@@ -46,6 +50,13 @@ void AIAGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	BotCount = RequestedBots <= 0 ? 0 : FMath::Clamp(RequestedBots, 2, 10);
 	BotSkill = FMath::Clamp(UGameplayStatics::GetIntOption(Options, TEXT("BotSkill"), 1), 0, 2);
 
+#if !UE_BUILD_SHIPPING
+	// Test helpers: shorter or longer countdown and results screen.
+	float DevValue = 0.f;
+	if (FParse::Value(FCommandLine::Get(), TEXT("IAWarmup="), DevValue)) { WarmupSeconds = FMath::Max(0.f, DevValue); }
+	if (FParse::Value(FCommandLine::Get(), TEXT("IAResults="), DevValue)) { RestartDelay = FMath::Max(1.f, DevValue); }
+#endif
+
 	UE_LOG(LogInstagib, Log, TEXT("Match setup: %s, score limit %d, time limit %d min, bots %d, skill %d"),
 		GameType == EIAGameType::TeamDeathmatch ? TEXT("TDM") : TEXT("FFA"), ScoreLimit, TimeLimitMinutes, BotCount, BotSkill);
 }
@@ -60,19 +71,139 @@ void AIAGameMode::InitGameState()
 		GS->ScoreLimit = ScoreLimit;
 		GS->TimeLimitSeconds = TimeLimitMinutes * 60;
 		GS->ClockSeconds = GS->TimeLimitSeconds;
+		GS->Phase = EIAMatchPhase::Warmup;
 	}
 }
+
+// ---------------------------------------------------------------- match flow
 
 void AIAGameMode::HandleMatchHasStarted()
 {
 	Super::HandleMatchHasStarted();
 
-	GetWorldTimerManager().SetTimer(ClockTimer, this, &AIAGameMode::TickClock, 1.f, true);
-
 	if (!bBotsSpawned)
 	{
 		bBotsSpawned = true;
 		SpawnBots();
+	}
+	BeginWarmup();
+
+#if !UE_BUILD_SHIPPING
+	SetupDevHooks();
+#endif
+}
+
+void AIAGameMode::BeginWarmup()
+{
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!GS)
+	{
+		return;
+	}
+
+	FTimerManager& Timers = GetWorldTimerManager();
+	Timers.ClearTimer(WarmupTimer);
+	Timers.ClearTimer(ClockTimer);
+	Timers.ClearTimer(RestartTimer);
+
+	GS->Phase = EIAMatchPhase::Warmup;
+	GS->bMatchOver = false;
+	GS->PhaseEndTime = GetWorld()->GetTimeSeconds() + WarmupSeconds;
+	UE_LOG(LogInstagib, Log, TEXT("Match phase: warmup for %.1f s"), WarmupSeconds);
+
+	if (WarmupSeconds <= 0.f)
+	{
+		StartLive();
+		return;
+	}
+	Timers.SetTimer(WarmupTimer, this, &AIAGameMode::StartLive, WarmupSeconds, false);
+}
+
+void AIAGameMode::StartLive()
+{
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!GS)
+	{
+		return;
+	}
+
+	GS->Phase = EIAMatchPhase::Live;
+	GS->PhaseEndTime = 0.f;
+	GetWorldTimerManager().SetTimer(ClockTimer, this, &AIAGameMode::TickClock, 1.f, true);
+	UE_LOG(LogInstagib, Log, TEXT("Match phase: live (%d players)"), GS->PlayerArray.Num());
+
+	// Everybody who has no body yet gets one now: this is where the bots enter the arena.
+	TArray<AController*> Waiting;
+	for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+	{
+		AController* C = It->Get();
+		if (C && !C->GetPawn() && C->PlayerState)
+		{
+			Waiting.Add(C);
+		}
+	}
+	for (AController* C : Waiting)
+	{
+		RestartPlayer(C);
+	}
+}
+
+void AIAGameMode::StartNewMatch()
+{
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!GS || GS->Phase != EIAMatchPhase::Ended)
+	{
+		return;
+	}
+
+	++MatchGeneration;
+	bFirstBloodDone = false;
+	LastFragsLeft = ScoreLimit;
+	TeamLead[0] = TeamLead[1] = 0;
+
+	GS->RedScore = 0;
+	GS->BlueScore = 0;
+	GS->ClockSeconds = GS->TimeLimitSeconds;
+	GS->WinnerText.Empty();
+	GS->WinnerPlayerId = -1;
+	GS->WinnerTeam = IA_NoTeam;
+	for (APlayerState* PS : GS->PlayerArray)
+	{
+		if (AIAPlayerState* State = Cast<AIAPlayerState>(PS))
+		{
+			State->ResetMatchStats();
+		}
+	}
+
+	// Every body goes, including the ones still lying around from the last fight.
+	TArray<AController*> Controllers;
+	for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+	{
+		if (AController* C = It->Get())
+		{
+			Controllers.Add(C);
+			if (APawn* Old = C->GetPawn())
+			{
+				C->UnPossess();
+				Old->Destroy();
+			}
+		}
+	}
+	for (TActorIterator<AIAPlayerCharacter> It(GetWorld()); It; ++It)
+	{
+		It->Destroy();
+	}
+
+	UE_LOG(LogInstagib, Log, TEXT("New match starts (%d controllers)"), Controllers.Num());
+	BeginWarmup();
+
+	// Humans get their body right away (bots wait for the fight).
+	for (AController* C : Controllers)
+	{
+		if (C && !C->GetPawn() && Cast<APlayerController>(C) && C->PlayerState)
+		{
+			RestartPlayer(C);
+		}
 	}
 }
 
@@ -122,11 +253,11 @@ void AIAGameMode::SpawnBots()
 			const int32 CharacterIndex = Roster[I % Roster.Num()];
 			PS->SetPlayerName(IACharacters::GetLook(CharacterIndex).Name);
 			PS->bIsBotPlayer = true;
+			PS->SlotId = NextSlotId++;
 			PS->CharacterIndex = CharacterIndex;
 			AssignTeam(PS);
 		}
-
-		RestartPlayer(Bot);
+		// The body comes when the countdown ends (StartLive).
 	}
 }
 
@@ -136,6 +267,7 @@ void AIAGameMode::PostLogin(APlayerController* NewPlayer)
 
 	if (AIAPlayerState* PS = NewPlayer ? NewPlayer->GetPlayerState<AIAPlayerState>() : nullptr)
 	{
+		PS->SlotId = NextSlotId++;
 		AssignTeam(PS);
 		UE_LOG(LogInstagib, Log, TEXT("Player joined: %s (character %d, team %d), %d players in the match"),
 			*PS->GetPlayerName(), PS->CharacterIndex, static_cast<int32>(PS->Team), GameState ? GameState->PlayerArray.Num() : 0);
@@ -183,7 +315,7 @@ void AIAGameMode::AssignTeam(AIAPlayerState* PlayerState)
 void AIAGameMode::TickClock()
 {
 	AIAGameState* GS = GetGameState<AIAGameState>();
-	if (!GS || !IsMatchInProgress())
+	if (!GS || GS->Phase != EIAMatchPhase::Live)
 	{
 		return;
 	}
@@ -202,54 +334,91 @@ void AIAGameMode::TickClock()
 	}
 }
 
+// ---------------------------------------------------------------- kills
+
+void AIAGameMode::ScheduleRespawn(AController* Victim, float Delay)
+{
+	TWeakObjectPtr<AController> WeakVictim(Victim);
+	const int32 Generation = MatchGeneration;
+	FTimerHandle RespawnHandle;
+	GetWorldTimerManager().SetTimer(RespawnHandle, FTimerDelegate::CreateLambda([this, WeakVictim, Generation]()
+	{
+		const AIAGameState* GS = GetGameState<AIAGameState>();
+		if (!WeakVictim.IsValid() || !GS || Generation != MatchGeneration || WeakVictim->GetPawn())
+		{
+			return;
+		}
+		if (GS->Phase == EIAMatchPhase::Ended)
+		{
+			return;
+		}
+		// Bots wait in the countdown like everybody else; they come in when the fight starts (StartLive).
+		if (GS->Phase == EIAMatchPhase::Warmup && !Cast<APlayerController>(WeakVictim.Get()))
+		{
+			return;
+		}
+		RestartPlayer(WeakVictim.Get());
+	}), FMath::Max(0.05f, Delay), false);
+}
+
 void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 {
-	if (!IsMatchInProgress() || !Victim)
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!Victim || !GS)
 	{
 		return;
 	}
 
-	AIAGameState* GS = GetGameState<AIAGameState>();
+	// Falling into the void in the countdown costs nothing; after the match nothing counts at all.
+	if (GS->Phase != EIAMatchPhase::Live)
+	{
+		if (GS->Phase == EIAMatchPhase::Warmup)
+		{
+			ScheduleRespawn(Victim, 1.f);
+		}
+		return;
+	}
+
 	AIAPlayerState* VictimState = Victim->GetPlayerState<AIAPlayerState>();
 	AIAPlayerState* KillerState = Killer ? Killer->GetPlayerState<AIAPlayerState>() : nullptr;
+	const bool bRealKill = Killer && Killer != Victim && KillerState;
+	const float Now = GetWorld()->GetTimeSeconds();
 
 	UE_LOG(LogInstagib, Log, TEXT("%s was fragged by %s"),
 		VictimState ? *VictimState->GetPlayerName() : TEXT("?"),
 		KillerState ? *KillerState->GetPlayerName() : TEXT("the world"));
 
-	// Tell the humans involved what happened.
+	// Tell the victim who did it and where from (death camera and killer panel).
+	if (AIAPlayerController* VictimPC = Cast<AIAPlayerController>(Victim))
 	{
-		const FString VictimName = VictimState ? VictimState->GetPlayerName() : TEXT("?");
-		const FString KillerName = KillerState ? KillerState->GetPlayerName() : TEXT("?");
-		if (AIAPlayerController* VictimPC = Cast<AIAPlayerController>(Victim))
-		{
-			if (Killer && Killer != Victim)
-			{
-				VictimPC->ClientShowMessage(FString::Printf(TEXT("Fragged by %s"), *KillerName), FLinearColor(1.f, 0.25f, 0.2f), 2.5f);
-			}
-			else
-			{
-				VictimPC->ClientShowMessage(TEXT("You died"), FLinearColor(0.8f, 0.8f, 0.85f), 2.f);
-			}
-		}
+		const APawn* VictimPawn = Victim->GetPawn();
+		const APawn* KillerPawn = bRealKill ? Killer->GetPawn() : nullptr;
+		const FVector VictimLocation = VictimPawn ? VictimPawn->GetPawnViewLocation() : FVector::ZeroVector;
+		VictimPC->ClientYouDied(bRealKill ? KillerState : nullptr, const_cast<APawn*>(KillerPawn),
+			KillerPawn ? KillerPawn->GetActorLocation() : FVector::ZeroVector, VictimLocation, Victim->GetControlRotation(), RespawnDelay);
+	}
+	if (bRealKill)
+	{
 		if (AIAPlayerController* KillerPC = Cast<AIAPlayerController>(Killer))
 		{
-			if (Killer != Victim)
-			{
-				KillerPC->ClientShowMessage(FString::Printf(TEXT("You fragged %s"), *VictimName), FLinearColor(1.f, 0.85f, 0.2f), 2.f);
-			}
+			KillerPC->ClientShowMessage(FString::Printf(TEXT("You fragged %s"), VictimState ? *VictimState->GetPlayerName() : TEXT("?")),
+				FLinearColor(1.f, 0.85f, 0.2f), 1.5f);
 		}
 	}
 
+	// Score.
 	if (VictimState)
 	{
 		++VictimState->Deaths;
+		VictimState->RegisterDeath();
 	}
 
-	if (Killer && Killer != Victim && KillerState)
+	int32 MultiKillCount = 0;
+	if (bRealKill)
 	{
 		++KillerState->Kills;
-		if (GS && GS->IsTeamGame())
+		MultiKillCount = KillerState->RegisterKill(Now, MultiKillWindow);
+		if (GS->IsTeamGame())
 		{
 			if (KillerState->Team == 0) { ++GS->RedScore; }
 			else if (KillerState->Team == 1) { ++GS->BlueScore; }
@@ -259,28 +428,158 @@ void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 	{
 		// Suicide or falling out of the world costs a point.
 		--VictimState->Kills;
-		if (GS && GS->IsTeamGame())
+		if (GS->IsTeamGame())
 		{
 			if (VictimState->Team == 0) { --GS->RedScore; }
 			else if (VictimState->Team == 1) { --GS->BlueScore; }
 		}
 	}
 
+	const int32 VictimId = VictimState ? VictimState->SlotId : -1;
+	GS->MulticastKillFeed(bRealKill ? KillerState->SlotId : (Killer == Victim ? VictimId : -1), VictimId);
+	if (bRealKill)
+	{
+		AnnounceKillMedals(KillerState, MultiKillCount);
+	}
+
 	CheckScoreLimit();
 
-	if (IsMatchInProgress())
+	if (GS->Phase == EIAMatchPhase::Live)
 	{
-		TWeakObjectPtr<AController> WeakVictim(Victim);
-		FTimerHandle RespawnHandle;
-		GetWorldTimerManager().SetTimer(RespawnHandle, FTimerDelegate::CreateLambda([this, WeakVictim]()
-		{
-			if (WeakVictim.IsValid() && IsMatchInProgress() && !WeakVictim->GetPawn())
-			{
-				RestartPlayer(WeakVictim.Get());
-			}
-		}), RespawnDelay, false);
+		UpdateLeadStates();
+		CheckFragsLeft();
+		ScheduleRespawn(Victim, RespawnDelay);
 	}
 }
+
+void AIAGameMode::AnnounceKillMedals(AIAPlayerState* Killer, int32 MultiKillCount)
+{
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!GS || !Killer)
+	{
+		return;
+	}
+	const int32 Id = Killer->SlotId;
+
+	if (!bFirstBloodDone)
+	{
+		bFirstBloodDone = true;
+		GS->MulticastAnnounce(EIAAnnounce::FirstBlood, Id, 0);
+	}
+
+	if (MultiKillCount >= 2)
+	{
+		const EIAAnnounce Kind = MultiKillCount == 2 ? EIAAnnounce::DoubleKill
+			: MultiKillCount == 3 ? EIAAnnounce::MultiKill
+			: MultiKillCount == 4 ? EIAAnnounce::UltraKill : EIAAnnounce::MonsterKill;
+		GS->MulticastAnnounce(Kind, Id, MultiKillCount);
+	}
+
+	switch (Killer->Streak)
+	{
+	case 5:  GS->MulticastAnnounce(EIAAnnounce::KillingSpree, Id, 5); break;
+	case 10: GS->MulticastAnnounce(EIAAnnounce::Rampage, Id, 10); break;
+	case 15: GS->MulticastAnnounce(EIAAnnounce::Dominating, Id, 15); break;
+	case 20: GS->MulticastAnnounce(EIAAnnounce::Unstoppable, Id, 20); break;
+	case 25: GS->MulticastAnnounce(EIAAnnounce::GodLike, Id, 25); break;
+	default: break;
+	}
+}
+
+void AIAGameMode::UpdateLeadStates()
+{
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!GS)
+	{
+		return;
+	}
+
+	// Compares the old and the new state: 0 = behind, 1 = tied for the lead, 2 = leading alone.
+	auto Transition = [GS](uint8 Old, uint8 New, int32 Subject, int32 Param)
+	{
+		if (New == Old)
+		{
+			return;
+		}
+		if (New == 2) { GS->MulticastAnnounce(EIAAnnounce::TookLead, Subject, Param); }
+		else if (New == 1) { GS->MulticastAnnounce(EIAAnnounce::TiedLead, Subject, Param); }
+		else { GS->MulticastAnnounce(EIAAnnounce::LostLead, Subject, Param); }
+	};
+
+	if (GS->IsTeamGame())
+	{
+		const int32 Scores[2] = { GS->RedScore, GS->BlueScore };
+		for (int32 T = 0; T < 2; ++T)
+		{
+			const int32 Mine = Scores[T];
+			const int32 Other = Scores[1 - T];
+			const uint8 New = (Mine > 0 && Mine > Other) ? 2 : ((Mine > 0 && Mine == Other) ? 1 : 0);
+			Transition(TeamLead[T], New, -1, T);
+			TeamLead[T] = New;
+		}
+		return;
+	}
+
+	int32 Max = 0;
+	int32 AtMax = 0;
+	for (APlayerState* PS : GS->PlayerArray)
+	{
+		if (const AIAPlayerState* State = Cast<AIAPlayerState>(PS))
+		{
+			if (State->Kills > Max) { Max = State->Kills; AtMax = 1; }
+			else if (State->Kills == Max && Max > 0) { ++AtMax; }
+		}
+	}
+	for (APlayerState* PS : GS->PlayerArray)
+	{
+		AIAPlayerState* State = Cast<AIAPlayerState>(PS);
+		if (!State)
+		{
+			continue;
+		}
+		const uint8 New = (Max > 0 && State->Kills == Max) ? (AtMax == 1 ? 2 : 1) : 0;
+		if (!State->bIsBotPlayer)
+		{
+			Transition(State->LeadState, New, State->SlotId, 0);
+		}
+		State->LeadState = New;
+	}
+}
+
+void AIAGameMode::CheckFragsLeft()
+{
+	const AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!GS || ScoreLimit < 3)
+	{
+		return;
+	}
+
+	int32 Top = 0;
+	if (GS->IsTeamGame())
+	{
+		Top = FMath::Max(GS->RedScore, GS->BlueScore);
+	}
+	else
+	{
+		for (APlayerState* PS : GS->PlayerArray)
+		{
+			if (const AIAPlayerState* State = Cast<AIAPlayerState>(PS))
+			{
+				Top = FMath::Max(Top, State->Kills);
+			}
+		}
+	}
+
+	const int32 Left = ScoreLimit - Top;
+	const bool bWorthAnnouncing = Left == 1 || (Left <= 3 && ScoreLimit >= 8);
+	if (Left >= 1 && Left < LastFragsLeft && bWorthAnnouncing)
+	{
+		const_cast<AIAGameState*>(GS)->MulticastAnnounce(EIAAnnounce::FragsLeft, -1, Left);
+	}
+	LastFragsLeft = Left;
+}
+
+// ---------------------------------------------------------------- end of the match
 
 void AIAGameMode::CheckScoreLimit()
 {
@@ -292,8 +591,8 @@ void AIAGameMode::CheckScoreLimit()
 
 	if (GS->IsTeamGame())
 	{
-		if (GS->RedScore >= ScoreLimit) { FinishMatch(TEXT("Red team wins!")); }
-		else if (GS->BlueScore >= ScoreLimit) { FinishMatch(TEXT("Blue team wins!")); }
+		if (GS->RedScore >= ScoreLimit) { FinishMatch(TEXT("Red team wins!"), -1, 0); }
+		else if (GS->BlueScore >= ScoreLimit) { FinishMatch(TEXT("Blue team wins!"), -1, 1); }
 		return;
 	}
 
@@ -302,7 +601,7 @@ void AIAGameMode::CheckScoreLimit()
 		const AIAPlayerState* State = Cast<AIAPlayerState>(PS);
 		if (State && State->Kills >= ScoreLimit)
 		{
-			FinishMatch(FString::Printf(TEXT("%s wins!"), *State->GetPlayerName()));
+			FinishMatch(FString::Printf(TEXT("%s wins!"), *State->GetPlayerName()), State->SlotId, IA_NoTeam);
 			return;
 		}
 	}
@@ -318,9 +617,9 @@ void AIAGameMode::DetermineWinnerByScore()
 
 	if (GS->IsTeamGame())
 	{
-		if (GS->RedScore > GS->BlueScore) { FinishMatch(TEXT("Red team wins!")); }
-		else if (GS->BlueScore > GS->RedScore) { FinishMatch(TEXT("Blue team wins!")); }
-		else { FinishMatch(TEXT("Draw!")); }
+		if (GS->RedScore > GS->BlueScore) { FinishMatch(TEXT("Red team wins!"), -1, 0); }
+		else if (GS->BlueScore > GS->RedScore) { FinishMatch(TEXT("Blue team wins!"), -1, 1); }
+		else { FinishMatch(TEXT("Draw!"), -1, IA_NoTeam); }
 		return;
 	}
 
@@ -346,28 +645,179 @@ void AIAGameMode::DetermineWinnerByScore()
 
 	if (!Best || bTie)
 	{
-		FinishMatch(TEXT("Draw!"));
+		FinishMatch(TEXT("Draw!"), -1, IA_NoTeam);
 	}
 	else
 	{
-		FinishMatch(FString::Printf(TEXT("%s wins!"), *Best->GetPlayerName()));
+		FinishMatch(FString::Printf(TEXT("%s wins!"), *Best->GetPlayerName()), Best->SlotId, IA_NoTeam);
 	}
 }
 
-void AIAGameMode::FinishMatch(const FString& WinnerText)
+void AIAGameMode::FinishMatch(const FString& WinnerText, int32 WinnerPlayerId, uint8 WinnerTeam)
 {
-	if (!IsMatchInProgress())
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!GS || GS->Phase != EIAMatchPhase::Live)
 	{
 		return;
 	}
 
-	if (AIAGameState* GS = GetGameState<AIAGameState>())
-	{
-		GS->bMatchOver = true;
-		GS->WinnerText = WinnerText;
-	}
+	GS->WinnerText = WinnerText;
+	GS->WinnerPlayerId = WinnerPlayerId;
+	GS->WinnerTeam = WinnerTeam;
+	GS->bMatchOver = true;
+	GS->Phase = EIAMatchPhase::Ended;
+	GS->PhaseEndTime = GetWorld()->GetTimeSeconds() + RestartDelay;
+	UE_LOG(LogInstagib, Log, TEXT("Match phase: ended (%s), next match in %.0f s"), *WinnerText, RestartDelay);
 
 	GetWorldTimerManager().ClearTimer(ClockTimer);
-	EndMatch();
-	GetWorldTimerManager().SetTimer(RestartTimer, this, &AIAGameMode::RestartGame, RestartDelay, false);
+	GetWorldTimerManager().SetTimer(RestartTimer, this, &AIAGameMode::StartNewMatch, RestartDelay, false);
 }
+
+// ---------------------------------------------------------------- smart spawning
+
+AActor* AIAGameMode::ChoosePlayerStart_Implementation(AController* Player)
+{
+	UWorld* World = GetWorld();
+	TArray<APlayerStart*> Starts;
+	for (TActorIterator<APlayerStart> It(World); It; ++It)
+	{
+		Starts.Add(*It);
+	}
+	if (Starts.IsEmpty())
+	{
+		return Super::ChoosePlayerStart_Implementation(Player);
+	}
+
+	const AIAGameState* GS = GetGameState<AIAGameState>();
+	const AIAPlayerState* MyState = Player ? Player->GetPlayerState<AIAPlayerState>() : nullptr;
+	const bool bTeamGame = GS && GS->IsTeamGame();
+
+	// Everybody alive who could shoot the arrival (team mates are no danger).
+	TArray<const AIAPlayerCharacter*> Threats;
+	for (TActorIterator<AIAPlayerCharacter> It(World); It; ++It)
+	{
+		const AIAPlayerCharacter* Other = *It;
+		if (Other->IsDead() || (Player && Other->GetController() == Player) || Other->IsPendingKillPending())
+		{
+			continue;
+		}
+		const AIAPlayerState* OtherState = Other->GetPlayerState<AIAPlayerState>();
+		if (bTeamGame && MyState && OtherState && OtherState->Team == MyState->Team)
+		{
+			continue;
+		}
+		Threats.Add(Other);
+	}
+
+	const float Now = World->GetTimeSeconds();
+	APlayerStart* Best = nullptr;
+	float BestScore = -FLT_MAX;
+	for (APlayerStart* Start : Starts)
+	{
+		const FVector Eye = Start->GetActorLocation() + FVector(0.f, 0.f, 70.f);
+		float Score = FMath::FRandRange(0.f, 10.f);
+		float MinDistance = FLT_MAX;
+		for (const AIAPlayerCharacter* Other : Threats)
+		{
+			const FVector OtherLocation = Other->GetActorLocation();
+			const float Distance = FVector::Dist(Start->GetActorLocation(), OtherLocation);
+			MinDistance = FMath::Min(MinDistance, Distance);
+			if (Distance < 4000.f)
+			{
+				FCollisionQueryParams Params(SCENE_QUERY_STAT(SpawnSight), false);
+				Params.AddIgnoredActor(Other);
+				if (!World->LineTraceTestByChannel(Eye, OtherLocation, ECC_Visibility, Params))
+				{
+					Score -= 20.f + 40.f * (1.f - Distance / 4000.f);   // it would be shot in the back at once
+				}
+			}
+		}
+		Score += FMath::Min(MinDistance, 3000.f) * 0.02f;
+		if (MinDistance < 220.f)
+		{
+			Score -= 500.f;   // somebody stands on it
+		}
+		if (const float* LastUse = StartLastUse.Find(Start))
+		{
+			if (Now - *LastUse < 3.f)
+			{
+				Score -= 60.f;
+			}
+		}
+		if (Score > BestScore)
+		{
+			BestScore = Score;
+			Best = Start;
+		}
+	}
+
+	if (Best)
+	{
+		StartLastUse.Add(Best, Now);
+		UE_LOG(LogInstagib, Log, TEXT("Spawn for %s: %s (score %.1f, %d enemies alive, of %d spawn points)"),
+			MyState ? *MyState->GetPlayerName() : TEXT("?"), *Best->GetName(), BestScore, Threats.Num(), Starts.Num());
+	}
+	return Best;
+}
+
+// ---------------------------------------------------------------- developer helpers
+
+#if !UE_BUILD_SHIPPING
+void AIAGameMode::SetupDevHooks()
+{
+	// -IAFakeKills=S: S seconds after the fight starts the first human scores five kills in a row (medal and feed test).
+	// -IAKillMe=S:    S seconds after the fight starts a bot kills the first human (death camera test).
+	float FakeKillsAt = 0.f;
+	float KillMeAt = 0.f;
+	const bool bFake = FParse::Value(FCommandLine::Get(), TEXT("IAFakeKills="), FakeKillsAt);
+	const bool bKillMe = FParse::Value(FCommandLine::Get(), TEXT("IAKillMe="), KillMeAt);
+	if (!bFake && !bKillMe)
+	{
+		return;
+	}
+
+	const float StartDelay = WarmupSeconds + 1.f;
+	if (bFake)
+	{
+		for (int32 I = 0; I < 5; ++I)
+		{
+			FTimerHandle Handle;
+			GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this]()
+			{
+				AController* Human = nullptr;
+				AController* Bot = nullptr;
+				for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+				{
+					if (Cast<APlayerController>(It->Get()) && !Human) { Human = It->Get(); }
+					if (Cast<AIABotController>(It->Get())) { Bot = It->Get(); }
+				}
+				if (Human && Bot)
+				{
+					OnPlayerKilled(Human, Bot);
+				}
+			}), StartDelay + FakeKillsAt + I * 0.7f, false);
+		}
+	}
+	if (bKillMe)
+	{
+		FTimerHandle Handle;
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this]()
+		{
+			// The last human in the list: a remote client when there is one, else the local player.
+			APlayerController* Target = nullptr;
+			AIABotController* Shooter = nullptr;
+			for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+			{
+				APlayerController* PC = Cast<APlayerController>(It->Get());
+				if (PC && PC->GetPawn()) { Target = PC; }
+				AIABotController* Bot = Cast<AIABotController>(It->Get());
+				if (Bot && Bot->GetPawn()) { Shooter = Bot; }
+			}
+			if (Target && Shooter)
+			{
+				UGameplayStatics::ApplyDamage(Target->GetPawn(), 1000.f, Shooter, Shooter->GetPawn(), UDamageType::StaticClass());
+			}
+		}), StartDelay + KillMeAt, false);
+	}
+}
+#endif

@@ -482,3 +482,130 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------------------
+# Match cues for the in-match HUD (countdown, medals, streaks, lead changes, results).
+# Musical stingers only: no speech. Written to <output>/sfx like the effects above.
+# ---------------------------------------------------------------------------
+
+def _bell(freq, dur, decay, bright=0.35):
+    """A struck-metal note: the base tone plus two inharmonic partials."""
+    n = int(dur * SR)
+    out = []
+    for i in range(n):
+        t = i / SR
+        env = math.exp(-t * decay) * min(1.0, t / 0.003)
+        out.append(env * (math.sin(TAU * freq * t)
+                          + bright * math.sin(TAU * freq * 2.76 * t) * math.exp(-t * decay * 1.8)
+                          + 0.5 * bright * math.sin(TAU * freq * 5.4 * t) * math.exp(-t * decay * 3.0)))
+    return out
+
+
+def _stab(freqs, dur, decay, lp=0.18, detune=0.004):
+    """A brass-like chord: detuned sawtooth voices through a one-pole low-pass."""
+    n = int(dur * SR)
+    out = [0.0] * n
+    for f in freqs:
+        for d in (1.0 - detune, 1.0 + detune):
+            phase, y = 0.0, 0.0
+            for i in range(n):
+                t = i / SR
+                phase += f * d / SR
+                y += lp * (saw(phase) - y)
+                out[i] += y * math.exp(-t * decay) * min(1.0, t / 0.008)
+    return out
+
+
+def _boom(freq, dur, decay):
+    n = int(dur * SR)
+    return [math.sin(TAU * (freq + 90.0 * math.exp(-(i / SR) * 30)) * (i / SR)) * math.exp(-(i / SR) * decay)
+            for i in range(n)]
+
+
+def _noise_rise(dur, seed, peak=0.5):
+    rng = random.Random(seed)
+    n = int(dur * SR)
+    y, out = 0.0, []
+    for i in range(n):
+        k = i / n
+        y += (0.05 + 0.5 * k) * (rng.uniform(-1, 1) - y)
+        out.append(y * (k ** 2) * peak)
+    return out
+
+
+def hud_cues():
+    """All cues of the match HUD. Called from the end of this file after main()."""
+    n = mtof
+    cues = {}
+
+    # Countdown: a soft blip for 3-2-1, a rising fanfare for FIGHT, a dry tick for the last 10 seconds.
+    cues["count_tick"] = normalize(mix_at([(0.0, _bell(880, 0.28, 16, 0.2), 1.0), (0.0, _boom(110, 0.12, 40), 0.35)]), 0.8)
+    cues["count_go"] = normalize(mix_at([
+        (0.00, _stab([n(60), n(67)], 0.9, 4.0), 0.5),
+        (0.00, _bell(n(72), 0.9, 5, 0.4), 0.8), (0.07, _bell(n(76), 0.9, 5, 0.4), 0.8),
+        (0.14, _bell(n(79), 1.0, 4, 0.4), 0.9), (0.21, _bell(n(84), 1.2, 3.5, 0.45), 1.0),
+        (0.00, _boom(55, 0.5, 9), 0.9), (0.0, _noise_rise(0.22, 3, 0.4), 0.7)]), 0.9)
+    cues["clock_tick"] = normalize([
+        math.sin(TAU * 1250 * (i / SR)) * math.exp(-(i / SR) * 70)
+        + 0.4 * math.sin(TAU * 2500 * (i / SR)) * math.exp(-(i / SR) * 90) for i in range(int(0.09 * SR))], 0.55)
+    cues["warning"] = normalize(mix_at([
+        (0.0, _stab([n(69)], 0.16, 14, 0.5), 1.0), (0.2, _stab([n(69)], 0.16, 14, 0.5), 1.0),
+        (0.0, _stab([n(76)], 0.16, 14, 0.5), 0.5), (0.2, _stab([n(76)], 0.16, 14, 0.5), 0.5)]), 0.75)
+
+    # First blood: a drum hit with a dark brass stab.
+    cues["first_blood"] = normalize(echo(mix_at([
+        (0.0, _boom(62, 0.55, 8), 1.0), (0.0, _stab([n(45), n(52), n(57)], 0.6, 5, 0.12), 0.7),
+        (0.0, _noise_rise(0.07, 11, 0.9), 0.4)]), 0.11, 0.3, 3), 0.9)
+
+    # Multi kills: bright bells, one more note for every tier.
+    cues["medal_low"] = normalize(mix_at([(0.0, _bell(n(76), 0.5, 9), 1.0), (0.09, _bell(n(83), 0.7, 7), 1.0)]), 0.8)
+    cues["medal_mid"] = normalize(mix_at([
+        (0.0, _bell(n(72), 0.5, 8), 0.9), (0.08, _bell(n(79), 0.5, 8), 0.9), (0.16, _bell(n(84), 0.9, 6), 1.1),
+        (0.16, _bell(n(91), 0.9, 7, 0.5), 0.5)]), 0.85)
+    cues["medal_high"] = normalize(echo(mix_at([
+        (0.00, _bell(n(72), 0.5, 8), 0.8), (0.07, _bell(n(76), 0.5, 8), 0.8), (0.14, _bell(n(79), 0.5, 8), 0.8),
+        (0.21, _bell(n(84), 0.6, 6), 0.9), (0.28, _bell(n(91), 1.3, 4), 1.2),
+        (0.28, _boom(70, 0.6, 7), 0.9), (0.0, _noise_rise(0.28, 5, 0.4), 0.7)]), 0.14, 0.3, 3), 0.9)
+
+    # Killing sprees: brass chords, bigger and higher with every tier.
+    cues["streak_low"] = normalize(mix_at([
+        (0.0, _stab([n(45), n(52), n(57), n(64)], 0.7, 4.5), 1.0), (0.0, _boom(55, 0.4, 10), 0.7)]), 0.85)
+    cues["streak_mid"] = normalize(echo(mix_at([
+        (0.00, _stab([n(45), n(52), n(57)], 0.45, 6), 0.9),
+        (0.28, _stab([n(50), n(57), n(62), n(69)], 0.95, 3.5), 1.1),
+        (0.00, _boom(55, 0.4, 10), 0.8), (0.28, _boom(62, 0.5, 8), 0.9)]), 0.12, 0.28, 3), 0.9)
+    cues["streak_high"] = normalize(echo(mix_at([
+        (0.00, _noise_rise(0.55, 17, 0.6), 0.8),
+        (0.55, _stab([n(45), n(52), n(57), n(61), n(64)], 1.6, 2.2), 1.1),
+        (0.55, _stab([n(69), n(76), n(81)], 1.4, 2.6, 0.3, 0.007), 0.6),
+        (0.55, _bell(n(93), 1.8, 2.5, 0.5), 0.6), (0.55, _boom(48, 0.9, 5), 1.0)]), 0.16, 0.3, 3), 0.9)
+
+    # Lead changes: two notes up, two notes down, the same note twice for a tie.
+    cues["lead_gain"] = normalize(mix_at([(0.0, _bell(n(79), 0.5, 8), 0.9), (0.11, _bell(n(86), 0.8, 6), 1.0)]), 0.8)
+    cues["lead_lose"] = normalize(mix_at([
+        (0.0, _stab([n(67)], 0.3, 9, 0.12), 0.9), (0.14, _stab([n(60)], 0.5, 6, 0.1), 1.0)]), 0.75)
+    cues["lead_tie"] = normalize(mix_at([(0.0, _bell(n(81), 0.4, 11), 0.9), (0.14, _bell(n(81), 0.6, 8), 0.9)]), 0.75)
+
+    # End of the match: a rising fanfare for the winner, a sinking line for everyone else.
+    cues["victory"] = normalize(echo(mix_at([
+        (0.00, _stab([n(60), n(67)], 0.35, 5, 0.2), 0.7), (0.00, _bell(n(72), 0.5, 5), 0.8),
+        (0.18, _stab([n(64), n(71)], 0.35, 5, 0.2), 0.7), (0.18, _bell(n(76), 0.5, 5), 0.8),
+        (0.36, _stab([n(67), n(74)], 0.35, 5, 0.2), 0.7), (0.36, _bell(n(79), 0.5, 5), 0.8),
+        (0.54, _stab([n(60), n(72), n(79), n(84)], 1.6, 2.2, 0.2), 1.0), (0.54, _bell(n(84), 1.8, 2.5, 0.45), 0.9),
+        (0.54, _boom(60, 0.7, 6), 0.9)]), 0.16, 0.28, 3), 0.9)
+    cues["defeat"] = normalize(echo(mix_at([
+        (0.00, _stab([n(57), n(64)], 0.5, 4, 0.1), 0.9), (0.30, _stab([n(55), n(62)], 0.5, 4, 0.1), 0.9),
+        (0.60, _stab([n(52), n(59), n(64)], 1.5, 2.4, 0.09), 1.0), (0.60, _boom(41, 0.9, 5), 0.8)]), 0.18, 0.25, 3), 0.85)
+
+    print("Match cues:")
+    for name, samples in cues.items():
+        # A short fade-out so that a cue never ends on a click.
+        tail = min(len(samples), int(0.04 * SR))
+        for i in range(tail):
+            samples[len(samples) - tail + i] *= 1.0 - (i + 1) / tail
+        write_wav(os.path.join(OUT, "sfx", name + ".wav"), samples)
+
+
+if __name__ == "__main__":
+    hud_cues()

@@ -500,6 +500,7 @@ void AIAPlayerCharacter::ServerFire_Implementation()
 		return;
 	}
 	LastFireTime = Now;
+	if (!AIAPlayerState::RegisterShot(this)) { return; } // HUD: counts the shot, refuses it during countdown and results
 
 	if (const AIAPlayerState* ShooterState = GetPlayerState<AIAPlayerState>())
 	{
@@ -528,6 +529,7 @@ void AIAPlayerCharacter::ServerFire_Implementation()
 		{
 			if (Dealt > 0.f)
 			{
+				AIAPlayerState::RegisterHit(this); // HUD: hit statistics
 				ClientHitConfirm(Victim->IsDead());
 			}
 		}
