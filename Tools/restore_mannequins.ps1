@@ -24,12 +24,24 @@ if (-not (Test-Path $source)) {
 
 New-Item -ItemType Directory -Force $target | Out-Null
 foreach ($folder in "Meshes", "Materials", "Textures", "Rigs") {
-    Copy-Item -Path (Join-Path $source $folder) -Destination (Join-Path $target $folder) -Recurse -Force
+    $dest = Join-Path $target $folder
+    if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }   # copying onto an existing folder would nest a second copy inside it
+    Copy-Item -Path (Join-Path $source $folder) -Destination $dest -Recurse -Force
 }
 New-Item -ItemType Directory -Force (Join-Path $target "Anims") | Out-Null
 foreach ($folder in "Unarmed", "Rifle", "Death") {
-    Copy-Item -Path (Join-Path $source "Anims\$folder") -Destination (Join-Path $target "Anims\$folder") -Recurse -Force
+    $dest = Join-Path $target "Anims\$folder"
+    if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
+    Copy-Item -Path (Join-Path $source "Anims\$folder") -Destination $dest -Recurse -Force
 }
+
+# The animation blueprints of the template use Control Rigs that do not compile while cooking, and the game
+# does not use them (its animation runs in code, see IAAnimInstance). Leave them out.
+Get-ChildItem (Join-Path $target "Anims") -Recurse -Filter "ABP_*.uasset" | Remove-Item -Force
+
+# The Control Rig assets are not used by the game (the animation runs in code) and they do not compile
+# during cooking, which would make packaging fail. Leave them out.
+Get-ChildItem (Join-Path $target "Rigs") -Filter "CR_Mannequin_*.uasset" -ErrorAction SilentlyContinue | Remove-Item -Force
 
 $count = (Get-ChildItem $target -Recurse -File | Measure-Object).Count
 "Copied $count files to $target"

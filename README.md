@@ -58,8 +58,10 @@ Requirements: Windows 10 or 11 (64-bit) and a graphics card that supports Direct
 
 | | |
 |---|---|
-| ![Skyline](docs/images/skyline.png) | ![Temple](docs/images/temple.png) |
-| ![First person](docs/images/first_person.png) | ![Hit effects](docs/images/hit_effects.png) |
+| ![Neon Street](docs/images/neon.png) | ![Canyon](docs/images/canyon.png) |
+| ![Glacier](docs/images/glacier.png) | ![Skyline](docs/images/skyline.png) |
+| ![Temple](docs/images/temple.png) | ![First person](docs/images/first_person.png) |
+| ![Hit effects](docs/images/hit_effects.png) | |
 | ![Characters 5-9](docs/images/characters_5-9.png) | ![Characters 10-14](docs/images/characters_10-14.png) |
 
 ### Controls
