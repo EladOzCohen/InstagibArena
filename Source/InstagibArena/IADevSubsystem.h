@@ -62,4 +62,12 @@ private:
 	FVector CameraLocation = FVector::ZeroVector;
 	FRotator CameraRotation = FRotator::ZeroRotator;
 	FString ShotName = TEXT("shot_00");
+
+	// ---- MENUS block: -IAShotAuto makes a map thumbnail (see Tools/make_thumbnails.ps1).
+	//   -IAShotAuto -IAShotDelay=14 -IAShotName=Thumb_DM-Foundry  looks at the whole level from outside (or from
+	//   inside a corner for closed maps), hides the HUD and the player, takes the picture without UI and logs a THUMB_INFO line.
+	bool AutoShotCamera(float DeltaTime);
+	FTSTicker::FDelegateHandle AutoShotHandle;
+	TWeakObjectPtr<class ACameraActor> AutoCamera;
+	bool bAutoShot = false;
 };

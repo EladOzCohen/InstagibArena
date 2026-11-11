@@ -1,8 +1,23 @@
 // Instagib Arena
 
 #include "InstagibArena.h"
+#include "IALoadingScreen.h"
+#include "IASettings.h"
+#include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_PRIMARY_GAME_MODULE(FDefaultGameModuleImpl, InstagibArena, "InstagibArena");
+/** The game module: besides loading, it hooks up the loading screen and applies the saved settings once the engine is up. */
+class FInstagibArenaModule : public FDefaultGameModuleImpl
+{
+public:
+	virtual void StartupModule() override
+	{
+		FDefaultGameModuleImpl::StartupModule();
+		IALoadingScreen::Register();
+		FCoreDelegates::OnPostEngineInit.AddStatic(&IASettings::ApplyStartupSettings);
+	}
+};
+
+IMPLEMENT_PRIMARY_GAME_MODULE(FInstagibArenaModule, InstagibArena, "InstagibArena");
 
 DEFINE_LOG_CATEGORY(LogInstagib);

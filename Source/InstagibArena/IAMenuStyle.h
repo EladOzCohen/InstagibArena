@@ -38,6 +38,13 @@ namespace IAMenu
 	TSharedRef<SWidget> Chip(const TWeakObjectPtr<APlayerController>& Owner, const FText& Label, TFunction<void()> OnClick,
 		TFunction<bool()> IsSelected, float MinWidth = 0.f, int32 FontSize = 16);
 
+	/** A chip whose text can change (a key name, "Press a key..."). */
+	TSharedRef<SWidget> ChipDyn(const TWeakObjectPtr<APlayerController>& Owner, TFunction<FText()> Label, TFunction<void()> OnClick,
+		TFunction<bool()> IsSelected, float MinWidth = 0.f, int32 FontSize = 16);
+
+	/** Developer check: sends a key press through Slate exactly like the keyboard does (focus, navigation, shortcuts). */
+	void SimulateKey(const FKey& Key);
+
 	/** The main action of a screen: a wide, always-orange chip. */
 	TSharedRef<SWidget> PrimaryButton(const TWeakObjectPtr<APlayerController>& Owner, const FText& Label, TFunction<void()> OnClick,
 		float MinWidth = 280.f);
@@ -78,6 +85,21 @@ namespace IAMenu
 
 	/** Formats a key for the player: "Space Bar", "Left Mouse Button". */
 	FText KeyText(const FKey& Key);
+
+	/**
+	 * Developer check (not in shipping builds): runs the commands of  -IAMenuScript="a;b;c"  (or another parameter name)
+	 * one after another, 0.7 s apart. "wait=3" pauses for 3 seconds. Call Step every frame.
+	 */
+	struct FDevScript
+	{
+		TArray<FString> Commands;
+		int32 Next = 0;
+		float Timer = -1.5f;
+
+		void Load(const TCHAR* ParamName);
+		/** Returns a command when one is due, otherwise an empty string. */
+		FString Step(float DeltaTime);
+	};
 }
 
 /**

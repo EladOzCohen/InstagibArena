@@ -20,6 +20,15 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Misc/App.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "Framework/Application/SlateApplication.h"
+#include "InputCoreTypes.h"
+#include "Framework/Commands/InputChord.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "Engine/Engine.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Input/Events.h"
 
 namespace IAMenu
 {
@@ -103,6 +112,40 @@ namespace IAMenu
 	FText KeyText(const FKey& Key)
 	{
 		return Key.IsValid() ? Key.GetDisplayName() : INVTEXT("Unbound");
+	}
+
+	void FDevScript::Load(const TCHAR* ParamName)
+	{
+#if !UE_BUILD_SHIPPING
+		FString Text;
+		const FString Prefix = FString(ParamName) + TEXT("=");
+		if (FParse::Value(FCommandLine::Get(), *Prefix, Text, /*bShouldStopOnSeparator*/ false))
+		{
+			Text.ParseIntoArray(Commands, TEXT(";"), true);
+		}
+#endif
+	}
+
+	FString FDevScript::Step(float DeltaTime)
+	{
+#if !UE_BUILD_SHIPPING
+		if (Next < Commands.Num())
+		{
+			Timer += DeltaTime;
+			if (Timer >= 0.7f)
+			{
+				Timer = 0.f;
+				const FString Command = Commands[Next++].TrimStartAndEnd();
+				if (Command.StartsWith(TEXT("wait=")))
+				{
+					Timer = -FCString::Atof(*Command.Mid(5));
+					return FString();
+				}
+				return Command;
+			}
+		}
+#endif
+		return FString();
 	}
 
 	TSharedRef<SWidget> ScrollArea(TSharedRef<SWidget> Content)
@@ -639,6 +682,23 @@ namespace IAMenu
 	TSharedRef<SWidget> Chip(const TWeakObjectPtr<APlayerController>& Owner, const FText& Label, TFunction<void()> OnClick,
 		TFunction<bool()> IsSelected, float MinWidth, int32 FontSize)
 	{
+		return ChipDyn(Owner, [Label]() { return Label; }, OnClick, IsSelected, MinWidth, FontSize);
+	}
+
+	void SimulateKey(const FKey& Key)
+	{
+		const uint32* KeyCode = nullptr;
+		const uint32* CharCode = nullptr;
+		FInputKeyManager::Get().GetCodesFromKey(Key, KeyCode, CharCode);
+		const FKeyEvent Event(Key, FModifierKeysState(), FSlateApplicationBase::SlateAppPrimaryPlatformUser, false,
+			CharCode ? *CharCode : 0, KeyCode ? *KeyCode : 0);
+		FSlateApplication::Get().ProcessKeyDownEvent(Event);
+		FSlateApplication::Get().ProcessKeyUpEvent(Event);
+	}
+
+	TSharedRef<SWidget> ChipDyn(const TWeakObjectPtr<APlayerController>& Owner, TFunction<FText()> Label, TFunction<void()> OnClick,
+		TFunction<bool()> IsSelected, float MinWidth, int32 FontSize)
+	{
 		const TSharedRef<TWeakPtr<SButton>> Holder = MakeShared<TWeakPtr<SButton>>();
 		TSharedPtr<SButton> Button;
 
@@ -673,7 +733,7 @@ namespace IAMenu
 					.HAlign(HAlign_Center)
 					[
 						SNew(STextBlock)
-						.Text(Label)
+						.Text_Lambda([Label]() { return Label(); })
 						.Font(Font(FontSize, true))
 						.ColorAndOpacity(FLinearColor::White)
 					]
