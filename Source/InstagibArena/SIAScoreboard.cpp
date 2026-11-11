@@ -23,18 +23,18 @@ namespace
 	const float ColStreak = 96.f;
 	const float ColPing = 74.f;
 
-	const FLinearColor RedColor(1.f, 0.36f, 0.34f);
-	const FLinearColor BlueColor(0.42f, 0.62f, 1.f);
+	const FLinearColor SbRed(1.f, 0.36f, 0.34f);
+	const FLinearColor SbBlue(0.42f, 0.62f, 1.f);
 
-	FLinearColor TeamColor(uint8 Team)
+	FLinearColor SbTeamColor(uint8 Team)
 	{
-		if (Team == 0) { return RedColor; }
-		if (Team == 1) { return BlueColor; }
+		if (Team == 0) { return SbRed; }
+		if (Team == 1) { return SbBlue; }
 		return FLinearColor::White;
 	}
 
 	/** One fixed-width cell. */
-	TSharedRef<SWidget> Cell(TAttribute<FText> Text, float Width, EHorizontalAlignment Align, const FLinearColor& Color, int32 Size, bool bBold = false)
+	TSharedRef<SWidget> SbCell(TAttribute<FText> Text, float Width, EHorizontalAlignment Align, const FLinearColor& Color, int32 Size, bool bBold = false)
 	{
 		return SNew(SBox).WidthOverride(Width)
 		[
@@ -114,27 +114,27 @@ void SIAScoreboard::Tick(const FGeometry& AllottedGeometry, const double InCurre
 
 TSharedRef<SWidget> SIAScoreboard::MakeHeaderRow() const
 {
-	const FLinearColor Dim = IAMenu::TextDim;
+	const FLinearColor SbDim = IAMenu::TextDim;
 	return SNew(SBorder)
 		.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 		.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
 		.Padding(FMargin(14.f, 4.f))
 		[
 			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth() [ Cell(INVTEXT("#"), ColRank, HAlign_Left, Dim, 13) ]
-			+ SHorizontalBox::Slot().AutoWidth() [ Cell(INVTEXT("PLAYER"), ColName, HAlign_Left, Dim, 13) ]
-			+ SHorizontalBox::Slot().AutoWidth() [ Cell(INVTEXT("KILLS"), ColKills, HAlign_Right, Dim, 13) ]
-			+ SHorizontalBox::Slot().AutoWidth() [ Cell(INVTEXT("DEATHS"), ColDeaths, HAlign_Right, Dim, 13) ]
-			+ SHorizontalBox::Slot().AutoWidth() [ Cell(INVTEXT("K/D"), ColKD, HAlign_Right, Dim, 13) ]
-			+ SHorizontalBox::Slot().AutoWidth() [ Cell(INVTEXT("ACC"), ColAcc, HAlign_Right, Dim, 13) ]
-			+ SHorizontalBox::Slot().AutoWidth() [ Cell(INVTEXT("STREAK"), ColStreak, HAlign_Right, Dim, 13) ]
-			+ SHorizontalBox::Slot().AutoWidth() [ Cell(INVTEXT("PING"), ColPing, HAlign_Right, Dim, 13) ]
+			+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("#"), ColRank, HAlign_Left, SbDim, 13) ]
+			+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("PLAYER"), ColName, HAlign_Left, SbDim, 13) ]
+			+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("KILLS"), ColKills, HAlign_Right, SbDim, 13) ]
+			+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("DEATHS"), ColDeaths, HAlign_Right, SbDim, 13) ]
+			+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("K/D"), ColKD, HAlign_Right, SbDim, 13) ]
+			+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("ACC"), ColAcc, HAlign_Right, SbDim, 13) ]
+			+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("STREAK"), ColStreak, HAlign_Right, SbDim, 13) ]
+			+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("PING"), ColPing, HAlign_Right, SbDim, 13) ]
 		];
 }
 
 TSharedRef<SWidget> SIAScoreboard::MakeTeamRow(int32 Team, TFunction<int32()> Score) const
 {
-	const FLinearColor Color = TeamColor(static_cast<uint8>(Team));
+	const FLinearColor Color = SbTeamColor(static_cast<uint8>(Team));
 	return SNew(SBorder)
 		.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 		.BorderBackgroundColor(FLinearColor(Color.R, Color.G, Color.B, 0.22f))
@@ -157,7 +157,7 @@ TSharedRef<SWidget> SIAScoreboard::MakeTeamRow(int32 Team, TFunction<int32()> Sc
 TSharedRef<SWidget> SIAScoreboard::MakePlayerRow(TWeakObjectPtr<const AIAPlayerState> State, int32 Rank, bool bLocal) const
 {
 	const AIAPlayerState* S = State.Get();
-	const FLinearColor NameColor = (S && S->Team != IA_NoTeam) ? TeamColor(S->Team) : FLinearColor::White;
+	const FLinearColor NameColor = (S && S->Team != IA_NoTeam) ? SbTeamColor(S->Team) : FLinearColor::White;
 	const bool bBot = S && S->bIsBotPlayer;
 
 	auto Number = [State](TFunction<FText(const AIAPlayerState&)> Get)
@@ -180,7 +180,7 @@ TSharedRef<SWidget> SIAScoreboard::MakePlayerRow(TWeakObjectPtr<const AIAPlayerS
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				Cell(Rank > 0 ? FText::AsNumber(Rank) : FText::GetEmpty(), ColRank, HAlign_Left, IAMenu::TextDim, 18)
+				SbCell(Rank > 0 ? FText::AsNumber(Rank) : FText::GetEmpty(), ColRank, HAlign_Left, IAMenu::TextDim, 18)
 			]
 			+ SHorizontalBox::Slot().AutoWidth()
 			[
@@ -202,31 +202,31 @@ TSharedRef<SWidget> SIAScoreboard::MakePlayerRow(TWeakObjectPtr<const AIAPlayerS
 			]
 			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				Cell(Number([](const AIAPlayerState& P) { return FText::AsNumber(P.Kills); }), ColKills, HAlign_Right, FLinearColor::White, 20, true)
+				SbCell(Number([](const AIAPlayerState& P) { return FText::AsNumber(P.Kills); }), ColKills, HAlign_Right, FLinearColor::White, 20, true)
 			]
 			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				Cell(Number([](const AIAPlayerState& P) { return FText::AsNumber(P.Deaths); }), ColDeaths, HAlign_Right, Base, 18)
+				SbCell(Number([](const AIAPlayerState& P) { return FText::AsNumber(P.Deaths); }), ColDeaths, HAlign_Right, Base, 18)
 			]
 			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				Cell(Number([](const AIAPlayerState& P) { return FText::FromString(FString::Printf(TEXT("%.2f"), P.GetKillDeathRatio())); }),
+				SbCell(Number([](const AIAPlayerState& P) { return FText::FromString(FString::Printf(TEXT("%.2f"), P.GetKillDeathRatio())); }),
 					ColKD, HAlign_Right, Base, 18)
 			]
 			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				Cell(Number([](const AIAPlayerState& P)
+				SbCell(Number([](const AIAPlayerState& P)
 				{
 					return P.ShotsFired > 0 ? FText::FromString(FString::Printf(TEXT("%d%%"), FMath::RoundToInt(P.GetAccuracy()))) : INVTEXT("-");
 				}), ColAcc, HAlign_Right, Base, 18)
 			]
 			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				Cell(Number([](const AIAPlayerState& P) { return FText::AsNumber(P.BestStreak); }), ColStreak, HAlign_Right, Base, 18)
+				SbCell(Number([](const AIAPlayerState& P) { return FText::AsNumber(P.BestStreak); }), ColStreak, HAlign_Right, Base, 18)
 			]
 			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				Cell(Number([](const AIAPlayerState& P)
+				SbCell(Number([](const AIAPlayerState& P)
 				{
 					return P.bIsBotPlayer ? INVTEXT("-") : FText::AsNumber(FMath::RoundToInt(P.GetPingInMilliseconds()));
 				}), ColPing, HAlign_Right, IAMenu::TextDim, 16)

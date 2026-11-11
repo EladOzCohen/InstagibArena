@@ -1,6 +1,7 @@
 // Instagib Arena
 
 #include "IAPlayerState.h"
+#include "IAGameMode.h"
 #include "IAGameState.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
@@ -21,6 +22,7 @@ void AIAPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AIAPlayerState, bIsBotPlayer);
 	DOREPLIFETIME(AIAPlayerState, CharacterIndex);
 	DOREPLIFETIME(AIAPlayerState, SlotId);
+	DOREPLIFETIME(AIAPlayerState, SpawnProtectEndTime);
 	DOREPLIFETIME(AIAPlayerState, ShotsFired);
 	DOREPLIFETIME(AIAPlayerState, ShotsHit);
 	DOREPLIFETIME(AIAPlayerState, Streak);
@@ -39,6 +41,7 @@ void AIAPlayerState::ResetMatchStats()
 	MultiKill = 0;
 	LastKillTime = -100.f;
 	LeadState = 0;
+	SpawnProtectEndTime = 0.f;
 }
 
 int32 AIAPlayerState::RegisterKill(float Now, float MultiKillWindow)
@@ -70,6 +73,14 @@ bool AIAPlayerState::RegisterShot(const APawn* Shooter)
 	if (AIAPlayerState* PS = Shooter ? Shooter->GetPlayerState<AIAPlayerState>() : nullptr)
 	{
 		++PS->ShotsFired;
+		// Shooting ends the spawn protection.
+		if (PS->SpawnProtectEndTime > 0.f)
+		{
+			if (AIAGameMode* GM = World ? World->GetAuthGameMode<AIAGameMode>() : nullptr)
+			{
+				GM->EndSpawnProtection(const_cast<APawn*>(Shooter));
+			}
+		}
 	}
 	return true;
 }

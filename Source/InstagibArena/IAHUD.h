@@ -81,6 +81,7 @@ private:
 	void DrawCountdown(const AIAGameState& GS, float Now);
 	void DrawDeath(float Now);
 	void DrawMessages(float Now);
+	void DrawProtection(const AIAGameState& GS, float Now);
 	void DrawTriangle(const FVector2D& A, const FVector2D& B, const FVector2D& C, const FLinearColor& Color);
 
 	float S = 1.f;            // screen scale

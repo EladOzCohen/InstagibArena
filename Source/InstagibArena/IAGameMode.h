@@ -67,10 +67,27 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Match")
 	float MultiKillWindow = 4.f;
 
+	/** Seconds after a spawn (and at the start of the fight) during which shots pass through the new body. Shooting ends it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Match")
+	float SpawnProtectSeconds = 1.5f;
+
+	/** Ends the spawn protection of this pawn now (server). Safe to call for any pawn. */
+	void EndSpawnProtection(APawn* Pawn);
+
 	int32 GetBotCount() const { return BotCount; }
 	int32 GetBotSkill() const { return BotSkill; }
 
 protected:
+	virtual void FinishRestartPlayer(AController* NewPlayer, const FRotator& StartRotation) override;
+	void BeginSpawnProtection(APawn* Pawn);
+
+	struct FProtection
+	{
+		TEnumAsByte<ECollisionResponse> CapsuleResponse = ECR_Block;
+		TEnumAsByte<ECollisionResponse> MeshResponse = ECR_Ignore;
+	};
+	TMap<TWeakObjectPtr<APawn>, FProtection> Protected;
+
 	void SpawnBots();
 	void AssignTeam(AIAPlayerState* PlayerState);
 	void BeginWarmup();
