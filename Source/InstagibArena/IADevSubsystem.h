@@ -24,6 +24,13 @@
  *   -IAReport        logs what this machine sees every 4 seconds
  *   -IAWalk          walks and turns the local player
  *   -IAFireEvery=2   fires the local player's rifle every 2 seconds
+ *
+ * Movement and animation helpers (FEEL):
+ *   -IAMoveTest [-IAMoveTestQuit]  the local player runs a script (jump, double jump, dodges, crouch, walk, wall dodge)
+ *                    and logs MOVETEST lines with positions; use it with a listen server + client and p.NetShowCorrections 1
+ *   -IAShowroomWalk  the showroom characters walk on the spot in different directions with different view pitch
+ *   -IAShowroomJump / -IAShowroomCrouch   one of them jumps / crouches
+ *   -IARifleOffset=x,y,z,pitch,yaw,roll[,scale]   rifle in the hand (bone space of hand_r), without a rebuild
  */
 UCLASS()
 class INSTAGIBARENA_API UIADevSubsystem : public UGameInstanceSubsystem

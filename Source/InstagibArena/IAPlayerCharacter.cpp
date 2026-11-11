@@ -11,6 +11,7 @@
 #include "IASettings.h"
 #include "IAImpactEffect.h"
 #include "IAAnimInstance.h"
+#include "IAScorch.h"
 #include "Engine/DamageEvents.h"
 #include "IAHUD.h"
 #include "Misc/CommandLine.h"
@@ -548,6 +549,14 @@ void AIAPlayerCharacter::MulticastShotEffect_Implementation(FVector Start, FVect
 		if (AIAImpactEffect* Impact = GetWorld()->SpawnActor<AIAImpactEffect>(End + Normal * 3.f, FRotator::ZeroRotator))
 		{
 			Impact->Init(Normal, GetBodyColor(), HitType == 2 ? 1.4f : 1.f, HitType == 2 ? 24 : 12);
+		}
+		// A shot that hits the level leaves a scorch mark.
+		if (HitType == 1)
+		{
+			if (UIAScorchSubsystem* Scorch = UIAScorchSubsystem::Get(this))
+			{
+				Scorch->AddMark(End + Normal * 0.5f, Normal, GetBodyColor());
+			}
 		}
 	}
 

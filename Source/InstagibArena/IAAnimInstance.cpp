@@ -94,7 +94,7 @@ struct FIAAnimProxy : public FAnimInstanceProxy
 		RawDir = FMath::RadiansToDegrees(FMath::Atan2(Local.Y, Local.X));
 		VelZ = Velocity.Z;
 		const UCharacterMovementComponent* Move = Pawn->GetCharacterMovement();
-		bGrounded = Move && Move->IsMovingOnGround();
+		bGrounded = !(Move && Move->IsFalling()); // a pawn without movement (none) counts as standing
 		bCrouched = Pawn->bIsCrouched;
 		AimPitch = FRotator::NormalizeAxis(Pawn->GetAimPitchForAnimation());
 
@@ -297,6 +297,13 @@ struct FIAAnimProxy : public FAnimInstanceProxy
 		return true;
 	}
 };
+
+FString UIAAnimInstance::GetDebugString() const
+{
+	const FIAAnimProxy& P = const_cast<UIAAnimInstance*>(this)->GetProxyOnGameThread<FIAAnimProxy>();
+	return FString::Printf(TEXT("pawn=%d grounded=%d speed=%.0f dir=%.0f air=%.2f airTime=%.2f crouch=%.2f vz=%.0f pitch=%.0f landTimer=%.2f"),
+		P.bHasPawn ? 1 : 0, P.bGrounded ? 1 : 0, P.Speed, P.Dir, P.AirAlpha, P.AirTime, P.CrouchAlpha, P.VelZ, P.AimPitch, P.LandTimer);
+}
 
 FAnimInstanceProxy* UIAAnimInstance::CreateAnimInstanceProxy()
 {

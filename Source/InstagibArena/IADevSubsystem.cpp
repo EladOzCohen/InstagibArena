@@ -2,6 +2,8 @@
 
 #include "IADevSubsystem.h"
 #include "IACharacterRoster.h"
+#include "IAAnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "IAPlayerCharacter.h"
 #include "IAPlayerController.h"
 #include "IAGameState.h"
@@ -331,6 +333,7 @@ bool UIADevSubsystem::SpawnShowroom(float DeltaTime)
 			if (FParse::Param(FCommandLine::Get(), TEXT("IAShowroomWalk")))
 			{
 				Pawn->GetCharacterMovement()->bRunPhysicsWithNoController = true;
+				Pawn->GetCharacterMovement()->SetDefaultMovementMode(); // pawns that nobody possesses start without movement
 				Pawn->DevAimPitch = (I - 2) * 22.f; // looking down ... up across the row
 				if (FParse::Param(FCommandLine::Get(), TEXT("IAShowroomCrouch")) && I == 4)
 				{
@@ -558,12 +561,19 @@ bool UIADevSubsystem::ShowroomWalk(float DeltaTime)
 		FVector2D(1, 0), FVector2D(-1, 0), FVector2D(0, -1), FVector2D(0, 1),
 		FVector2D(1, 1), FVector2D(-1, -1), FVector2D(1, -1), FVector2D(-1, 1) };
 
+	const bool bLogNow = FMath::FloorToInt(ShowroomWalkTime) != FMath::FloorToInt(ShowroomWalkTime - DeltaTime);
 	for (int32 Index = 0; Index < ShowroomPawns.Num(); ++Index)
 	{
 		AIAPlayerCharacter* Pawn = ShowroomPawns[Index].Get();
 		if (!Pawn)
 		{
 			continue;
+		}
+		if (bLogNow && (Index == 0 || Index == 3))
+		{
+			const UIAAnimInstance* Anim = Cast<UIAAnimInstance>(Pawn->GetMesh()->GetAnimInstance());
+			UE_LOG(LogInstagib, Log, TEXT("SHOWROOM pawn %d z=%.1f mode=%d %s"), Index, Pawn->GetActorLocation().Z,
+				static_cast<int32>(Pawn->GetCharacterMovement()->MovementMode.GetValue()), Anim ? *Anim->GetDebugString() : TEXT("no anim instance"));
 		}
 		const FVector2D D = Dirs[(Index + FMath::FloorToInt(ShowroomWalkTime / 30.f) * 5) % 8].GetSafeNormal();
 		Pawn->AddMovementInput(Pawn->GetActorForwardVector(), D.X);

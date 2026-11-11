@@ -24,6 +24,9 @@ class INSTAGIBARENA_API UIAAnimInstance : public UAnimInstance
 public:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 
+	/** One line with the state of the animation (developer logs). */
+	FString GetDebugString() const;
+
 	/** Keeps the loaded clips alive. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UAnimSequence>> Clips;
