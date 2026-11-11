@@ -26,26 +26,26 @@
 
 namespace
 {
-	const FLinearColor RedTeam(1.f, 0.36f, 0.34f);
-	const FLinearColor BlueTeam(0.42f, 0.62f, 1.f);
-	const FLinearColor Gold(1.f, 0.82f, 0.22f);
-	const FLinearColor Dim(0.66f, 0.69f, 0.76f);
-	const FLinearColor Accent(1.f, 0.42f, 0.f);
+	const FLinearColor HudRed(1.f, 0.36f, 0.34f);
+	const FLinearColor HudBlue(0.42f, 0.62f, 1.f);
+	const FLinearColor HudGold(1.f, 0.82f, 0.22f);
+	const FLinearColor HudDim(0.66f, 0.69f, 0.76f);
+	const FLinearColor HudAccent(1.f, 0.42f, 0.f);
 
-	FLinearColor TeamTint(uint8 Team, const FLinearColor& Fallback)
+	FLinearColor HudTeamTint(uint8 Team, const FLinearColor& Fallback)
 	{
-		if (Team == 0) { return RedTeam; }
-		if (Team == 1) { return BlueTeam; }
+		if (Team == 0) { return HudRed; }
+		if (Team == 1) { return HudBlue; }
 		return Fallback;
 	}
 
-	float EaseOut(float T)
+	float HudEaseOut(float T)
 	{
 		T = FMath::Clamp(T, 0.f, 1.f);
 		return 1.f - (1.f - T) * (1.f - T) * (1.f - T);
 	}
 
-	FString ClockText(int32 Seconds)
+	FString HudClockText(int32 Seconds)
 	{
 		return FString::Printf(TEXT("%02d:%02d"), Seconds / 60, Seconds % 60);
 	}
@@ -189,7 +189,7 @@ void AIAHUD::HandleAnnounce(EIAAnnounce Kind, int32 Subject, int32 Param)
 		B.Title = Kind == EIAAnnounce::DoubleKill ? TEXT("DOUBLE KILL") : Kind == EIAAnnounce::MultiKill ? TEXT("MULTI KILL")
 			: Kind == EIAAnnounce::UltraKill ? TEXT("ULTRA KILL") : TEXT("MONSTER KILL");
 		B.Sub = FString::Printf(TEXT("%d kills in a row"), Param);
-		B.Color = Kind == EIAAnnounce::DoubleKill ? Gold : (Kind == EIAAnnounce::MultiKill ? FLinearColor(1.f, 0.62f, 0.12f) : FLinearColor(1.f, 0.38f, 0.1f));
+		B.Color = Kind == EIAAnnounce::DoubleKill ? HudGold : (Kind == EIAAnnounce::MultiKill ? FLinearColor(1.f, 0.62f, 0.12f) : FLinearColor(1.f, 0.38f, 0.1f));
 		B.Priority = 2;
 		B.Sound = Kind == EIAAnnounce::DoubleKill ? EIASound::MedalLow : (Kind == EIAAnnounce::MonsterKill ? EIASound::MedalHigh : EIASound::MedalMid);
 		break;
@@ -232,7 +232,7 @@ void AIAHUD::HandleAnnounce(EIAAnnounce Kind, int32 Subject, int32 Param)
 			if (!Me || Me->Team != Param) { return; }
 			B.Title = Kind == EIAAnnounce::TookLead ? TEXT("YOUR TEAM TOOK THE LEAD") : Kind == EIAAnnounce::LostLead ? TEXT("YOUR TEAM LOST THE LEAD") : TEXT("TEAMS TIED FOR THE LEAD");
 		}
-		B.Color = Kind == EIAAnnounce::TookLead ? FLinearColor(0.35f, 1.f, 0.5f) : (Kind == EIAAnnounce::LostLead ? FLinearColor(1.f, 0.4f, 0.35f) : Gold);
+		B.Color = Kind == EIAAnnounce::TookLead ? FLinearColor(0.35f, 1.f, 0.5f) : (Kind == EIAAnnounce::LostLead ? FLinearColor(1.f, 0.4f, 0.35f) : HudGold);
 		B.Sound = Kind == EIAAnnounce::TookLead ? EIASound::LeadGain : (Kind == EIAAnnounce::LostLead ? EIASound::LeadLose : EIASound::LeadTie);
 		break;
 	}
@@ -240,7 +240,7 @@ void AIAHUD::HandleAnnounce(EIAAnnounce Kind, int32 Subject, int32 Param)
 		B.Size = Param == 1 ? 0.8f : 0.55f;
 		B.Title = Param == 1 ? TEXT("MATCH POINT") : FString::Printf(TEXT("%d FRAGS LEFT"), Param);
 		B.Sub = Param == 1 ? TEXT("1 frag left") : TEXT("");
-		B.Color = Param == 1 ? FLinearColor(1.f, 0.3f, 0.25f) : Gold;
+		B.Color = Param == 1 ? FLinearColor(1.f, 0.3f, 0.25f) : HudGold;
 		B.Priority = 2;
 		B.Sound = EIASound::Warning;
 		break;
@@ -313,7 +313,7 @@ void AIAHUD::UpdateClockCues(const AIAGameState& GS)
 		FBanner B;
 		B.Title = GS.ClockSeconds == 60 ? TEXT("1 MINUTE LEFT") : TEXT("30 SECONDS LEFT");
 		B.Size = 0.55f;
-		B.Color = Gold;
+		B.Color = HudGold;
 		B.Duration = 1.8f;
 		B.bHasSound = true;
 		B.Sound = EIASound::Warning;
@@ -481,8 +481,8 @@ void AIAHUD::DrawTopBar(const AIAGameState& GS, float Now)
 		const float Pulse = 0.5f + 0.5f * FMath::Sin(Now * 10.f);
 		ClockColor = FMath::Lerp(FLinearColor(1.f, 0.3f, 0.25f), FLinearColor(1.f, 0.85f, 0.8f), Pulse * 0.5f);
 	}
-	Panel(CX - TimerW * 0.5f, Y0, TimerW, H, 0.62f, bUrgent ? FLinearColor(1.f, 0.25f, 0.2f) : Accent);
-	Text(ClockText(GS.ClockSeconds), CX, Y0 + (H - 42.f * S) * 0.5f, 42.f * S, ClockColor, 1, bUrgent ? 1.f + 0.06f * FMath::Max(0.f, FMath::Sin(Now * 10.f)) : 1.f);
+	Panel(CX - TimerW * 0.5f, Y0, TimerW, H, 0.62f, bUrgent ? FLinearColor(1.f, 0.25f, 0.2f) : HudAccent);
+	Text(HudClockText(GS.ClockSeconds), CX, Y0 + (H - 42.f * S) * 0.5f, 42.f * S, ClockColor, 1, bUrgent ? 1.f + 0.06f * FMath::Max(0.f, FMath::Sin(Now * 10.f)) : 1.f);
 
 	// Caption under the clock.
 	FString Caption = GS.IsTeamGame() ? TEXT("TEAM DEATHMATCH") : TEXT("FREE FOR ALL");
@@ -490,7 +490,7 @@ void AIAHUD::DrawTopBar(const AIAGameState& GS, float Now)
 	{
 		Caption += FString::Printf(TEXT("   -   FIRST TO %d"), GS.ScoreLimit);
 	}
-	Text(Caption, CX, Y0 + H + 5.f * S, 13.f * S, Dim, 1);
+	Text(Caption, CX, Y0 + H + 5.f * S, 13.f * S, HudDim, 1);
 
 	const AIAPlayerState* Me = GetLocalState();
 	const float LeftX = CX - TimerW * 0.5f - Gap - SideW;
@@ -503,13 +503,13 @@ void AIAHUD::DrawTopBar(const AIAGameState& GS, float Now)
 			{ LeftX, 0, GS.RedScore, TEXT("RED") }, { RightX, 1, GS.BlueScore, TEXT("BLUE") } };
 		for (const auto& Side : Sides)
 		{
-			const FLinearColor Tint = TeamTint(Side.Team, FLinearColor::White);
+			const FLinearColor Tint = HudTeamTint(Side.Team, FLinearColor::White);
 			Panel(Side.X, Y0, SideW, H, 0.62f, Tint);
 			DrawRect(FLinearColor(Tint.R, Tint.G, Tint.B, 0.16f), Side.X, Y0, SideW, H);
 			Text(Side.Name, Side.X + Pad, Y0 + 10.f * S, 20.f * S, Tint, 0);
 			if (MyTeam == Side.Team)
 			{
-				Text(TEXT("YOUR TEAM"), Side.X + Pad, Y0 + H - 22.f * S, 12.f * S, Dim, 0);
+				Text(TEXT("YOUR TEAM"), Side.X + Pad, Y0 + H - 22.f * S, 12.f * S, HudDim, 0);
 			}
 			Text(FString::FromInt(Side.Score), Side.X + SideW - Pad, Y0 + (H - 44.f * S) * 0.5f, 44.f * S, FLinearColor::White, 2);
 		}
@@ -535,28 +535,28 @@ void AIAHUD::DrawTopBar(const AIAGameState& GS, float Now)
 			if (P != Me && P->Kills > Me->Kills) { ++Rank; }
 		}
 	}
-	Panel(LeftX, Y0, SideW, H, 0.62f, Accent);
-	Text(TEXT("RANK"), LeftX + Pad, Y0 + 8.f * S, 12.f * S, Dim, 0);
+	Panel(LeftX, Y0, SideW, H, 0.62f, HudAccent);
+	Text(TEXT("RANK"), LeftX + Pad, Y0 + 8.f * S, 12.f * S, HudDim, 0);
 	Text(FString::Printf(TEXT("%d / %d"), Rank, Players.Num()), LeftX + Pad, Y0 + 24.f * S, 28.f * S, FLinearColor::White, 0);
-	Text(FString::FromInt(Me ? Me->Kills : 0), LeftX + SideW - Pad, Y0 + (H - 44.f * S) * 0.5f, 44.f * S, Gold, 2);
+	Text(FString::FromInt(Me ? Me->Kills : 0), LeftX + SideW - Pad, Y0 + (H - 44.f * S) * 0.5f, 44.f * S, HudGold, 2);
 
 	const AIAPlayerState* Other = nullptr;
 	for (const AIAPlayerState* P : Players)
 	{
 		if (P != Me) { Other = P; break; }
 	}
-	Panel(RightX, Y0, SideW, H, 0.62f, Dim);
+	Panel(RightX, Y0, SideW, H, 0.62f, HudDim);
 	if (Other)
 	{
 		const bool bIChase = Me && Players.Num() > 0 && Players[0] != Me;
-		Text(bIChase ? TEXT("LEADER") : TEXT("CHASING YOU"), RightX + Pad, Y0 + 8.f * S, 12.f * S, Dim, 0);
+		Text(bIChase ? TEXT("LEADER") : TEXT("CHASING YOU"), RightX + Pad, Y0 + 8.f * S, 12.f * S, HudDim, 0);
 		FString Name = Other->GetPlayerName();
 		const float MaxName = SideW - 2.f * Pad - 70.f * S;
 		while (Name.Len() > 2 && TextWidth(Name, 22.f * S) > MaxName)
 		{
 			Name.LeftChopInline(1);
 		}
-		Text(Name, RightX + Pad, Y0 + 26.f * S, 22.f * S, TeamTint(Other->Team, FLinearColor::White), 0);
+		Text(Name, RightX + Pad, Y0 + 26.f * S, 22.f * S, HudTeamTint(Other->Team, FLinearColor::White), 0);
 		Text(FString::FromInt(Other->Kills), RightX + SideW - Pad, Y0 + (H - 44.f * S) * 0.5f, 44.f * S, FLinearColor::White, 2);
 	}
 }
@@ -574,19 +574,19 @@ void AIAHUD::DrawStats(const AIAGameState& GS)
 	const float H = 72.f * S;
 	const float X = Margin;
 	const float Y = Canvas->ClipY - Margin - H;
-	Panel(X, Y, W, H, 0.55f, Accent);
+	Panel(X, Y, W, H, 0.55f, HudAccent);
 
 	const struct { const TCHAR* Label; FString Value; FLinearColor Color; } Cells[4] = {
 		{ TEXT("KILLS"), FString::FromInt(Me->Kills), FLinearColor::White },
 		{ TEXT("DEATHS"), FString::FromInt(Me->Deaths), FLinearColor(0.85f, 0.87f, 0.93f) },
-		{ TEXT("STREAK"), FString::FromInt(Me->Streak), Me->Streak >= 3 ? Accent : FLinearColor::White },
+		{ TEXT("STREAK"), FString::FromInt(Me->Streak), Me->Streak >= 3 ? HudAccent : FLinearColor::White },
 		{ TEXT("ACCURACY"), Me->ShotsFired > 0 ? FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Me->GetAccuracy())) : FString(TEXT("-")), FLinearColor(0.85f, 0.87f, 0.93f) },
 	};
 	for (int32 I = 0; I < 4; ++I)
 	{
 		const float CellX = X + 8.f * S + ColW * I + ColW * 0.5f;
 		Text(Cells[I].Value, CellX, Y + 11.f * S, 34.f * S, Cells[I].Color, 1);
-		Text(Cells[I].Label, CellX, Y + H - 21.f * S, 12.f * S, Dim, 1);
+		Text(Cells[I].Label, CellX, Y + H - 21.f * S, 12.f * S, HudDim, 1);
 	}
 }
 
@@ -622,16 +622,16 @@ void AIAHUD::DrawKillFeed(const AIAGameState& GS, float Now)
 	{
 		const float Age = Now - Entry->Time;
 		const float Alpha = Age > FadeStart ? 1.f - (Age - FadeStart) / (Life - FadeStart) : 1.f;
-		const float Slide = (1.f - EaseOut(Age / 0.18f)) * 40.f * S;
+		const float Slide = (1.f - HudEaseOut(Age / 0.18f)) * 40.f * S;
 
 		const bool bMineKill = Me && Entry->KillerId == Me->SlotId;
 		const bool bMineDeath = Me && Entry->VictimId == Me->SlotId;
 		const bool bMine = bMineKill || bMineDeath;
 
 		const FLinearColor Neutral(0.92f, 0.94f, 0.98f);
-		FLinearColor KillerColor = TeamTint(Entry->KillerTeam, Neutral);
-		FLinearColor VictimColor = TeamTint(Entry->VictimTeam, Neutral);
-		if (bMineKill && Entry->KillerTeam == IA_NoTeam) { KillerColor = Gold; }
+		FLinearColor KillerColor = HudTeamTint(Entry->KillerTeam, Neutral);
+		FLinearColor VictimColor = HudTeamTint(Entry->VictimTeam, Neutral);
+		if (bMineKill && Entry->KillerTeam == IA_NoTeam) { KillerColor = HudGold; }
 		if (bMineDeath && Entry->VictimTeam == IA_NoTeam) { VictimColor = FLinearColor(1.f, 0.5f, 0.45f); }
 
 		FString Middle;
@@ -651,8 +651,8 @@ void AIAHUD::DrawKillFeed(const AIAGameState& GS, float Now)
 		DrawRect(FLinearColor(0.f, 0.f, 0.f, (bMine ? 0.62f : 0.46f) * Alpha), X, Y, RowW, RowH);
 		if (bMine)
 		{
-			DrawRect(FLinearColor(Accent.R, Accent.G, Accent.B, Alpha), X, Y, 3.f * S, RowH);
-			DrawRect(FLinearColor(Accent.R, Accent.G, Accent.B, 0.18f * Alpha), X, Y, RowW, RowH);
+			DrawRect(FLinearColor(HudAccent.R, HudAccent.G, HudAccent.B, Alpha), X, Y, 3.f * S, RowH);
+			DrawRect(FLinearColor(HudAccent.R, HudAccent.G, HudAccent.B, 0.18f * Alpha), X, Y, RowW, RowH);
 		}
 
 		float Cursor = X + Pad + (bMine ? 3.f * S : 0.f);
@@ -718,7 +718,7 @@ void AIAHUD::DrawBanner(float Now)
 	}
 
 	const float Age = Now - CurrentBanner.Start;
-	const float InT = EaseOut(Age / 0.22f);
+	const float InT = HudEaseOut(Age / 0.22f);
 	const float OutT = FMath::Clamp((Age - (CurrentBanner.Duration - 0.4f)) / 0.4f, 0.f, 1.f);
 	const float Alpha = InT * (1.f - OutT);
 	const float Pop = FMath::Lerp(1.7f, 1.f, InT);
@@ -731,7 +731,7 @@ void AIAHUD::DrawBanner(float Now)
 	Text(CurrentBanner.Title, CX, BaseY - TitlePx * 0.5f, TitlePx, Color, 1, Pop);
 
 	// A line that grows from the middle.
-	const float LineW = 420.f * S * CurrentBanner.Size * EaseOut(Age / 0.4f);
+	const float LineW = 420.f * S * CurrentBanner.Size * HudEaseOut(Age / 0.4f);
 	const float LineY = BaseY + TitlePx * 0.62f;
 	DrawRect(FLinearColor(Color.R, Color.G, Color.B, Alpha * 0.9f), CX - LineW * 0.5f, LineY, LineW, FMath::Max(2.f, 3.f * S * CurrentBanner.Size));
 
@@ -755,20 +755,20 @@ void AIAHUD::DrawCountdown(const AIAGameState& GS, float Now)
 			return;
 		}
 		const float Frac = Number - Left;               // 0 right after the number changed
-		const float Pop = 1.f + 0.55f * (1.f - EaseOut(Frac / 0.3f));
+		const float Pop = 1.f + 0.55f * (1.f - HudEaseOut(Frac / 0.3f));
 		const float Fade = 1.f - 0.5f * FMath::Clamp((Frac - 0.7f) / 0.3f, 0.f, 1.f);
 
 		Text(TEXT("GET READY"), CX, CY - 120.f * S, 34.f * S, FLinearColor(0.92f, 0.94f, 1.f, 0.95f), 1);
 		const FLinearColor NumberColor = Number == 1 ? FLinearColor(1.f, 0.55f, 0.1f, Fade) : FLinearColor(1.f, 1.f, 1.f, Fade);
 		Text(FString::FromInt(Number), CX, CY - 70.f * S, Number <= 3 ? 150.f * S : 100.f * S, NumberColor, 1, Pop);
-		Text(GS.IsTeamGame() ? TEXT("Team Deathmatch") : TEXT("Free For All"), CX, CY + 100.f * S, 22.f * S, Dim, 1);
+		Text(GS.IsTeamGame() ? TEXT("Team Deathmatch") : TEXT("Free For All"), CX, CY + 100.f * S, 22.f * S, HudDim, 1);
 		return;
 	}
 
 	const float FightAge = Now - FightStart;
 	if (GS.Phase == EIAMatchPhase::Live && FightAge >= 0.f && FightAge < 1.4f)
 	{
-		const float Pop = 1.f + 0.7f * (1.f - EaseOut(FightAge / 0.25f));
+		const float Pop = 1.f + 0.7f * (1.f - HudEaseOut(FightAge / 0.25f));
 		const float Alpha = 1.f - FMath::Clamp((FightAge - 0.9f) / 0.5f, 0.f, 1.f);
 		Text(TEXT("FIGHT!"), CX, CY - 60.f * S, 130.f * S, FLinearColor(1.f, 0.45f, 0.05f, Alpha), 1, Pop);
 	}
@@ -783,7 +783,7 @@ void AIAHUD::DrawDeath(float Now)
 	}
 	const AIAPlayerController::FDeathInfo& Info = PC->GetDeathInfo();
 	const float Age = Now - Info.StartTime;
-	const float Alpha = EaseOut(Age / 0.25f);
+	const float Alpha = HudEaseOut(Age / 0.25f);
 	const float CX = Canvas->ClipX * 0.5f;
 	const float CY = Canvas->ClipY * 0.5f;
 
@@ -793,7 +793,7 @@ void AIAHUD::DrawDeath(float Now)
 	const float PanelY = Canvas->ClipY * 0.66f;
 	if (Info.bHasKiller)
 	{
-		const FLinearColor NameColor = TeamTint(Info.KillerTeam, FLinearColor(1.f, 0.95f, 0.85f));
+		const FLinearColor NameColor = HudTeamTint(Info.KillerTeam, FLinearColor(1.f, 0.95f, 0.85f));
 		Text(TEXT("FRAGGED BY"), CX, PanelY, 20.f * S, FLinearColor(0.85f, 0.4f, 0.38f, Alpha), 1);
 		Text(Info.KillerName, CX, PanelY + 24.f * S, 56.f * S, FLinearColor(NameColor.R, NameColor.G, NameColor.B, Alpha), 1);
 		FString Detail = FString(IACharacters::GetLook(Info.KillerCharacter).Name);
@@ -812,7 +812,7 @@ void AIAHUD::DrawDeath(float Now)
 	const float BarY = PanelY + 128.f * S;
 	Text(Left > 0.f ? FString::Printf(TEXT("Respawn in %.1f"), Left) : FString(TEXT("Respawning")), CX, BarY, 22.f * S, FLinearColor(1.f, 1.f, 1.f, Alpha), 1);
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.5f * Alpha), CX - BarW * 0.5f, BarY + 30.f * S, BarW, 6.f * S);
-	DrawRect(FLinearColor(Accent.R, Accent.G, Accent.B, Alpha), CX - BarW * 0.5f, BarY + 30.f * S, BarW * FMath::Clamp(Age / FMath::Max(0.1f, Info.Duration), 0.f, 1.f), 6.f * S);
+	DrawRect(FLinearColor(HudAccent.R, HudAccent.G, HudAccent.B, Alpha), CX - BarW * 0.5f, BarY + 30.f * S, BarW * FMath::Clamp(Age / FMath::Max(0.1f, Info.Duration), 0.f, 1.f), 6.f * S);
 
 	// An arrow around the middle of the screen that points toward the killer, relative to where the camera looks.
 	if (Info.bHasKiller && PlayerOwner && PlayerOwner->PlayerCameraManager)
@@ -938,7 +938,7 @@ void AIAHUD::UpdateScoreboardWidget(const AIAGameState& GS)
 						if (!State) { return FText::GetEmpty(); }
 						FString Line = State->IsTeamGame() ? TEXT("TEAM DEATHMATCH") : TEXT("FREE FOR ALL");
 						if (State->ScoreLimit > 0) { Line += FString::Printf(TEXT("   -   first to %d"), State->ScoreLimit); }
-						if (State->TimeLimitSeconds > 0) { Line += FString::Printf(TEXT("   -   %s left"), *ClockText(State->ClockSeconds)); }
+						if (State->TimeLimitSeconds > 0) { Line += FString::Printf(TEXT("   -   %s left"), *HudClockText(State->ClockSeconds)); }
 						return FText::FromString(Line);
 					})
 				]

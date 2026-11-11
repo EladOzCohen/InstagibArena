@@ -17,15 +17,15 @@ using namespace IAMenu;
 
 namespace
 {
-	const AIAGameState* GetState(const TWeakObjectPtr<APlayerController>& Owner)
+	const AIAGameState* ResultsState(const TWeakObjectPtr<APlayerController>& Owner)
 	{
 		return Owner.IsValid() && Owner->GetWorld() ? Owner->GetWorld()->GetGameState<AIAGameState>() : nullptr;
 	}
 
 	/** 1 = this player (or team) won, 0 = draw, -1 = lost. */
-	int32 Outcome(const TWeakObjectPtr<APlayerController>& Owner)
+	int32 ResultsOutcome(const TWeakObjectPtr<APlayerController>& Owner)
 	{
-		const AIAGameState* GS = GetState(Owner);
+		const AIAGameState* GS = ResultsState(Owner);
 		const AIAPlayerState* Me = Owner.IsValid() ? Owner->GetPlayerState<AIAPlayerState>() : nullptr;
 		if (!GS || !Me)
 		{
@@ -137,19 +137,19 @@ FReply SIAMatchResults::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& 
 
 FText SIAMatchResults::GetHeadline() const
 {
-	const int32 Result = Outcome(Owner);
+	const int32 Result = ResultsOutcome(Owner);
 	return Result > 0 ? INVTEXT("VICTORY") : (Result < 0 ? INVTEXT("DEFEAT") : INVTEXT("DRAW"));
 }
 
 FLinearColor SIAMatchResults::GetHeadlineColor() const
 {
-	const int32 Result = Outcome(Owner);
+	const int32 Result = ResultsOutcome(Owner);
 	return Result > 0 ? FLinearColor(1.f, 0.82f, 0.2f) : (Result < 0 ? FLinearColor(0.95f, 0.32f, 0.28f) : FLinearColor(0.7f, 0.76f, 0.9f));
 }
 
 FText SIAMatchResults::GetSubline() const
 {
-	const AIAGameState* GS = GetState(Owner);
+	const AIAGameState* GS = ResultsState(Owner);
 	if (!GS)
 	{
 		return FText::GetEmpty();
@@ -164,7 +164,7 @@ FText SIAMatchResults::GetSubline() const
 
 FText SIAMatchResults::GetCountdownText() const
 {
-	const AIAGameState* GS = GetState(Owner);
+	const AIAGameState* GS = ResultsState(Owner);
 	if (!GS)
 	{
 		return FText::GetEmpty();
