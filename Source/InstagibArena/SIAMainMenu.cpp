@@ -23,6 +23,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SDPIScaler.h"
+#include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -278,9 +279,16 @@ void SIAMainMenu::ShowWelcome(int32 Step)
 
 TSharedRef<SWidget> SIAMainMenu::BuildMainPage()
 {
+	// The entries shrink to fit when the window is small or the UI scale is large, instead of running off the screen.
 	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot().FillHeight(1.f).VAlign(VAlign_Center)
 		[
+			SNew(SScaleBox)
+			.Stretch(EStretch::ScaleToFit)
+			.StretchDirection(EStretchDirection::DownOnly)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight()
 			[
@@ -328,6 +336,7 @@ TSharedRef<SWidget> SIAMainMenu::BuildMainPage()
 			[
 				NavButton(Owner, INVTEXT("QUIT"), FText::GetEmpty(), [this]() { QuitGame(); })
 			]
+			]
 		];
 }
 
@@ -352,7 +361,7 @@ TSharedRef<SWidget> SIAMainMenu::BuildMapCard()
 			]
 			+ SHorizontalBox::Slot().AutoWidth().Padding(10.f, 0.f)
 			[
-				IAMapPreview::MakeThumbnailWidget([this]() { return Setup.MapIndex; }, FVector2D(352.f, 198.f))
+				IAMapPreview::MakeThumbnailWidget([this]() { return Setup.MapIndex; }, FVector2D(448.f, 252.f))
 			]
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 			[

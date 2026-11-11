@@ -412,22 +412,54 @@ bool UIADevSubsystem::AutoShotCamera(float DeltaTime)
 
 	if (!AutoCamera.IsValid())
 	{
-		// Bounds of everything solid that the level is made of.
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(IAShotAuto), false);
+
+		// The playable area: where the player starts are, with some margin. Scenery far outside it (skyline towers,
+		// mountains, giant floors) is cut off at the edge of this region so that it does not shrink the picture.
+		FBox StartBox(ForceInit);
+		int32 Starts = 0;
+		int32 Covered = 0;
+		for (TActorIterator<APlayerStart> It(World); It; ++It)
+		{
+			++Starts;
+			StartBox += It->GetActorLocation();
+			// Is there a ceiling over this start? Then the level is a closed hall.
+			FHitResult UpHit;
+			if (World->LineTraceSingleByChannel(UpHit, It->GetActorLocation() + FVector(0.f, 0.f, 150.f),
+				It->GetActorLocation() + FVector(0.f, 0.f, 9000.f), ECC_Visibility, Params))
+			{
+				++Covered;
+			}
+		}
+		const bool bClosed = Starts > 0 && Covered * 10 >= Starts * 7;
+
+		FBox Region(ForceInit);
+		if (StartBox.IsValid)
+		{
+			Region = StartBox.ExpandBy(FVector(1200.f, 1200.f, 0.f));
+			Region.Min.Z -= 300.f;
+			Region.Max.Z += 900.f;
+		}
+
 		FBox Bounds(ForceInit);
 		int32 MeshCount = 0;
 		for (TActorIterator<AStaticMeshActor> It(World); It; ++It)
 		{
-			const FBox Box = It->GetComponentsBoundingBox();
-			if (Box.IsValid)
+			FBox Box = It->GetComponentsBoundingBox();
+			if (!Box.IsValid)
 			{
-				Bounds += Box;
-				++MeshCount;
+				continue;
 			}
-		}
-		int32 Starts = 0;
-		for (TActorIterator<APlayerStart> It(World); It; ++It)
-		{
-			++Starts;
+			if (Region.IsValid)
+			{
+				if (!Box.Intersect(Region))
+				{
+					continue;
+				}
+				Box = FBox(Box.Min.ComponentMax(Region.Min), Box.Max.ComponentMin(Region.Max));
+			}
+			Bounds += Box;
+			++MeshCount;
 		}
 		if (!Bounds.IsValid)
 		{
@@ -438,29 +470,40 @@ bool UIADevSubsystem::AutoShotCamera(float DeltaTime)
 		const FVector Extent = Bounds.GetExtent();
 		const float Radius = Extent.Size();
 		const float Fov = 80.f;
-		const FVector Direction = FVector(-0.60f, -0.60f, 0.52f).GetSafeNormal();
 		const float Distance = Radius / FMath::Tan(FMath::DegreesToRadians(Fov * 0.5f)) * 0.78f;
-		FVector Location = Center + Direction * Distance;
 
-		// A closed hall: stop in front of the wall and look from inside.
-		FHitResult Hit;
-		FCollisionQueryParams Params(SCENE_QUERY_STAT(IAShotAuto), false);
+		// Look at the middle from a corner, from above. If a wall or ceiling is in the way, stop in front of it and look from
+		// inside (halls, streets between buildings). If something blocks the view right next to the middle (a pyramid, a tower
+		// in the centre) the trace is not trusted and the camera stays outside.
+		const FVector Direction = FVector(-0.60f, -0.60f, 0.52f).GetSafeNormal();
+		FVector Location = Center + Direction * Distance;
 		bool bInside = false;
-		if (World->LineTraceSingleByChannel(Hit, Center, Location, ECC_Visibility, Params))
 		{
-			Location = Hit.ImpactPoint - Direction * 60.f;
-			bInside = true;
+			FHitResult Hit;
+			if (World->LineTraceSingleByChannel(Hit, Center, Location, ECC_Visibility, Params) && Hit.Distance >= Distance * 0.25f)
+			{
+				Location = Hit.ImpactPoint - Direction * 60.f;
+				bInside = true;
+			}
 		}
 
 		const FRotator Rotation = (Center - Location).Rotation();
 		ACameraActor* NewCamera = World->SpawnActor<ACameraActor>(Location, Rotation);
 		if (NewCamera)
 		{
-			NewCamera->GetCameraComponent()->SetFieldOfView(bInside ? 100.f : Fov);
+			UCameraComponent* CameraComponent = NewCamera->GetCameraComponent();
+			CameraComponent->SetFieldOfView(bInside ? 100.f : Fov);
+			float Exposure = 0.f;
+			if (FParse::Value(FCommandLine::Get(), TEXT("IAShotExposure="), Exposure) && Exposure != 0.f)
+			{
+				// Dark levels: brighten the picture (Tools/make_thumbnails.ps1 passes this for the ones that need it).
+				CameraComponent->PostProcessSettings.bOverride_AutoExposureBias = true;
+				CameraComponent->PostProcessSettings.AutoExposureBias = Exposure;
+			}
 			AutoCamera = NewCamera;
 		}
-		UE_LOG(LogInstagib, Log, TEXT("THUMB_INFO map=%s starts=%d meshes=%d size=%.0f,%.0f,%.0f inside=%d camera=%s"),
-			*World->GetMapName(), Starts, MeshCount, Extent.X * 2.f, Extent.Y * 2.f, Extent.Z * 2.f, bInside ? 1 : 0, *Location.ToCompactString());
+		UE_LOG(LogInstagib, Log, TEXT("THUMB_INFO map=%s starts=%d meshes=%d size=%.0f,%.0f,%.0f inside=%d closed=%d camera=%s"),
+			*World->GetMapName(), Starts, MeshCount, Extent.X * 2.f, Extent.Y * 2.f, Extent.Z * 2.f, bInside ? 1 : 0, bClosed ? 1 : 0, *Location.ToCompactString());
 	}
 
 	if (AutoCamera.IsValid() && PC->GetViewTarget() != AutoCamera.Get())

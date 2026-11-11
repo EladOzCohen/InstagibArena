@@ -4,6 +4,7 @@
 #include "IAMapList.h"
 #include "IAMenuStyle.h"
 #include "Engine/Texture2D.h"
+#include "Misc/CoreDelegates.h"
 #include "Slate/DeferredCleanupSlateBrush.h"
 #include "Styling/CoreStyle.h"
 #include "UObject/UObjectGlobals.h"
@@ -31,6 +32,13 @@ namespace
 	TMap<FString, TSharedPtr<FDeferredCleanupSlateBrush>>& Cache()
 	{
 		static TMap<FString, TSharedPtr<FDeferredCleanupSlateBrush>> Brushes;
+		// The brushes hold engine objects: they must be gone before the engine shuts down, not when the static dies.
+		static const bool bHooked = []()
+		{
+			FCoreDelegates::OnEnginePreExit.AddLambda([]() { Cache().Empty(); });
+			return true;
+		}();
+		(void)bHooked;
 		return Brushes;
 	}
 }

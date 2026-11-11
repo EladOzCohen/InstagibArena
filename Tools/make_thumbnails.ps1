@@ -49,6 +49,7 @@ if ($Only.Count -gt 0) { $paths = $paths | Where-Object { $Only -contains ($_ -r
 "Maps: " + (($paths | ForEach-Object { $_ -replace '^.*/', '' }) -join ", ")
 
 # --- 2. one game run per map
+$darkMaps = @{ "DM-Forge" = 3.2; "DM-Neon" = 1.5 }
 $recommended = @{}
 foreach ($path in $paths) {
     $name = $path -replace '^.*/', ''
@@ -58,7 +59,10 @@ foreach ($path in $paths) {
     $log = Join-Path $logDir "$name.log"
 
     $url = "$path`?Mode=FFA`?Bots=0`?ScoreLimit=0`?TimeLimit=0"
-    $gameArgs = "`"$uproject`" `"$url`" -game -windowed -ResX=$Width -ResY=$height -nosound -nosplash -IAShotAuto -IAShotDelay=$DelaySeconds -IAShotName=$shot `"-abslog=$log`""
+    # Dark maps need a brighter picture (exposure bias in stops). Add a line here when a new map looks too dark.
+    $exposure = 0
+    if ($darkMaps.ContainsKey($name)) { $exposure = $darkMaps[$name] }
+    $gameArgs = "`"$uproject`" `"$url`" -game -windowed -ResX=$Width -ResY=$height -nosound -nosplash -IAShotAuto -IAShotExposure=$exposure -IAShotDelay=$DelaySeconds -IAShotName=$shot `"-abslog=$log`""
     $line = "& { `$p = Start-Process -FilePath '$game' -ArgumentList '$($gameArgs.Replace("'", "''"))' -PassThru; if (-not `$p.WaitForExit(300000)) { `$p.Kill() } }"
     "[$name] running the game..."
     & powershell -NoProfile -ExecutionPolicy Bypass -File $exclusive -Command $line | Out-Null
@@ -93,7 +97,7 @@ $out = @(
     "// number of player starts it finds in each level. Maps that are not listed fall back to 2-8."
 )
 foreach ($key in $entries.Keys) { $out += "{ TEXT(`"$key`"), $($entries[$key][0]), $($entries[$key][1]) }," }
-Set-Content -Path $inlPath -Value $out -Encoding UTF8
+Set-Content -Path $inlPath -Value $out -Encoding Ascii
 
 # --- 4. import the pictures as textures
 if (-not $SkipImport) {
