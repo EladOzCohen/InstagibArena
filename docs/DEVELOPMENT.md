@@ -138,3 +138,20 @@ Development-only command line flags (they need a window with rendering: the menu
 
 Map thumbnails: `powershell -File Tools\make_thumbnails.ps1` reads `IAMapList.h`, makes one picture per map, imports them as `/Game/UI/MapThumbs/T_<MapName>` and rewrites `IAMapRecommended.inl` (rebuild afterwards).
 Settings tests write into the worktree's `Saved/Config`; undo with `-IAMenuScript=uiscale=1.0` or the RESET buttons.
+
+## 13. Light and shading look (LOOK)
+
+Findings (measured with screenshots, see the header of `Tools/maplooks.py`): the project has **no Lumen and no GI**
+(`r.DynamicGlobalIlluminationMethod=0`, `r.ReflectionMethod=2` = screen space only, mesh distance fields off), auto exposure pumped and
+re-normalised every map, default fog density 0.02, bloom 0.675, vignette 0.4, a fill light of another colour, emissive "light strips"
+with Glow 6, and characters made of one glossy material (roughness 0.3-0.5, accessories Glow 6).
+
+- **Pick a look per map** with one line in the map script (`m` = `mapkit.MapBuilder`): `m.look("day_clear")`, optionally with overrides
+  (`m.look("dusk", sun_yaw=250, ev=1.0)`). Presets: `maplooks.available()` = day_clear, overcast, dusk, night_city, volcanic, arctic, desert, indoor.
+  The old `m.sky(...)` now just places `day_clear` (only the sun direction is used); `m.post(...)` adjusts the look's volume (exposure bias limited to +-1.5 EV, bloom to 0.35).
+- Exposure is **fixed** per look (EV100, min = max, no eye adaptation). `Config/DefaultEngine.ini` sets `r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange=True` so the values are EV.
+  Brighter picture = lower EV. Sun intensity is in the engine's lux-like units (day = 10). The sky light is the only ambient light (no GI): raise `sky_intensity` for lighter shadows.
+- Coloured accent lights: `m.accent_light(label, loc, rgb, candela=30, radius=450)` (no shadows, reduced specular). Prefer a few of these over big emissive walls; `Glow` of light strips is 2.5 by default (mapkit caps it at 5).
+- Look test rooms: `Tools/make_looks.py` builds `/Game/Dev/Looks/LookTest_<look>` (grey cards, spheres from matte to glossy, a showroom spot). Never commit `Content/Dev`.
+- People use `/Game/Characters/M_IACharacter` (matte cloth detail, plate/fabric split from the mannequin's own albedo map, `Rim` edge light in the team colour). Beams, sparks and jump pads keep `M_IABody` (pure emissive).
+  Run `Tools/make_character_assets.py` after cloning (it downloads the CC0 cloth texture into `~/AssetCache` and imports it). `-IASlotDebug` colours the two body slots red and blue.
