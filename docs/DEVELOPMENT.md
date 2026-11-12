@@ -173,3 +173,10 @@ Realistic props and nature (rocks, trees, barrels, crates, lamps, statues ...) a
 - Map scripts: `import props` after `import mapkit`, then `b.prop(label, name, x, y, z, yaw=..., scale=...)` (z = ground height) and `b.scatter(names, region, count, seed=...)`. The catalogue and the exact API are documented at the top of `Tools/props.py`.
 - `Tools/props_demo.py` builds the throwaway level `/Game/Maps/_PropDemo` with every prop in labelled rows; `Tools/props_demo_shots.ps1` takes the screenshots. Delete the level afterwards (`-Delete`).
 - Props referenced by a map are cooked with it; nothing in `/Game/Props` is loaded by path in code, so no `DirectoriesToAlwaysCook` entry is needed. Every model's author and licence is in `NOTICE.md`.
+## 16. Generated meshes for maps (MAP-B tools)
+Temple and Canyon build real irregular geometry (fluted columns, ruined walls, layered cliffs, dunes, rope bridges) as static meshes from python:
+`Tools/mesh_b.py` (pure python mesh builder: boxes with chipped corners, lathes, lumpy rocks, noise), `Tools/mesh_arch_b.py` (walls, arches, stairs, cliff strips with rock strata, heightfields),
+`Tools/mesh_misc_b.py` (roofs, buttes, ropes, cloth, plank decks), `Tools/mapkit_b.py` (`commit(name, mesh)` builds `/Game/Maps/Gen/SM_<name>` through Geometry Script, `put(...)` places it; collision = the mesh itself).
+- Pure python parts run with UE's embedded python without the editor (`Engine\Binaries\ThirdParty\Python3\Win64\python.exe`), handy for syntax checks.
+- An old gameplay box can stay as invisible collision (`actor.set_actor_hidden_in_game(True)`) while a generated mesh stands in front of it (Canyon cliffs): the layout cannot change by accident.
+- Helpers: `Tools/ue.ps1` (run a python script in the editor commandlet inside the lock), `Tools/shots_b.ps1` (several screenshots of a map), `Tools/bottest_b.ps1` (70 s match with 8 bots, counts frags and problems).
