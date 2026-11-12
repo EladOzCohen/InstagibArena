@@ -1,9 +1,12 @@
-"""DM-Neon: a rain-slick neon street at night. Small duel arena (2-4 players), built for fast close fights.
+"""DM-Neon: a city street at night. Small duel arena (2-4 players), built for fast close fights.
 
   UnrealEditor-Cmd.exe InstagibArena.uproject -ExecutePythonScript="Tools/make_map_neon.py" -unattended -nullrhi -nosplash
 
-Layout: one street (x -1800..1800, y -800..800) around an arcade hall in the middle. Two shop podiums with a
+Layout (unchanged): one street (x -1800..1800, y -800..800) around an arcade hall in the middle. Two shop podiums with a
 second roof level on opposite corners, an arcade roof that is reached by stairs or by two jump pads.
+
+Look: night_city light preset, natural asphalt (no wet reflections). The mood comes from street lamps, lit shop windows,
+a few thin neon signs with matching small lights and lit windows in the facades (shader), not from glowing walls.
 """
 
 import math
@@ -14,192 +17,455 @@ import sys
 import unreal
 
 sys.path.insert(0, os.path.join(unreal.SystemLibrary.get_project_directory(), "Tools"))
-from mapkit import MapBuilder
+import mapkit
+import props  # noqa: F401
+import mapkit_c as kc
+import kc_parts as kp
+from mapkit_c import rbox, cyl, bar
+from matlib import surface
 
-m = MapBuilder("/Game/Maps/DM-Neon")
+m = mapkit.MapBuilder("/Game/Maps/DM-Neon")
 rng = random.Random(404)
 
-asphalt = m.material("MI_NeonAsphalt", (0.045, 0.045, 0.06), 0.3)
-sidewalk = m.material("MI_NeonSidewalk", (0.16, 0.15, 0.20), 0.5)
-brick = m.material("MI_NeonBrick", (0.20, 0.09, 0.11))
-wallblue = m.material("MI_NeonWall", (0.10, 0.11, 0.19))
-metal = m.material("MI_NeonMetal", (0.28, 0.30, 0.36), 0.35)
-dark = m.material("MI_NeonDark", (0.03, 0.03, 0.045), 0.4)
-paint = m.material("MI_NeonLine", (0.75, 0.72, 0.50), 0.6)
-carA = m.material("MI_NeonCarA", (0.55, 0.05, 0.12), 0.25)
-carB = m.material("MI_NeonCarB", (0.07, 0.28, 0.55), 0.25)
-pink = m.glow("MI_NeonGlowPink", (1.0, 0.08, 0.55), 2.2)
-cyan = m.glow("MI_NeonGlowCyan", (0.0, 0.85, 1.0), 2.2)
-amber = m.glow("MI_NeonGlowAmber", (1.0, 0.55, 0.10), 2.0)
-violet = m.glow("MI_NeonGlowViolet", (0.55, 0.2, 1.0), 2.0)
-lime = m.glow("MI_NeonGlowLime", (0.3, 1.0, 0.35), 2.0)
-warmwin = m.glow("MI_NeonWindow", (1.0, 0.75, 0.40), 0.9)
-_pl = m.point_light
-m.point_light = lambda label, loc, rgb, intensity, radius: _pl(label, loc, rgb, intensity * 0.1, radius)
-glass = m.glow("MI_NeonGlass", (0.04, 0.07, 0.12), 0.0)
-
-PINK, CYAN, AMBER, VIOLET = (1.0, 0.1, 0.55), (0.0, 0.85, 1.0), (1.0, 0.6, 0.15), (0.6, 0.25, 1.0)
 HX, HY = 1800.0, 800.0
 ARCADE_Z = 240.0
+PINK, CYAN, AMBER, VIOLET, LIME = (1.0, 0.10, 0.55), (0.0, 0.85, 1.0), (1.0, 0.60, 0.15), (0.6, 0.25, 1.0), (0.3, 1.0, 0.4)
+WARM = (1.0, 0.72, 0.42)
 
-# ---------------------------------------------------------------- street shell
+# ------------------------------------------------------------------------------------------------ materials
+def S(name, tag, **kw):
+    return surface(name, tag="Neon" + tag, **kw)
+
+asphalt = surface("Asphalt")
+asphalt_old = surface("AsphaltCracked")
+sidewalk = surface("Sidewalk")
+slabs = S("StoneSlabs", "Slabs", albedo=(120, 116, 108))
+curb_m = S("ConcreteClean", "Kerb", albedo=(140, 138, 132))
+paint_w = S("ConcreteClean", "PaintWhite", albedo=(188, 186, 176))
+paint_y = S("ConcreteClean", "PaintYellow", albedo=(196, 160, 60))
+brick = S("BrickRed", "Brick", albedo=(136, 88, 72))
+brick_dark = surface("BrickDark")
+plaster_n = S("PlasterGrey", "PlasterBlue", albedo=(120, 126, 142))
+concrete = surface("ConcretePanels")
+concrete_dark = surface("ConcreteDark")
+steel = surface("SteelDark")
+galv = surface("CorrugatedGalv")
+galv_dark = surface("CorrugatedDark")
+rust = surface("RustOrange")
+diamond = surface("DiamondPlateDark")
+rubber = S("StoneDark", "Rubber", albedo=(24, 24, 26))
+soil = S("DirtDry", "Soil", albedo=(60, 46, 36))
+car_glass = S("PlasterGrey", "CarGlass", albedo=(10, 12, 16), rb=0.05, ns=0.1)
+car_red = S("PlasterGrey", "CarRed", albedo=(128, 26, 30), rb=-0.1, ns=0.1, macro=0.08)
+car_blue = S("PlasterGrey", "CarBlue", albedo=(30, 60, 118), rb=-0.1, ns=0.1, macro=0.08)
+dump_green = surface("ContainerGreen")
+glass_dark = S("PlasterGrey", "ShopGlass", albedo=(24, 30, 40), rb=-0.2)
+wood_door = surface("WoodPaintedGrey")
+
+
+def paint(name, rgb, base="WoodPaintedGrey"):
+    return S(base, "P" + name, albedo=rgb)
+
+pa_green, pa_maroon, pa_navy = paint("Green", (44, 72, 60)), paint("Maroon", (96, 44, 46)), paint("Navy", (38, 50, 80))
+pa_mustard, pa_char, pa_cream = paint("Mustard", (160, 128, 58)), paint("Char", (50, 50, 55)), paint("Cream", (176, 168, 140))
+awn_red, awn_blue, awn_green = surface("CanvasRed"), surface("CanvasBlue"), S("Canvas", "AwnGreen", albedo=(60, 100, 76), desat=1.0)
+poster = [paint("Pos%d" % i, c, "PlasterGrey") for i, c in enumerate([(150, 70, 60), (60, 96, 120), (180, 150, 70), (90, 110, 80),
+                                                                     (140, 120, 130)])]
+
+# emissive materials (M_IABody): window light is modest, the tubes are thin and saturated
+win_warm = kc.emit("NeonShopWarm", (1.0, 0.66, 0.34), 0.17)
+win_cool = kc.emit("NeonShopCool", (0.62, 0.84, 1.0), 0.15)
+win_dim = kc.emit("NeonShopDim", (1.0, 0.62, 0.30), 0.12)
+t_pink, t_cyan, t_amber, t_violet, t_lime = (kc.emit("NeonTubePink", PINK, 1.6), kc.emit("NeonTubeCyan", CYAN, 1.6),
+                                            kc.emit("NeonTubeAmber", AMBER, 1.6), kc.emit("NeonTubeViolet", VIOLET, 1.8),
+                                            kc.emit("NeonTubeLime", LIME, 1.4))
+bulb = kc.emit("NeonBulb", (1.0, 0.78, 0.5), 0.9)
+TUBE = {PINK: t_pink, CYAN: t_cyan, AMBER: t_amber, VIOLET: t_violet, LIME: t_lime}
+
+# facades: lit windows come from the facade shader (modest glow, some curtains, some dark)
+def fac(tag, wall, **kw):
+    kw.setdefault("lit", 0.26)
+    kw.setdefault("glow", 0.25)
+    kw.setdefault("min_z", 420.0)
+    return kc.facade("Neon" + tag, wall=wall, grid_z=400.0, ground_z=0.0, dirt_h=700.0, **kw)
+
+fac_n = fac("N", "BrickRed", albedo=(128, 84, 70), seed=21, win=(150, 210), cell=(300, 330), sill=80)
+fac_s = fac("S", "PlasterGrey", albedo=(122, 124, 136), seed=22, win=(130, 210), cell=(260, 330), sill=80)
+fac_e = fac("E", "PlasterGrey", albedo=(104, 102, 100), seed=23, win=(150, 210), cell=(300, 330), sill=80, lit=0.2)
+fac_bd = [fac("BD%d" % i, w, albedo=a, seed=30 + i, lit=0.34, glow=0.25, win=wn, cell=cl, sill=sl, min_z=-100000.0)
+          for i, (w, a, wn, cl, sl) in enumerate([
+              ("BrickDark", None, (150, 200), (300, 330), 100), ("ConcreteDirty", (110, 108, 104), (160, 200), (300, 330), 100),
+              ("PlasterGrey", (120, 118, 126), (140, 200), (280, 330), 100), ("ConcreteWorn", (96, 98, 104), (140, 300), (160, 330), 15),
+              ("BrickRed", (120, 72, 58), (150, 200), (300, 330), 100)])]
+
+# ------------------------------------------------------------------------------------------------ street shell
 m.box("Street", 0, 0, -50, HX * 2, HY * 2, 100, mat=asphalt)
+for sy in (-1, 1):                                                   # sidewalks along both facades (flat, same level)
+    m.box("Sidewalk", 0, sy * (HY - 80), 2, HX * 2, 160, 4, mat=sidewalk, solid=False)
+    m.box("Kerb", 0, sy * (HY - 164), 3.5, HX * 2, 14, 7, mat=curb_m, solid=False)
 for x in range(-1500, 1501, 300):                                    # dashed center line
-    m.box("RoadLine", x, 0, 1.5, 150, 18, 3, mat=paint, solid=False)
-for y in (-HY + 15, HY - 15):                                        # curb glow
-    m.box("CurbGlow", 0, y, 2, HX * 2, 10, 4, mat=cyan, solid=False)
+    m.box("RoadLine", x, 0, 1.2, 150, 14, 2.4, mat=paint_w, solid=False)
+for y in (-HY + 190, HY - 190):                                      # edge lines
+    m.box("EdgeLine", 0, y, 1.2, HX * 2 - 100, 10, 2.4, mat=paint_w, solid=False)
+for cx in (-1280, 1280):                                             # zebra crossings
+    for k in range(-4, 5):
+        m.box("Zebra", cx, k * 90, 1.2, 240, 46, 2.4, mat=paint_w, solid=False)
+for i, (x, y) in enumerate([(-640, -130), (710, 220), (210, -560), (-300, 480)]):   # manholes
+    rbox(m, "Manhole%d" % i, x, y, 1.6, 76, 76, 3.2, mat=diamond, solid=False, mesh=m.cylinder)
+    rbox(m, "ManholeRing%d" % i, x, y, 1.0, 90, 90, 2.0, mat=concrete_dark, solid=False, mesh=m.cylinder)
+for i, (x, y, sx_, sy_, yaw) in enumerate([(-900, 80, 260, 160, 8), (400, -300, 340, 140, -5), (1100, 120, 220, 200, 20),
+                                           (-1500, -300, 300, 180, 0)]):   # patched asphalt
+    m.box("Patch%d" % i, x, y, 1.0, sx_, sy_, 2.0, yaw=yaw, mat=asphalt_old, solid=False)
+for sy in (-1, 1):                                                   # drain grates at the kerb
+    for x in (-700, 600, 1500):
+        m.box("Grate", x * (1 if sy > 0 else -1), sy * (HY - 190), 1.5, 90, 36, 3, mat=steel, solid=False)
 
-for sy in (-1, 1):
-    m.box("Facade", 0, sy * (HY + 150), 650, HX * 2 + 600, 300, 1500, mat=brick if sy > 0 else wallblue)
+# the two long facades and the end walls (the facade shader draws windows above the shops)
+m.box("Facade_N", 0, HY + 150, 650, HX * 2 + 600, 300, 1500, mat=fac_n)
+m.box("Facade_S", 0, -(HY + 150), 650, HX * 2 + 600, 300, 1500, mat=fac_s)
 for sx in (-1, 1):
-    m.box("EndWall", sx * (HX + 150), 0, 650, 300, HY * 2, 1500, mat=wallblue)
-
-# windows on the facades above the podiums
-for sy in (-1, 1):
-    for i, x in enumerate(range(-1650, 1651, 220)):
-        for z in (800, 1050, 1300):
-            on = rng.random() < 0.55
-            mat = warmwin if on else glass
-            m.box("Window", x, sy * (HY - 4), z, 130, 10, 140, mat=mat, solid=False)
-            if on and rng.random() < 0.3:
-                m.point_light("WinLight", (x, sy * (HY - 80), z), (1.0, 0.7, 0.4), 6.0, 500.0)
-    # lower shop glass where there is no podium
-    for x in (-500, 300, 900, 1400):
-        pass
-
-# neon signs on the facades
-for sy, signs in ((1, [(900, cyan, CYAN), (-100, violet, VIOLET)]), (-1, [(-900, pink, PINK), (100, amber, AMBER)])):
-    for x, mat, rgb in signs:
-        m.frame("SignFrame", x, sy * (HY - 12), 880, 700, 360, 24, 20, 0, mat, solid=False)
-        m.box("SignPanel", x, sy * (HY - 8), 1060, 640, 8, 280, mat=dark, solid=False)
-        for k in range(4):
-            m.box("SignBar", x, sy * (HY - 14), 960 + k * 70, 480 - 70 * (k % 2), 8, 24, mat=mat, solid=False)
-        m.point_light("SignLight", (x, sy * (HY - 150), 1000), rgb, 90.0, 1400.0)
-
-# vertical blade signs sticking out into the street
-for x, sy, mat, rgb in [(-1250, 1, pink, PINK), (1250, -1, cyan, CYAN), (400, 1, lime, (0.3, 1, 0.4)), (-400, -1, amber, AMBER)]:
-    m.box("BladeMount", x, sy * (HY - 80), 760, 20, 160, 20, mat=metal, solid=False)
-    m.box("BladeSign", x, sy * (HY - 160), 880, 22, 40, 320, mat=mat, solid=False)
-    m.point_light("BladeLight", (x, sy * (HY - 260), 880), rgb, 40.0, 900.0)
+    m.box("EndWall", sx * (HX + 150), 0, 650, 300, HY * 2, 1500, mat=fac_e)
+for sy in (-1, 1):                                                   # cornice and parapet at the top of the facades
+    m.box("Cornice", 0, sy * (HY - 12), 1385, HX * 2, 30, 36, mat=concrete, solid=False)
+    m.box("CorniceTop", 0, sy * (HY + 20), 1428, HX * 2 + 100, 60, 18, mat=concrete, solid=False)
+    for k in range(1, 3):                                            # string courses between the floors
+        m.box("Course", 0, sy * (HY - 7), 400 + 330 * k, HX * 2, 14, 26, mat=concrete, solid=False)
+    m.box("PlinthBand", 0, sy * (HY - 6), 410, HX * 2, 12, 20, mat=concrete, solid=False)
+    for x in range(-1650, 1700, 300):                                # pilasters between window bays on the ground floor
+        m.box("Pilaster", x, sy * (HY - 9), 205, 36, 18, 410, mat=concrete_dark, solid=False)
+for sx in (-1, 1):
+    m.box("EndCornice", sx * (HX - 12), 0, 1385, 30, HY * 2, 36, mat=concrete, solid=False)
 
 
-# ---------------------------------------------------------------- podiums (north one built, south one is its mirror)
+# ------------------------------------------------------------------------------------------------ shops on the facades
+def base_z(s, x):
+    """Floor height in front of the facade at x (the podiums raise the shop floor)."""
+    xx = s * x                       # south podium is the north one rotated by 180 degrees
+    if xx < -1110:
+        return 240.0
+    if xx < -740:
+        return 120.0
+    return 0.0
+
+
+def text_yaw(s):
+    return 180.0 if s > 0 else 0.0   # viewers on the north side look toward +y: text reads along -x
+
+
+def neon_sign(label, text, x, y, z, yaw, rgb, height, light=True, thick=3.5, cd=25.0, rad=650.0, panel=True, off=60.0):
+    """Neon letters on a dark backing board (at x, y), with a small matching light in front (toward the street).
+    yaw = reading direction of the text; the wall normal (toward the viewer) is (-sin yaw, cos yaw)."""
+    mat = TUBE[rgb]
+    nx, ny = -math.sin(math.radians(yaw)), math.cos(math.radians(yaw))
+    width = kc.neon_text(m, label, text, x + nx * 8, y + ny * 8, z, 0, height, mat, thick=thick, yaw=yaw)
+    if panel:
+        along_x = abs(math.cos(math.radians(yaw))) > 0.5
+        sx_, sy_ = (width + 34, 6) if along_x else (6, width + 34)
+        rbox(m, label + "_board", x, y, z, sx_, sy_, height + 30, mat=pa_char, solid=False)
+    if light:
+        m.accent_light(label + "_light", (x + nx * off, y + ny * off, z), rgb, candela=cd, radius=rad)
+    return width
+
+
+def shopfront(s, x, w, kind, name, sign=None, awning=None, fascia=None):
+    """One shop bay on the wall of side s (+1 north wall y=+800, -1 south wall y=-800), centre x, width w."""
+    z0 = base_z(s, x)
+    wy = lambda d: s * (HY - d)       # y at distance d from the wall, into the street
+    yaw_t = text_yaw(s)
+    fmat = fascia or pa_char
+    # stall riser, frame, pilasters
+    m.box(name + "_riser", x, wy(5), z0 + 40, w - 24, 10, 80, mat=pa_char, solid=False)
+    m.box(name + "_fascia", x, wy(8), z0 + 372, w - 12, 16, 84, mat=fmat, solid=False)
+    m.box(name + "_fasciaTop", x, wy(11), z0 + 421, w - 4, 22, 14, mat=concrete_dark, solid=False)
+    if kind == "glass":
+        cx_ = x
+        m.box(name + "_pane", cx_, wy(4), z0 + 205, w - 52, 5, 240, mat=win_warm if sign != "PHONES" else win_cool, solid=False)
+        m.frame(name + "_frame", cx_, wy(7), z0 + 80, w - 40, 250, 9, 8, 0 if s < 0 else 0, steel, solid=False)
+        m.box(name + "_mullion", cx_, wy(8), z0 + 205, 6, 7, 240, mat=steel, solid=False)
+        for k, zz in enumerate((150, 235, 300)):                    # shelves seen through the window
+            m.box(name + "_shelf%d" % k, cx_ - (w / 4) * (1 if k % 2 else -1) * 0.6, wy(9), z0 + zz, (w - 90) * 0.42, 6, 5,
+                  mat=pa_char, solid=False)
+        m.accent_light(name + "_pool", (x, wy(70), z0 + 220), (1.0, 0.72, 0.42) if sign != "PHONES" else (0.7, 0.85, 1.0),
+                       candela=10, radius=520)
+    elif kind == "door":
+        m.frame(name + "_doorframe", x - w * 0.12, wy(7), z0, 120, 250, 12, 10, 0, steel, solid=False)
+        m.box(name + "_door", x - w * 0.12, wy(6), z0 + 118, 100, 6, 236, mat=wood_door, solid=False)
+        m.box(name + "_doorpane", x - w * 0.12, wy(9.5), z0 + 190, 56, 3, 90, mat=win_dim, solid=False)
+        m.box(name + "_step", x - w * 0.12, wy(30), z0 + 3, 150, 50, 6, mat=concrete_dark, solid=False)
+        m.box(name + "_lampbox", x + w * 0.22, wy(9), z0 + 245, 22, 14, 22, mat=steel, solid=False)
+        m.box(name + "_lampglow", x + w * 0.22, wy(17), z0 + 245, 14, 6, 14, mat=bulb, solid=False)
+        m.accent_light(name + "_doorlamp", (x + w * 0.22, wy(45), z0 + 240), WARM, candela=6, radius=420)
+        m.box(name + "_sidewin", x + w * 0.2, wy(4), z0 + 215, w * 0.36, 5, 120, mat=glass_dark, solid=False)
+        m.frame(name + "_sidewinframe", x + w * 0.2, wy(6), z0 + 150, w * 0.36 + 10, 130, 6, 6, 0, steel, solid=False)
+    else:  # roller shutter
+        sh = rust if (name.endswith("a")) else galv_dark
+        m.box(name + "_shutter", x, wy(10), z0 + 150, w - 40, 8, 300, mat=sh, solid=False)
+        m.box(name + "_housing", x, wy(14), z0 + 312, w - 30, 22, 26, mat=steel, solid=False)
+        for gx in (-1, 1):
+            m.box(name + "_guide", x + gx * (w / 2 - 22), wy(11), z0 + 150, 12, 14, 300, mat=steel, solid=False)
+    if awning is not None:
+        rbox(m, name + "_awning", x, wy(62), z0 + 330, w + 20, 130, 5, pitch=-s * 0 + 0, roll=(-14 if s > 0 else 14), mat=awning,
+             solid=False)
+        for gx in (-1, 1):
+            rbox(m, name + "_awnframe", x + gx * (w / 2 + 8), wy(62), z0 + 330, 5, 130, 5, roll=(-14 if s > 0 else 14), mat=steel,
+                 solid=False)
+    if sign:
+        col = {"NOODLES": PINK, "PIZZA": AMBER, "BAR": CYAN, "24H": LIME, "HOTEL": VIOLET, "CAFE": AMBER, "PHONES": CYAN,
+               "TAKEAWAY": PINK}[sign]
+        neon_sign(name + "_sign", sign, x, wy(14), z0 + 372, yaw_t, col, 40 if len(sign) > 4 else 46, cd=20.0, rad=520.0)
+
+
+shops_n = [(-1520, 360, "glass", "NOODLES", awn_red, pa_maroon), (-1170, 320, "door", None, None, pa_green),
+           (-850, 300, "shutter", None, None, pa_navy), (-560, 290, "glass", "PIZZA", awn_green, pa_char),
+           (-270, 300, "door", None, None, pa_mustard), (60, 360, "glass", "PHONES", None, pa_navy),
+           (440, 360, "shutter", None, None, pa_maroon), (800, 300, "glass", "BAR", None, pa_char),
+           (1130, 320, "door", None, None, pa_green), (1450, 380, "glass", "24H", awn_blue, pa_char)]
+shops_s = [(1520, 360, "glass", "CAFE", awn_blue, pa_green), (1170, 320, "shutter", None, None, pa_char),
+           (850, 300, "door", None, None, pa_maroon), (560, 290, "glass", "HOTEL", None, pa_navy),
+           (270, 300, "shutter", None, None, pa_mustard), (-60, 360, "door", None, None, pa_char),
+           (-440, 360, "glass", None, awn_red, pa_char), (-800, 300, "door", None, None, pa_navy),
+           (-1130, 320, "glass", "TAKEAWAY", None, pa_maroon), (-1450, 380, "shutter", None, None, pa_green)]
+for i, (x, w, kind, sign, awn, fas) in enumerate(shops_n):
+    shopfront(1, x, w, kind, "ShopN%d%s" % (i, "a" if i % 2 == 0 else "b"), sign, awn, fas)
+for i, (x, w, kind, sign, awn, fas) in enumerate(shops_s):
+    shopfront(-1, x, w, kind, "ShopS%d%s" % (i, "a" if i % 2 == 0 else "b"), sign, awn, fas)
+
+# vertical blade signs sticking out into the street (thin, with a small light)
+for x, sy, rgb, word in [(-1250, 1, PINK, "BAR"), (1250, -1, CYAN, "INN"), (400, 1, LIME, "24H"), (-400, -1, AMBER, "PUB")]:
+    z = 690.0
+    y0 = sy * (HY - 100)
+    m.box("BladeMount", x, sy * (HY - 40), z + 170, 14, 90, 14, mat=steel, solid=False)
+    m.box("BladeBoard", x, y0, z, 12, 70, 320, mat=pa_char, solid=False)
+    m.frame("BladeFrame", x, y0, z - 160, 78, 322, 4, 14, 90, TUBE[rgb], solid=False)
+    for k, ch in enumerate(word):                                   # letters stacked, readable from both sides
+        for fx, yawk in ((7, -90), (-7, 90)):
+            kc.neon_text(m, "Blade_%s_%d%s" % (word, k, "a" if fx > 0 else "b"), ch, x + fx, y0, z + 90 - k * 90, 0, 56, TUBE[rgb],
+                         thick=3.5, yaw=yawk)
+    m.accent_light("BladeLight_%s" % word, (x, sy * (HY - 220), z), rgb, candela=30, radius=700)
+
+# wires across the street and fire escapes / drainpipes / window units / pipes on the upper floors
+for i, (x, z0, z1) in enumerate([(-1350, 1010, 1040), (-300, 960, 990), (700, 1080, 1100), (1500, 930, 960)]):
+    bar(m, "Wire%d" % i, (x, -HY + 20, z0), (x + 40, HY - 20, z1), 2.5, mat=rubber, solid=False)
+    bar(m, "WireB%d" % i, (x + 20, -HY + 20, z0 - 24), (x + 80, HY - 20, z1 - 20), 2.0, mat=rubber, solid=False)
+for i, (x, sy, name) in enumerate([(-600, 1, "fire_escape_a"), (1000, 1, "fire_escape_b"), (500, -1, "fire_escape_a"),
+                                   (-1100, -1, "fire_escape_b")]):
+    m.prop("FireEscape%d" % i, name, x, sy * (HY - 80), 690 if name == "fire_escape_a" else 710, yaw=0 if sy < 0 else 180,
+           solid=False)
+for i, x in enumerate([-1740, -250, 790, 1730, -1000, 1350]):        # drain pipes
+    sy = 1 if i % 2 == 0 else -1
+    cyl(m, "Drain%d" % i, (x, sy * (HY - 12), 1380), (x, sy * (HY - 12), 20), 14, mat=steel, solid=False)
+for i in range(14):                                                  # window units and cable boxes
+    sy = rng.choice((-1, 1))
+    x = 150 + 300 * rng.randint(-5, 5)
+    z = 400 + 330 * rng.randint(0, 2) + 90
+    m.prop("WinAC%d" % i, "aircon_a", x, sy * (HY + 18), z, yaw=0 if sy < 0 else 180, solid=False)
+for i, (x, sy) in enumerate([(-1000, 1), (150, 1), (1250, 1), (-750, -1), (350, -1), (1100, -1)]):
+    m.prop("Duct%d" % i, "duct_a", x, sy * (HY - 25), 1100 + 40 * (i % 3), yaw=90 if sy > 0 else 270, solid=False)
+    m.prop("PipeV%d" % i, "pipe_b", x + 160, sy * (HY - 14), 1000, yaw=0, solid=False)
+# roof silhouettes above the cornice (against the night sky)
+for i, (x, sy) in enumerate([(-1300, 1), (-300, 1), (900, 1), (1500, -1), (300, -1), (-1100, -1)]):
+    kp.water_tank(m, "RoofTank%d" % i, x, sy * (HY + 150), 1400, 260, 380, wood_door, steel, concrete_dark, solid=False) if i % 3 == 0 \
+        else rbox(m, "RoofBox%d" % i, x, sy * (HY + 150), 1400 + 110, 240, 200, 220, mat=concrete_dark, solid=False)
+for i, x in enumerate([-1650, -800, 200, 1100, 1700]):
+    rbox(m, "RoofAntenna%d" % i, x, (HY + 200) * (1 if i % 2 else -1), 1400 + 260, 8, 8, 520, mat=steel, solid=False)
+
+
+# ------------------------------------------------------------------------------------------------ podiums (north one built, south one is its mirror)
 def side(s):
     """s = +1 builds the north podium group, s = -1 the south one (rotated 180 degrees)."""
     def P(x, y):
         return (s * x, s * y)
-    yawo = 0.0 if s > 0 else 180.0
     tag = "N" if s > 0 else "S"
-    # lower podium (z 300)
-    # (stairs: rise 24 / run 44 keeps the slope under what the 150 cm navigation grid can link)
+    # lower podium (z 0..120) and upper podium (z 120..240): terrace with a brick plinth
     x, y = P(-1220, 610)
-    m.box("Podium1_" + tag, x, y, 60, 960, 380, 120, mat=sidewalk)
-    # upper podium (z 480)
+    m.box("Podium1_" + tag, x, y, 60, 960, 380, 120, mat=slabs)
+    m.box("Podium1Face_" + tag, x, s * 419, 52, 964, 8, 104, mat=brick_dark, solid=False)
+    m.box("Podium1Cap_" + tag, x, s * 422, 122, 972, 22, 5, mat=curb_m, solid=False)
     x, y = P(-1405, 610)
-    m.box("Podium2_" + tag, x, y, 180, 590, 380, 120, mat=sidewalk)
-    # stairs
+    m.box("Podium2_" + tag, x, y, 180, 590, 380, 120, mat=slabs)
+    m.box("Podium2Face_" + tag, x, s * 419, 172, 594, 8, 104, mat=brick_dark, solid=False)
+    m.box("Podium2Cap_" + tag, x, s * 422, 242, 602, 22, 5, mat=curb_m, solid=False)
+    # ramps (rise 24 / run 44 keeps the slope under what the 150 cm navigation grid can link)
     x, y = P(-300, 700)
     xe, ye = P(-740, 700)
-    m.slope("RampA_" + tag, (x, y, 0), (xe, ye, 120), 200, thickness=50, mat=metal)
+    m.slope("RampA_" + tag, (x, y, 0), (xe, ye, 120), 200, thickness=50, mat=diamond)
     x, y = P(-740, 520)
     xe, ye = P(-1110, 520)
-    m.slope("RampB_" + tag, (x, y, 120), (xe, ye, 240), 220, thickness=50, mat=metal)
-    # glowing edge lines along the street side of each podium
-    x, y = P(-1220, 421)
-    m.box("Edge1_" + tag, x, y, 122, 960, 10, 6, mat=pink if s > 0 else cyan, solid=False)
-    x, y = P(-1405, 421)
-    m.box("Edge2_" + tag, x, y, 242, 590, 10, 6, mat=pink if s > 0 else cyan, solid=False)
-    # railings on the open sides
+    m.slope("RampB_" + tag, (x, y, 120), (xe, ye, 240), 220, thickness=50, mat=diamond)
+    for rr, (a, b2, w_) in enumerate([((-300, 700), (-740, 700), 200), ((-740, 520), (-1110, 520), 220)]):
+        (ax, ay), (bx, by) = P(*a), P(*b2)
+        z_a, z_b = (0, 120) if rr == 0 else (120, 240)
+        for sd in (-1, 1):
+            off = sd * (w_ / 2 - 4)
+            bar(m, "RampRail%d%s" % (rr, tag), (ax, ay + off, z_a + 90), (bx, by + off, z_b + 90), 5, mat=steel, solid=False)
+            for t in (0.0, 0.5, 1.0):
+                rbox(m, "RampPost", ax + (bx - ax) * t, ay + off + (by - ay) * t, z_a + (z_b - z_a) * t + 45, 6, 6, 90,
+                     mat=steel, solid=False)
+    # railings along the street side of each podium (solid thin panel as before, with a round top rail and posts)
     x, y = P(-1220, 424)
-    m.box("Rail1_" + tag, x, y, 160, 960, 12, 80, mat=metal)
-    x, y = P(-1405, 424)
-    m.box("Rail2_" + tag, x, y, 280, 590, 12, 80, mat=metal)
-    # a vent unit up top
+    m.box("Rail1_" + tag, x, y, 160, 960, 12, 80, mat=galv_dark)
+    x2, y2 = P(-1405, 424)
+    m.box("Rail2_" + tag, x2, y2, 280, 590, 12, 80, mat=galv_dark)
+    for (px0, ln, zz, nm) in ((-1220, 960, 120, "1"), (-1405, 590, 240, "2")):
+        px, py = P(px0, 424)
+        m.box("RailTop" + nm + tag, px, py, zz + 84, ln + 10, 18, 6, mat=steel, solid=False)
+        for k in range(int(ln // 160) + 1):
+            qx, qy = P(px0 - ln / 2 + k * ln / max(1, int(ln // 160)), 424)
+            m.box("RailPost", qx, qy, zz + 44, 8, 8, 90, mat=steel, solid=False)
+    # vent unit and crate on the upper podium
     x, y = P(-1550, 700)
-    m.box("Vent_" + tag, x, y, 320, 220, 160, 160, mat=metal)
+    kp.chiller(m, "Vent_" + tag, x, y, 240, 220, 160, 160, 0, galv, steel, galv)
     x, y = P(-1300, 650)
-    m.box("Crate_" + tag, x, y, 295, 120, 120, 110, yaw=20, mat=brick)
+    m.box("Crate_" + tag, x, y, 295, 120, 120, 110, yaw=20, mat=surface("WoodPlanksDark"))
     # pad from the street lane to the arcade roof
     x, y = P(0, 560)
     m.jump_pad("RoofPad_" + tag, x, y, 0, (0, s * 220, ARCADE_Z), color=CYAN if s > 0 else PINK)
-    # lane lamp posts
+    # street lamps along the lane
     for lx in (-1000, 1000):
         px, py = P(lx, 440)
-        m.column("LampPost", px, py, 0, 420, 14, mat=metal)
-        m.box("LampArm", px, py + (-s) * 40, 420, 20, 90, 14, mat=metal, solid=False)
-        m.box("LampBulb", px, py + (-s) * 80, 410, 50, 30, 12, mat=amber, solid=False)
-        m.point_light("LampLight", (px, py + (-s) * 80, 380), AMBER, 55.0, 900.0)
+        m.prop("LampPost_%s%d" % (tag, lx), "lamp_street_a", px, py, 0, yaw=(90 if s > 0 else 270), solid=True)
+        m.accent_light("LampLight_%s%d" % (tag, lx), (px, py + (-s) * 60, 360), WARM, candela=140, radius=1100)
 
 
 side(1)
 side(-1)
 
-# ---------------------------------------------------------------- arcade hall in the middle
-m.box("Arcade", 0, 0, ARCADE_Z / 2, 500, 860, ARCADE_Z, mat=wallblue)
-m.box("ArcadeRoofTrim", 0, 0, ARCADE_Z - 6, 540, 900, 12, mat=dark, solid=False)
-for sx in (-1, 1):                                                   # marquee on the long faces
-    m.box("MarqueePanel", sx * 253, 0, 150, 8, 700, 130, mat=dark, solid=False)
-    m.box("MarqueeA", sx * 258, -200, 150, 8, 220, 40, mat=pink, solid=False)
-    m.box("MarqueeB", sx * 258, 150, 190, 8, 220, 40, mat=cyan, solid=False)
-    m.box("MarqueeC", sx * 258, 150, 110, 8, 320, 40, mat=amber, solid=False)
-    m.point_light("MarqueeLight", (sx * 380, 0, 200), PINK if sx > 0 else CYAN, 70.0, 1200.0)
-for sy in (-1, 1):                                                   # arcade doorways facing the lanes
-    m.frame("ArcadeDoor", 0, sy * 432, 0, 260, 300, 24, 16, 0, cyan if sy > 0 else pink, solid=False)
-    m.box("ArcadeDoorGlow", 0, sy * 433, 150, 220, 6, 270, mat=warmwin, solid=False)
-# roof access stairs along the east face (24 steps)
-m.slope("ArcadeRamp", (1000, 0, 0), (250, 0, ARCADE_Z), 260, thickness=50, mat=metal)   # runs head-on into the roof edge
-m.box("ArcadeRoofRailW", -244, 0, ARCADE_Z + 40, 12, 860, 80, mat=metal)
-m.point_light("RoofLight", (0, 0, ARCADE_Z + 250), VIOLET, 80.0, 1400.0)
-m.box("RoofAntenna", -150, 200, ARCADE_Z + 250, 14, 14, 500, mat=metal, solid=False)
-m.box("RoofAntennaTip", -150, 200, ARCADE_Z + 500, 24, 24, 24, mat=pink, solid=False)
+# ------------------------------------------------------------------------------------------------ arcade hall in the middle
+m.box("Arcade", 0, 0, ARCADE_Z / 2, 500, 860, ARCADE_Z, mat=concrete)
+m.box("ArcadeBase", 0, 0, 14, 520, 880, 28, mat=concrete_dark, solid=False)
+m.box("ArcadeCornice", 0, 0, ARCADE_Z - 10, 530, 890, 20, mat=curb_m, solid=False)
+m.box("ArcadeRoofCap", 0, 0, ARCADE_Z + 1, 496, 856, 2, mat=surface("RoofTarmac"), solid=False)
+for sx in (-1, 1):                                                   # the long faces: dark display band, marquee with neon letters
+    m.box("MarqueePanel", sx * 256, 0, 152, 8, 700, 120, mat=pa_char, solid=False)
+    m.box("MarqueeFrameT", sx * 258, 0, 216, 6, 716, 8, mat=steel, solid=False)
+    m.box("MarqueeFrameB", sx * 258, 0, 90, 6, 716, 8, mat=steel, solid=False)
+    kc.neon_text(m, "ArcadeText_%d" % sx, "ARCADE", sx * 260, 0, 152, 0, 66, t_pink if sx > 0 else t_cyan, thick=4.0,
+                 yaw=(-90 if sx > 0 else 90))
+    m.accent_light("MarqueeLight%d" % sx, (sx * 330, 0, 200), PINK if sx > 0 else CYAN, candela=40, radius=800)
+    for k in range(-2, 3):                                           # lower posters
+        m.box("ArcadePoster", sx * 254, k * 130, 55, 5, 70, 80, mat=poster[(k + 2) % 5], solid=False)
+for sy in (-1, 1):                                                   # arcade doors facing the lanes
+    m.frame("ArcadeDoor", 0, sy * 432, 0, 260, 215, 14, 12, 0, steel, solid=False)
+    m.box("ArcadeDoorGlow", 0, sy * 431, 105, 232, 4, 200, mat=win_warm, solid=False)
+    m.box("ArcadeDoorBar", 0, sy * 433, 105, 8, 6, 200, mat=steel, solid=False)
+    m.box("ArcadeCanopy", 0, sy * 462, 232, 300, 70, 8, mat=pa_char, solid=False)
+    m.accent_light("ArcadeDoorLight%d" % sy, (0, sy * 500, 180), (1.0, 0.7, 0.45), candela=18, radius=650)
+# roof access stairs along the east face (24 steps), with handrails
+m.slope("ArcadeRamp", (1000, 0, 0), (250, 0, ARCADE_Z), 260, thickness=50, mat=diamond)
+for sd in (-1, 1):
+    bar(m, "ArcadeRampRail", (1000, sd * 126, 90), (250, sd * 126, ARCADE_Z + 90), 5, mat=steel, solid=False)
+    for t in (0.0, 0.25, 0.5, 0.75, 1.0):
+        rbox(m, "ArcadeRampPost", 1000 - 750 * t, sd * 126, ARCADE_Z * t + 45, 6, 6, 90, mat=steel, solid=False)
+m.box("ArcadeRoofRailW", -244, 0, ARCADE_Z + 40, 12, 860, 80, mat=concrete_dark)
+m.box("ArcadeRoofRailWCap", -244, 0, ARCADE_Z + 84, 24, 870, 8, mat=curb_m, solid=False)
+kp.chiller(m, "ArcadeRoofAC1", -150, -230, ARCADE_Z, 160, 120, 90, 10, galv, steel, galv, solid=False)
+kp.chiller(m, "ArcadeRoofAC2", -170, 310, ARCADE_Z, 140, 110, 80, -12, galv, steel, galv, solid=False)
+m.box("ArcadeRoofHatch", 120, -280, ARCADE_Z + 14, 100, 80, 28, mat=galv, solid=False)
+m.box("ArcadeRoofLampBox", -200, 40, ARCADE_Z + 70, 30, 30, 140, mat=steel, solid=False)
+m.accent_light("RoofLight", (-200, 40, ARCADE_Z + 160), WARM, candela=35, radius=800)
+m.box("RoofAntenna", -150, 200, ARCADE_Z + 250, 8, 8, 500, mat=steel, solid=False)
+for hz in (330, 400, 460):
+    m.box("RoofAntennaArm", -150, 200, ARCADE_Z + hz, 4, 90 - (hz - 330) * 0.3, 4, mat=steel, solid=False)
+rbox(m, "RoofAntennaTip", -150, 200, ARCADE_Z + 505, 14, 14, 14, mat=TUBE[PINK], solid=False, mesh=m.cylinder)
 
-# ---------------------------------------------------------------- plazas: partitions, cars, planters, gates
+# ------------------------------------------------------------------------------------------------ plazas: partitions, cars, planters, gates
 for sx in (-1, 1):
     m.box("PlazaWall", sx * 1550, 0, 150, 300, 40, 300, mat=brick)
-    m.box("PlazaWallTrim", sx * 1550, 0, 305, 300, 44, 10, mat=lime if sx > 0 else violet, solid=False)
-    m.frame("EndGate", sx * (HX - 20), 0, 0, 640, 560, 40, 30, 90, pink if sx > 0 else cyan, solid=False)
-    m.box("EndGateGlow", sx * (HX - 30), 0, 280, 8, 560, 520, mat=violet, solid=False)
-    m.point_light("GateLight", (sx * (HX - 200), 0, 300), PINK if sx > 0 else CYAN, 110.0, 1500.0)
+    m.box("PlazaWallCap", sx * 1550, 0, 306, 316, 56, 12, mat=curb_m, solid=False)
+    m.box("PlazaWallBand", sx * 1550, 0, 40, 306, 46, 80, mat=concrete_dark, solid=False)
+    for k, yy in enumerate((-1, 1)):                                 # a poster and a small lamp on each side of the wall
+        m.box("PlazaPoster", sx * 1550 + (-40 if k == 0 else 40), yy * 24, 170, 110, 3, 160, mat=poster[(k + (sx > 0)) % 5],
+              solid=False)
+    # end of the street: roller gate, side posts, warm lamp
+    ex = sx * (HX - 6)
+    m.box("EndGate", ex, 0, 280, 10, 560, 560, mat=galv_dark, solid=False)
+    for k in range(-5, 6):
+        m.box("EndGateRib", ex - sx * 5, k * 50, 280, 4, 8, 560, mat=steel, solid=False)
+    m.box("EndGateHousing", ex - sx * 12, 0, 580, 24, 600, 36, mat=steel, solid=False)
+    for yy in (-1, 1):
+        m.box("EndGatePost", ex - sx * 8, yy * 296, 290, 20, 24, 580, mat=concrete_dark, solid=False)
+    m.box("EndLampBox", ex - sx * 20, 0, 640, 16, 60, 18, mat=steel, solid=False)
+    m.box("EndLampGlow", ex - sx * 30, 0, 636, 10, 50, 8, mat=bulb, solid=False)
+    m.accent_light("GateLight%d" % sx, (ex - sx * 120, 0, 560), (1.0, 0.7, 0.4), candela=60, radius=1300)
+    cyl(m, "EndPipe%d" % sx, (ex - sx * 20, 340, 900), (ex - sx * 20, 340, 20), 16, mat=steel, solid=False)
+    cyl(m, "EndPipe2%d" % sx, (ex - sx * 20, -340, 900), (ex - sx * 20, -340, 20), 16, mat=steel, solid=False)
 
-m.box("CarA_body", 1450, 300, 55, 460, 190, 80, yaw=12, mat=carA)
-m.box("CarA_cabin", 1440, 300, 125, 230, 170, 66, yaw=12, mat=dark)
-m.box("CarB_body", -900, -220, 55, 460, 190, 80, yaw=-8, mat=carB)
-m.box("CarB_cabin", -910, -220, 125, 230, 170, 66, yaw=-8, mat=dark)
-for sx, y in ((1450, 300), (-900, -220)):
-    m.box("CarLights", sx, y, 62, 470, 160, 14, mat=amber, solid=False)
+kp.car(m, "CarA", 1450, 300, 0, 12, car_red, car_glass, rubber, "sedan", solid=True, tail=kc.emit("NeonTail", (1.0, 0.05, 0.05), 0.5))
+kp.car(m, "CarB", -900, -220, 0, -8, car_blue, car_glass, rubber, "hatch", solid=True, tail=kc.emit("NeonTail", (1.0, 0.05, 0.05), 0.5))
 
 for i, (x, y) in enumerate([(-450, 250), (450, -250), (1200, -230), (-1200, 230), (1000, 420), (-1000, -420)]):
-    m.box("Planter_%d" % i, x, y, 45, 220, 90, 90, mat=sidewalk)
-    m.box("PlanterGlow_%d" % i, x, y, 96, 200, 70, 10, mat=lime, solid=False)
+    m.box("Planter_%d" % i, x, y, 45, 220, 90, 90, mat=concrete)
+    m.box("PlanterSoil_%d" % i, x, y, 92, 196, 66, 6, mat=soil, solid=False)
+    m.box("PlanterRim_%d" % i, x, y, 90, 232, 102, 10, mat=curb_m, solid=False)
+    m.prop("PlanterShrub_%d" % i, "shrub_a", x, y, 94, yaw=rng.uniform(0, 360), scale=0.55, solid=False)
 
 for i, (x, y, yaw) in enumerate([(1650, -700, 0), (-1650, 700, 0), (-60, 770, 0), (60, -770, 0)]):
-    m.box("Dumpster_%d" % i, x, y, 70, 200, 110, 140, yaw=yaw, mat=m.material("MI_NeonDumpster", (0.08, 0.30, 0.20)))
+    base = (x, y, 0, yaw)
+    kp.local_box(m, "Dumpster%d" % i, 0, 0, 55, 200, 110, 110, base, mat=dump_green)
+    kp.local_box(m, "DumpLid%d" % i, 0, -26, 118, 200, 60, 6, base, mat=steel, solid=False, pitch=0)
+    kp.local_box(m, "DumpLid2%d" % i, 0, 28, 120, 200, 56, 6, base, mat=steel, solid=False)
+    for wx in (-85, 85):
+        kp.local_box(m, "DumpWheel", wx, -52, 10, 18, 10, 20, base, mat=rubber, solid=False)
+    kp.local_box(m, "DumpRibs", 0, 0, 60, 204, 112, 8, base, mat=galv_dark, solid=False)
 
-# ---------------------------------------------------------------- backdrop skyline (no collision)
+# fire barrels and hydrants in the plaza corners (solid, small)
+for i, (x, y) in enumerate([(-1700, -600), (1700, 600)]):
+    m.prop("FireBarrel%d" % i, "barrel_fire", x, y, 0, solid=True)
+    m.accent_light("FireLight%d" % i, (x, y, 100), (1.0, 0.5, 0.15), candela=15, radius=500)
+for i, (x, y) in enumerate([(-1100, 760), (1100, -760), (700, 770), (-700, -770)]):
+    m.prop("Hydrant%d" % i, "hydrant_a", x, y, 0, solid=False)
+for i, (x, y) in enumerate([(-200, 765), (330, 770), (-340, -770), (840, -770), (-1450, 765)]):
+    m.prop("Bin%d" % i, "bin_a", x, y, 0, yaw=rng.uniform(-20, 20), solid=(i % 2 == 0))
+
+# tall partitions that break the long sight lines of the street: brick walls with posters and a small neon sign
+for i, (x, y0, y1, rgb, word) in enumerate([(-1000, -800, -150, PINK, "OPEN"), (1000, 150, 800, CYAN, "BAR"), (-1400, -800, -350, LIME, None),
+                                            (400, 600, 800, AMBER, None), (-400, -800, -600, AMBER, None)]):
+    yc = (y0 + y1) / 2
+    ln = y1 - y0
+    m.box("Partition_%d" % i, x, yc, 140, 40, ln, 280, mat=brick)
+    m.box("PartitionCap_%d" % i, x, yc, 286, 56, ln + 10, 12, mat=curb_m, solid=False)
+    m.box("PartitionBase_%d" % i, x, yc, 30, 46, ln + 4, 60, mat=concrete_dark, solid=False)
+    n_p = max(1, int(ln // 230))
+    for sd in (-1, 1):
+        for k in range(n_p):
+            yy = y0 + ln * (k + 0.5) / n_p
+            m.box("PartPoster", x + sd * 22, yy, 120 if word else 150, 3, 120, 130, mat=poster[(i + k + (sd > 0)) % 5],
+                  solid=False)
+    if word:
+        for sd in (-1, 1):
+            neon_sign("PartSign%d%s" % (i, "a" if sd > 0 else "b"), word, x + sd * 21, yc, 232, -90 * sd, rgb, 34, thick=3.2,
+                      cd=20.0, rad=520.0, panel=True)
+
+# ------------------------------------------------------------------------------------------------ backdrop skyline (no collision)
+rng2 = random.Random(405)
 for i in range(30):
     ang = i / 30.0 * 2 * math.pi
-    dist = rng.uniform(3200, 5200)
-    h = rng.uniform(1800, 4500)
+    dist = rng2.uniform(3200, 5200)
+    h = rng2.uniform(2200, 5200)
     x, y = math.cos(ang) * dist * 1.25, math.sin(ang) * dist * 0.9
-    m.box("Skyline_%d" % i, x, y, h / 2 - 500, rng.uniform(500, 900), rng.uniform(500, 900), h, yaw=rng.uniform(0, 90),
-          mat=dark, solid=False)
-    for k in range(3):
-        m.box("SkylineLit_%d_%d" % (i, k), x, y, rng.uniform(300, h - 300), 520, 520, 40,
-              yaw=0, mat=rng.choice([pink, cyan, violet, amber]), solid=False)
+    wx_, wy_ = rng2.uniform(800, 1300), rng2.uniform(800, 1300)
+    m.box("Skyline_%d" % i, x, y, h / 2 - 500, wx_, wy_, h, yaw=0, mat=fac_bd[i % len(fac_bd)], solid=False)
+    m.box("SkylineCap_%d" % i, x, y, h - 500 + 10, wx_ + 40, wy_ + 40, 20, mat=concrete_dark, solid=False)
+    if i % 4 == 0:
+        rbox(m, "SkylineMast_%d" % i, x, y, h - 500 + 300, 10, 10, 600, mat=steel, solid=False)
+        rbox(m, "SkylineBeacon_%d" % i, x, y, h - 500 + 610, 24, 24, 24, mat=kc.emit("NeonBeacon", (1.0, 0.05, 0.05), 1.6), solid=False)
+    if i % 5 == 1:                                                 # a small neon sign high on a far block
+        rgb = [PINK, CYAN, AMBER, VIOLET][i % 4]
+        kc.neon_text(m, "FarSign%d" % i, ["HOTEL", "BAR", "CAFE", "INN"][i % 4], x - wx_ / 2 * math.copysign(1, x) - math.copysign(8, x),
+                     y * 0.0 + y, h * 0.55 - 500, 0, 150, TUBE[rgb], thick=10, yaw=(90 if x > 0 else -90))
 
-# ---------------------------------------------------------------- spawns
-# tall partitions (billboard walls) that break the long sight lines of the street
-for i, (x, y0, y1, mat) in enumerate([(-1000, -800, -150, pink), (1000, 150, 800, cyan), (-1400, -800, -350, lime),
-                                      (400, 600, 800, amber), (-400, -800, -600, amber)]):
-    m.box("Partition_%d" % i, x, (y0 + y1) / 2, 140, 40, y1 - y0, 280, mat=brick)
-    m.box("PartitionGlow_%d" % i, x + 22, (y0 + y1) / 2, 200, 6, y1 - y0 - 60, 24, mat=mat, solid=False)
-    m.box("PartitionGlowB_%d" % i, x - 22, (y0 + y1) / 2, 200, 6, y1 - y0 - 60, 24, mat=mat, solid=False)
-m.auto_starts(10, (-1700, 1700), (-750, 750), [0, 120, 240], step=100.0, seed=3, min_sep=450.0)
+# ------------------------------------------------------------------------------------------------ spawns
+for seed in range(3, 8):                     # the original fitted 10 starts; accept 9 or more
+    chosen = m.auto_starts(10, (-1700, 1700), (-750, 750), [0, 120, 240], step=100.0, seed=seed, min_sep=450.0)
+    if len(chosen) >= 9:
+        break
+    for a in m.actor_lib.get_all_level_actors():
+        if isinstance(a, unreal.PlayerStart):
+            m.actor_lib.destroy_actor(a)
+    m.start_count = 0
+unreal.log("NEON starts seed=%d count=%d" % (seed, len(chosen)))
 m.check_starts()
 
-# ---------------------------------------------------------------- light: night
-m.sky(sun_pitch=-35.0, sun_yaw=210.0, sun_intensity=0.9, sun_rgb=(0.45, 0.55, 1.0), sky_intensity=0.35)
-m.fog(rgb=(0.06, 0.04, 0.12), density=0.004, falloff=0.25, start=400)
-m.post(exposure_bias=-0.8, bloom=0.5)
-m.point_light("FillCyan", (0, 0, 650), (0.3, 0.7, 1.0), 120.0, 3500.0)
+# ------------------------------------------------------------------------------------------------ light: night
+m.look("night_city")
 m.finish(kill_z=-1200)
