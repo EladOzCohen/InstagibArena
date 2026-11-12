@@ -61,3 +61,7 @@ Surface textures of the world material library (`Tools/matlib.py`, imported into
 | Lava | ambientCG | [Lava004](https://ambientcg.com/a/Lava004) | ambientCG (Lennart Demes) | CC0 1.0 |
 
 <!-- TEXTURES-END -->
+
+**Character cloth detail** (fine fabric normal, roughness and brightness variation on the people, `Content/Characters/Textures/T_CharSuit_*`):
+Poly Haven "Scuba Suede" (https://polyhaven.com/a/scuba_suede) by colormass (photography) and Rico Cilliers (processing), licence CC0 1.0 (public domain),
+1k maps downloaded by `Tools/make_character_assets.py` into `~/AssetCache/textures/CharSuit` and imported into the project.

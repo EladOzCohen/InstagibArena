@@ -50,11 +50,14 @@ prop("Block_B", cube, (1100, 300, 60), (2, 2, 1.2), (0, 0, -15))
 prop("Ramp", cube, (500, 0, 80), (6, 4, 0.4), (0, 15, 0))
 
 # Lighting.
-spawn(unreal.DirectionalLight, "Sun", (0, 0, 1500), (0, -35, -40))
-spawn(unreal.SkyAtmosphere, "SkyAtmosphere")
-sky = spawn(unreal.SkyLight, "SkyLight", (0, 0, 1200))
-sky.get_component_by_class(unreal.SkyLightComponent).set_editor_property("real_time_capture", True)
-spawn(unreal.ExponentialHeightFog, "Fog", (0, 0, 100))
+class _Stage:
+    """The little part of mapkit.MapBuilder that mapkit.maplooks needs (this script does not use a MapBuilder)."""
+    actor_lib = actor_lib
+    fog_actor = None
+    spawn = staticmethod(spawn)
+
+
+mapkit.maplooks.apply_look(_Stage(), "day_clear", sun_pitch=-35.0, sun_yaw=-40.0)
 
 # The menu controller looks through this camera.
 spawn(unreal.CameraActor, "MenuCamera", (-500, 450, 260), (0, -6, -22))

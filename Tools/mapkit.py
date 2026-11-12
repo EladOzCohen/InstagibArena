@@ -15,6 +15,8 @@ PROJECT_TOOLS = os.path.join(unreal.SystemLibrary.get_project_directory(), "Tool
 if PROJECT_TOOLS not in sys.path:
     sys.path.insert(0, PROJECT_TOOLS)
 
+import maplooks  # noqa: E402  (light and shading presets, see Tools/maplooks.py)
+
 
 def _color(rgb):
     """unreal.Color from 0..1 floats. The Python constructor takes (b, g, r, a), so always use keywords."""
@@ -152,33 +154,27 @@ class MapBuilder:
         comp.set_editor_property("source_radius", 20.0)
         return light
 
-    def sky(self, sun_pitch=-45.0, sun_yaw=35.0, sun_intensity=None, sun_rgb=None, sky_intensity=2.0, sky_rgb=None):
-        sun = self.spawn(unreal.DirectionalLight, "Sun", (0, 0, 2000), (0, sun_pitch, sun_yaw))
-        comp = sun.get_component_by_class(unreal.DirectionalLightComponent)
-        if sun_intensity is not None:
-            comp.set_editor_property("intensity", sun_intensity)
-        if sun_rgb is not None:
-            comp.set_editor_property("light_color", _color(sun_rgb))
-        self.spawn(unreal.SkyAtmosphere, "SkyAtmosphere")
-        skylight = self.spawn(unreal.SkyLight, "SkyLight", (0, 0, 1500))
-        sky_comp = skylight.get_component_by_class(unreal.SkyLightComponent)
-        sky_comp.set_editor_property("real_time_capture", True)
-        sky_comp.set_editor_property("intensity", sky_intensity)
-        # The sky capture is very blue; a warm tint keeps shadows from turning navy.
-        sky_comp.set_editor_property("light_color", _color(sky_rgb or (1.0, 0.886, 0.745)))
+    def sky(self, sun_pitch=None, sun_yaw=None, sun_intensity=None, sun_rgb=None, sky_intensity=None, sky_rgb=None,
+            look="day_clear"):
+        """Legacy lighting call, kept so that old map scripts still run. It now places the standard look.
 
-        # A weak second light from the opposite side, without shadows, so that the faces away
-        # from the sun are readable instead of black.
-        fill = self.spawn(unreal.DirectionalLight, "FillLight", (0, 0, 2100), (0, -28.0, sun_yaw + 180.0))
-        fill_comp = fill.get_component_by_class(unreal.DirectionalLightComponent)
-        fill_comp.set_editor_property("intensity", 1.6)
-        fill_comp.set_editor_property("cast_shadows", False)
-        fill_comp.set_editor_property("atmosphere_sun_light", False)
-        fill_comp.set_editor_property("forward_shading_priority", 0)
-        comp.set_editor_property("forward_shading_priority", 1)
-        fill_comp.set_editor_property("light_color", _color((0.745, 0.824, 1.0)))
+        Only the sun direction is honoured. The old sun/sky intensities and colours were tuned against auto exposure
+        and are ignored on purpose (they gave the glowing, blown-out look). New scripts call look(name, **overrides).
+        """
+        over = {}
+        if sun_pitch is not None:
+            over["sun_pitch"] = sun_pitch
+        if sun_yaw is not None:
+            over["sun_yaw"] = sun_yaw
+        return maplooks.apply_look(self, look, **over)
 
-        self.spawn(unreal.ExponentialHeightFog, "Fog", (0, 0, 200))
+    def look(self, name="day_clear", **overrides):
+        """Places sun, sky, fog and post process of a look preset. See Tools/maplooks.py (maplooks.available())."""
+        return maplooks.apply_look(self, name, **overrides)
+
+    def accent_light(self, label, loc, rgb, candela=30.0, radius=450.0, source_radius=8.0, shadows=False):
+        """A small physically sized coloured light (candela, short radius, no shadows, reduced specular)."""
+        return maplooks.accent_light(self, label, loc, rgb, candela, radius, source_radius, shadows)
 
     def finish(self, kill_z=None):
         world = self.editor_lib.get_editor_world()
@@ -209,7 +205,7 @@ def launch_velocity(start, target, apex_extra=160.0):
     return ((target[0] - start[0]) / total, (target[1] - start[1]) / total, vz), total
 
 
-def _glow_material(self, name, rgb, glow=6.0):
+def _glow_material(self, name, rgb, glow=2.5):
     """A material that emits light: instance of M_IABody (parameters Color and Glow)."""
     if name in self.mats:
         return self.mats[name]
@@ -223,9 +219,9 @@ def _glow_material(self, name, rgb, glow=6.0):
     lib = unreal.MaterialEditingLibrary
     lib.set_material_instance_parent(mic, unreal.EditorAssetLibrary.load_asset("/Game/Characters/M_IABody"))
     lib.set_material_instance_vector_parameter_value(mic, "Color", unreal.LinearColor(rgb[0], rgb[1], rgb[2], 1.0))
-    lib.set_material_instance_scalar_parameter_value(mic, "Roughness", 0.4)
+    lib.set_material_instance_scalar_parameter_value(mic, "Roughness", 0.7)
     lib.set_material_instance_scalar_parameter_value(mic, "Metallic", 0.0)
-    lib.set_material_instance_scalar_parameter_value(mic, "Glow", glow)
+    lib.set_material_instance_scalar_parameter_value(mic, "Glow", min(glow, 5.0))
     lib.update_material_instance(mic)
     unreal.EditorAssetLibrary.save_asset(full)
     self.mats[name] = mic
@@ -393,13 +389,28 @@ def _auto_starts(self, count, x_range, y_range, levels, step=150.0, seed=1, min_
 
 
 def _post(self, exposure_bias=None, min_brightness=None, max_brightness=None, bloom=None, saturation=None):
-    """An unbound post process volume: exposure bias (EV), eye adaptation range, bloom, saturation."""
-    ppv = self.spawn(unreal.PostProcessVolume, "PostProcess", (0, 0, 0))
-    ppv.set_editor_property("unbound", True)
+    """Adjusts the map's unbound post process volume (the one look() made; one is created when there is none).
+
+    exposure_bias: EV added to the look's fixed exposure, limited to +-1.5. bloom is limited to 0.35.
+    min_brightness / max_brightness: only for maps that really want eye adaptation (not recommended in a shooter).
+    """
+    ppv = None
+    for a in self.actor_lib.get_all_level_actors():
+        if isinstance(a, unreal.PostProcessVolume):
+            ppv = a
+    if ppv is None:
+        ppv = self.spawn(unreal.PostProcessVolume, "PostProcess", (0, 0, 0))
+        ppv.set_editor_property("unbound", True)
     s = ppv.get_editor_property("settings")
     if exposure_bias is not None:
-        s.set_editor_property("override_auto_exposure_bias", True)
-        s.set_editor_property("auto_exposure_bias", exposure_bias)
+        bias = max(-1.5, min(1.5, exposure_bias))
+        if s.get_editor_property("override_auto_exposure_min_brightness"):
+            # fixed exposure from a look: shift both ends together
+            s.set_editor_property("auto_exposure_min_brightness", s.get_editor_property("auto_exposure_min_brightness") - bias)
+            s.set_editor_property("auto_exposure_max_brightness", s.get_editor_property("auto_exposure_max_brightness") - bias)
+        else:
+            s.set_editor_property("override_auto_exposure_bias", True)
+            s.set_editor_property("auto_exposure_bias", bias)
     if min_brightness is not None:
         s.set_editor_property("override_auto_exposure_min_brightness", True)
         s.set_editor_property("auto_exposure_min_brightness", min_brightness)
@@ -408,7 +419,7 @@ def _post(self, exposure_bias=None, min_brightness=None, max_brightness=None, bl
         s.set_editor_property("auto_exposure_max_brightness", max_brightness)
     if bloom is not None:
         s.set_editor_property("override_bloom_intensity", True)
-        s.set_editor_property("bloom_intensity", bloom)
+        s.set_editor_property("bloom_intensity", min(bloom, 0.35))
     if saturation is not None:
         s.set_editor_property("override_color_saturation", True)
         s.set_editor_property("color_saturation", unreal.Vector4(saturation, saturation, saturation, 1.0))

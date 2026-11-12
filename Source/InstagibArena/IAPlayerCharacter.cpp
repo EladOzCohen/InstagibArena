@@ -33,6 +33,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Engine/Texture.h"
 #include "Net/UnrealNetwork.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -835,7 +836,12 @@ void AIAPlayerCharacter::ApplyLook(int32 CharacterIndex, uint8 Team)
 	USkeletalMesh* MeshAsset = LoadObject<USkeletalMesh>(nullptr, Look.bQuinn
 		? TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple")
 		: TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"));
-	UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Characters/M_IABody.M_IABody"));
+	// M_IACharacter is the matte fabric and armour material of the people (Tools/make_character_assets.py).
+	UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Characters/M_IACharacter.M_IACharacter"));
+	if (!BaseMaterial)
+	{
+		BaseMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Characters/M_IABody.M_IABody"));
+	}
 	if (!MeshAsset || !BaseMaterial)
 	{
 		UE_LOG(LogInstagib, Warning, TEXT("Look: character assets missing, keeping the placeholder body"));
@@ -876,31 +882,89 @@ void AIAPlayerCharacter::ApplyLook(int32 CharacterIndex, uint8 Team)
 	FLinearColor TeamColor = Accent;
 	if (Team == 0) { TeamColor = FLinearColor(1.f, 0.06f, 0.06f); }
 	else if (Team == 1) { TeamColor = FLinearColor(0.08f, 0.28f, 1.f); }
+
+	// The roster colours are poster colours. Clothes, armour and skin are matte and a little less saturated and bright,
+	// so a character reads as a person in a suit and not as glowing plastic. Team colours stay strong.
+	auto Matte = [](const FLinearColor& C, float Saturation, float MaxValue)
+	{
+		const float Luminance = C.GetLuminance();
+		FLinearColor Out = FMath::Lerp(FLinearColor(Luminance, Luminance, Luminance, 1.f), C, Saturation);
+		const float Peak = FMath::Max3(Out.R, Out.G, Out.B);
+		if (Peak > MaxValue)
+		{
+			Out *= MaxValue / Peak;
+		}
+		Out.A = 1.f;
+		return Out;
+	};
+	const bool bHologram = Look.BodyGlow > 0.f;
+	Body = bHologram ? Body : Matte(Body, 0.85f, 0.45f);
+	const FLinearColor AccentPaint = Matte(Accent, 0.9f, 0.7f);
 	if (Team != IA_NoTeam)
 	{
 		Body = FMath::Lerp(Body, TeamColor * 0.5f, 0.35f);
 	}
 
-	auto MakeMaterial = [&](const FLinearColor& Color, float Roughness, float Metallic, float Glow)
+	auto MakeMaterial = [&](const FLinearColor& Color, float Roughness, float Metallic, float Glow, float Rim = 0.f, const FLinearColor& RimColor = FLinearColor::White)
 	{
 		UMaterialInstanceDynamic* Material = UMaterialInstanceDynamic::Create(BaseMaterial, this);
 		Material->SetVectorParameterValue(TEXT("Color"), Color);
 		Material->SetScalarParameterValue(TEXT("Roughness"), Roughness);
 		Material->SetScalarParameterValue(TEXT("Metallic"), Metallic);
 		Material->SetScalarParameterValue(TEXT("Glow"), Glow);
+		Material->SetScalarParameterValue(TEXT("Rim"), Rim);
+		Material->SetVectorParameterValue(TEXT("RimColor"), RimColor);
 		return Material;
 	};
 
-	UMaterialInstanceDynamic* BodyMat = MakeMaterial(Body, Look.Roughness, Look.Metallic, Look.BodyGlow);
+	// A thin edge light in the team colour (or the character's accent in free for all) keeps people readable at a distance.
+	const float RimStrength = bHologram ? 0.f : (Team != IA_NoTeam ? 0.45f : 0.2f);
+	UMaterialInstanceDynamic* BodyMat = MakeMaterial(Body, Look.Roughness, Look.Metallic, Look.BodyGlow, RimStrength, TeamColor);
+	// The mannequin has two material slots (0 head and legs, 1 torso and arms). Its own albedo maps are plate/fabric maps:
+	// the material paints the light areas (armour plates) with Color and the dark areas (undersuit, rubber) with Color2.
+	UMaterialInstanceDynamic* LowerMat = MakeMaterial(Body, Look.Roughness, Look.Metallic, Look.BodyGlow, RimStrength, TeamColor);
+	{
+		const TCHAR* PanelNames[2] = {
+			Look.bQuinn ? TEXT("/Game/Characters/Mannequins/Textures/Quinn/T_Quinn_01_D.T_Quinn_01_D") : TEXT("/Game/Characters/Mannequins/Textures/Manny/T_Manny_01_D.T_Manny_01_D"),
+			Look.bQuinn ? TEXT("/Game/Characters/Mannequins/Textures/Quinn/T_Quinn_02_D.T_Quinn_02_D") : TEXT("/Game/Characters/Mannequins/Textures/Manny/T_Manny_02_D.T_Manny_02_D") };
+		UMaterialInstanceDynamic* SlotMats[2] = { LowerMat, BodyMat };
+		const FLinearColor Under = Body * 0.28f;
+		for (int32 I = 0; I < 2; ++I)
+		{
+			UTexture* Panel = LoadObject<UTexture>(nullptr, PanelNames[I]);
+			SlotMats[I]->SetVectorParameterValue(TEXT("Color2"), Under);
+			SlotMats[I]->SetScalarParameterValue(TEXT("Roughness2"), 0.92f);
+			if (Panel && !bHologram)
+			{
+				SlotMats[I]->SetTextureParameterValue(TEXT("PanelTex"), Panel);
+				SlotMats[I]->SetScalarParameterValue(TEXT("PanelAmount"), 1.f);
+			}
+		}
+	}
 	for (int32 Slot = 0; Slot < Skel->GetNumMaterials(); ++Slot)
 	{
-		Skel->SetMaterial(Slot, BodyMat);
+		Skel->SetMaterial(Slot, Slot == 0 ? LowerMat : BodyMat);
 	}
+#if !UE_BUILD_SHIPPING
+	if (FParse::Param(FCommandLine::Get(), TEXT("IASlotDebug")))
+	{
+		for (int32 Slot = 0; Slot < Skel->GetNumMaterials(); ++Slot)
+		{
+			Skel->SetMaterial(Slot, MakeMaterial(Slot == 0 ? FLinearColor(0.6f, 0.02f, 0.02f) : FLinearColor(0.02f, 0.05f, 0.6f), 0.8f, 0.f, 0.f));
+		}
+	}
+#endif
 
-	UMaterialInstanceDynamic* AccentMat = MakeMaterial(Accent, 0.4f, 0.15f, 0.f);
-	UMaterialInstanceDynamic* TeamMat = MakeMaterial(TeamColor, 0.4f, 0.1f, Team == IA_NoTeam ? 0.f : 0.8f);
-	UMaterialInstanceDynamic* GlowMat = MakeMaterial(Accent, 0.3f, 0.f, 6.f);
-	UMaterialInstanceDynamic* LightMat = MakeMaterial(FLinearColor(0.92f, 0.92f, 0.88f), 0.7f, 0.f, 0.f);
+	const bool bMetalAccent = Look.AccentMetal > 0.f;
+	UMaterialInstanceDynamic* AccentMat = MakeMaterial(AccentPaint, bMetalAccent ? 0.35f : 0.6f, Look.AccentMetal, 0.f);
+	UMaterialInstanceDynamic* TeamMat = MakeMaterial(TeamColor, 0.55f, 0.f, Team == IA_NoTeam ? 0.f : 0.5f);
+	UMaterialInstanceDynamic* GlowMat = MakeMaterial(Accent, 0.4f, 0.f, 2.2f);   // visors, eyes, cores: small lit parts
+	UMaterialInstanceDynamic* LightMat = MakeMaterial(FLinearColor(0.8f, 0.8f, 0.76f), 0.9f, 0.f, 0.f);
+	// Attached shapes are stretched boxes and cones: the cloth detail would smear into streaks, so they stay flat and matte.
+	for (UMaterialInstanceDynamic* Part : { AccentMat, TeamMat, GlowMat, LightMat })
+	{
+		Part->SetScalarParameterValue(TEXT("Detail"), 0.f);
+	}
 
 	// Accessories: rebuilt from scratch whenever the look changes.
 	for (UStaticMeshComponent* Old : Accessories)
@@ -1043,7 +1107,11 @@ void AIAPlayerCharacter::DestroyWeapon(bool bFirstPerson)
 
 void AIAPlayerCharacter::BuildWeapon(bool bFirstPerson, USkeletalMesh* MeshAsset)
 {
-	UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Characters/M_IABody.M_IABody"));
+	UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Characters/M_IACharacter.M_IACharacter"));
+	if (!BaseMaterial)
+	{
+		BaseMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Characters/M_IABody.M_IABody"));
+	}
 	if (!BaseMaterial)
 	{
 		return;
@@ -1059,8 +1127,11 @@ void AIAPlayerCharacter::BuildWeapon(bool bFirstPerson, USkeletalMesh* MeshAsset
 		return Material;
 	};
 
-	UMaterialInstanceDynamic* BodyMat = MakeMaterial(FLinearColor(0.045f, 0.05f, 0.06f), 0.35f, 0.5f, 0.f);
-	UMaterialInstanceDynamic* AccentMat = MakeMaterial(CurrentAccent, 0.4f, 0.2f, 0.4f);
+	// Gun metal and painted trim: matte enough not to look like wet plastic, a small glow only in the energy core.
+	UMaterialInstanceDynamic* BodyMat = MakeMaterial(FLinearColor(0.05f, 0.055f, 0.065f), 0.5f, 0.6f, 0.f);
+	UMaterialInstanceDynamic* AccentMat = MakeMaterial(CurrentAccent * 0.8f, 0.55f, 0.15f, 0.25f);
+	BodyMat->SetScalarParameterValue(TEXT("Detail"), 0.f);
+	AccentMat->SetScalarParameterValue(TEXT("Detail"), 0.f);
 	UMaterialInstanceDynamic* CoreMat = MakeMaterial(CurrentAccent, 0.3f, 0.f, 4.f);
 	UMaterialInstanceDynamic* FlashMat = MakeMaterial(CurrentAccent, 0.3f, 0.f, 12.f);
 
