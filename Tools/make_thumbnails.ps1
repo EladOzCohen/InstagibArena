@@ -49,7 +49,7 @@ if ($Only.Count -gt 0) { $paths = $paths | Where-Object { $Only -contains ($_ -r
 "Maps: " + (($paths | ForEach-Object { $_ -replace '^.*/', '' }) -join ", ")
 
 # --- 2. one game run per map
-$darkMaps = @{ "DM-Forge" = 3.2; "DM-Neon" = 1.5 }
+$darkMaps = @{ "DM-Neon" = 1.5 }
 $recommended = @{}
 foreach ($path in $paths) {
     $name = $path -replace '^.*/', ''
