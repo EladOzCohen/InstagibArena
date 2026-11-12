@@ -1,0 +1,2481 @@
+{
+ "aircon_a": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   39.998565673828125,
+   18.70796012878418,
+   46.39485549926758
+  ],
+  "kind": "machine",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.7287826538085938,
+   -2.8886566162109375,
+   14.388294219970703
+  ],
+  "path": "/Game/Props/Industrial/SM_AirconA.SM_AirconA",
+  "scale": 1.0,
+  "slug": "exterior_aircon_unit",
+  "solid": true,
+  "tags": [
+   "skyline",
+   "neon"
+  ],
+  "tris": 9493
+ },
+ "barrel_fire": {
+  "category": "Industrial",
+  "coll": "convex:1",
+  "extent": [
+   29.628368377685547,
+   29.628369331359863,
+   42.78019714355469
+  ],
+  "kind": "barrel",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.0,
+   -1.239776611328125e-05,
+   42.78019714355469
+  ],
+  "path": "/Game/Props/Industrial/SM_BarrelFire.SM_BarrelFire",
+  "scale": 1.0,
+  "slug": "barrel_stove",
+  "solid": true,
+  "tags": [
+   "neon",
+   "glacier",
+   "foundry"
+  ],
+  "tris": 9216
+ },
+ "barrel_plastic": {
+  "category": "Industrial",
+  "coll": "convex:1",
+  "extent": [
+   24.408778190612793,
+   24.23082160949707,
+   44.00000058114529
+  ],
+  "kind": "barrel",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   9.5367431640625e-07,
+   -9.5367431640625e-06,
+   44.46373690664768
+  ],
+  "path": "/Game/Props/Industrial/SM_BarrelPlastic.SM_BarrelPlastic",
+  "scale": 1.0,
+  "slug": "Barrel_02",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "dock",
+   "neon",
+   "skyline"
+  ],
+  "tris": 2688
+ },
+ "barrel_red": {
+  "category": "Industrial",
+  "coll": "convex:1",
+  "extent": [
+   28.15175724029541,
+   28.151761054992676,
+   43.999998688697815
+  ],
+  "kind": "barrel",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   -2.86102294921875e-06,
+   1.049041748046875e-05,
+   43.338570952415466
+  ],
+  "path": "/Game/Props/Industrial/SM_BarrelRed.SM_BarrelRed",
+  "scale": 1.0,
+  "slug": "Barrel_01",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "forge",
+   "dock",
+   "neon",
+   "canyon"
+  ],
+  "tris": 2682
+ },
+ "barrel_wine": {
+  "category": "Industrial",
+  "coll": "convex:1",
+  "extent": [
+   37.095075607299805,
+   37.80178642272949,
+   43.56316918134689
+  ],
+  "kind": "barrel",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.0001506805419921875,
+   0.7064914703369141,
+   43.631586372852325
+  ],
+  "path": "/Game/Props/Industrial/SM_BarrelWine.SM_BarrelWine",
+  "scale": 1.0,
+  "slug": "wine_barrel_01",
+  "solid": true,
+  "tags": [
+   "temple",
+   "canyon",
+   "dock"
+  ],
+  "tris": 10820
+ },
+ "barrel_wood_a": {
+  "category": "Industrial",
+  "coll": "convex:1",
+  "extent": [
+   37.15000915527344,
+   37.149885177612305,
+   45.839040098828264
+  ],
+  "kind": "barrel",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.000125885009765625,
+   -0.0001316070556640625,
+   45.8411509412108
+  ],
+  "path": "/Game/Props/Industrial/SM_BarrelWoodA.SM_BarrelWoodA",
+  "scale": 1.0,
+  "slug": "wooden_barrels_01",
+  "solid": true,
+  "tags": [
+   "dock",
+   "canyon",
+   "glacier",
+   "temple"
+  ],
+  "tris": 11184
+ },
+ "barrel_wood_b": {
+  "category": "Industrial",
+  "coll": "convex:1",
+  "extent": [
+   37.15000915527344,
+   37.14760971069336,
+   45.99348512291908
+  ],
+  "kind": "barrel",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.000125885009765625,
+   -0.002407073974609375,
+   45.68670591711998
+  ],
+  "path": "/Game/Props/Industrial/SM_BarrelWoodB.SM_BarrelWoodB",
+  "scale": 1.0,
+  "slug": "wooden_barrels_01",
+  "solid": true,
+  "tags": [
+   "dock",
+   "canyon",
+   "glacier",
+   "temple"
+  ],
+  "tris": 11278
+ },
+ "barrier_a": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   77.26785278320312,
+   31.937030792236328,
+   41.552429646253586
+  ],
+  "kind": "barrier",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -0.19449615478515625,
+   2.4622840881347656,
+   40.70944169163704
+  ],
+  "path": "/Game/Props/Industrial/SM_BarrierA.SM_BarrierA",
+  "scale": 1.0,
+  "slug": "concrete_road_barrier",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "forge",
+   "neon",
+   "dock",
+   "skyline"
+  ],
+  "tris": 60928
+ },
+ "barrier_b": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   78.27046966552734,
+   22.107099533081055,
+   55.597644701600075
+  ],
+  "kind": "barrier",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   0.65277099609375,
+   -3.2977981567382812,
+   55.31820307672024
+  ],
+  "path": "/Game/Props/Industrial/SM_BarrierB.SM_BarrierB",
+  "scale": 1.0,
+  "slug": "concrete_road_barrier_02",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "forge",
+   "neon",
+   "dock",
+   "skyline"
+  ],
+  "tris": 23822
+ },
+ "bin_a": {
+  "category": "Industrial",
+  "coll": "convex:1",
+  "extent": [
+   30.67158603668213,
+   27.618454933166504,
+   45.30799649632536
+  ],
+  "kind": "bin",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   9.5367431640625e-07,
+   0.0019865036010742188,
+   45.31514956080355
+  ],
+  "path": "/Game/Props/Industrial/SM_BinA.SM_BinA",
+  "scale": 1.0,
+  "slug": "metal_trash_can",
+  "solid": true,
+  "tags": [
+   "neon",
+   "skyline",
+   "dock"
+  ],
+  "tris": 4048
+ },
+ "buoy": {
+  "category": "Marine",
+  "coll": "convex:1",
+  "extent": [
+   53.330514907836914,
+   47.607398986816406,
+   132.81171798706055
+  ],
+  "kind": "marine",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   5.723115921020508,
+   0.0,
+   51.87456130981445
+  ],
+  "path": "/Game/Props/Marine/SM_Buoy.SM_Buoy",
+  "scale": 1.0,
+  "slug": "ocean_buoy",
+  "solid": true,
+  "tags": [
+   "dock"
+  ],
+  "tris": 12240
+ },
+ "bush_dry_a": {
+  "category": "Plants",
+  "coll": "none",
+  "extent": [
+   34.82872009277344,
+   42.1714973449707,
+   26.974716551601887
+  ],
+  "kind": "plant",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -0.19226837158203125,
+   -11.526763916015625,
+   26.767016999423504
+  ],
+  "path": "/Game/Props/Plants/SM_BushDryA.SM_BushDryA",
+  "scale": 2.0,
+  "slug": "wild_rooibos_bush",
+  "solid": false,
+  "tags": [
+   "canyon"
+  ],
+  "tris": 13151
+ },
+ "bush_dry_b": {
+  "category": "Plants",
+  "coll": "none",
+  "extent": [
+   26.215951919555664,
+   23.73475170135498,
+   27.063315346837044
+  ],
+  "kind": "plant",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   2.7036800384521484,
+   -2.3045053482055664,
+   26.827485129237175
+  ],
+  "path": "/Game/Props/Plants/SM_BushDryB.SM_BushDryB",
+  "scale": 2.0,
+  "slug": "wild_rooibos_bush",
+  "solid": false,
+  "tags": [
+   "canyon"
+  ],
+  "tris": 6287
+ },
+ "bust_marble": {
+  "category": "Temple",
+  "coll": "box",
+  "extent": [
+   13.587481021881104,
+   14.98568344116211,
+   25.74716019630432
+  ],
+  "kind": "statue",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   1.299461841583252,
+   0.5260410308837891,
+   22.921224355697632
+  ],
+  "path": "/Game/Props/Temple/SM_BustMarble.SM_BustMarble",
+  "scale": 1.0,
+  "slug": "marble_bust_01",
+  "solid": true,
+  "tags": [
+   "temple"
+  ],
+  "tris": 17456
+ },
+ "car_covered": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   89.44815063476562,
+   219.0127182006836,
+   70.55565392971039
+  ],
+  "kind": "vehicle",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   4.780082702636719,
+   2.3811264038085938,
+   70.55565893650055
+  ],
+  "path": "/Game/Props/Industrial/SM_CarCovered.SM_CarCovered",
+  "scale": 1.0,
+  "slug": "covered_car",
+  "solid": true,
+  "tags": [
+   "neon",
+   "foundry",
+   "dock",
+   "skyline"
+  ],
+  "tris": 12592
+ },
+ "cliff_a": {
+  "category": "Rocks",
+  "coll": "convex:4",
+  "extent": [
+   247.67555236816406,
+   191.36516571044922,
+   178.2024576663971
+  ],
+  "kind": "cliff",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   34.31541442871094,
+   -155.23966217041016,
+   174.7665364742279
+  ],
+  "path": "/Game/Props/Rocks/SM_CliffA.SM_CliffA",
+  "scale": 1.0,
+  "slug": "rock_face_01",
+  "solid": true,
+  "tags": [
+   "glacier",
+   "canyon",
+   "temple"
+  ],
+  "tris": 20174
+ },
+ "cliff_b": {
+  "category": "Rocks",
+  "coll": "convex:4",
+  "extent": [
+   135.5598087310791,
+   106.33501052856445,
+   123.59834337234497
+  ],
+  "kind": "cliff",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -90.55043601989746,
+   -12.483531951904297,
+   109.63641309738159
+  ],
+  "path": "/Game/Props/Rocks/SM_CliffB.SM_CliffB",
+  "scale": 1.0,
+  "slug": "rock_face_02",
+  "solid": true,
+  "tags": [
+   "glacier",
+   "canyon",
+   "temple"
+  ],
+  "tris": 29566
+ },
+ "cliff_red_a": {
+  "category": "Rocks",
+  "coll": "convex:5",
+  "extent": [
+   413.9521789550781,
+   219.50667572021484,
+   248.0531520843506
+  ],
+  "kind": "cliff",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   26.7435302734375,
+   -141.5467300415039,
+   206.1345615386963
+  ],
+  "path": "/Game/Props/Rocks/SM_CliffRedA.SM_CliffRedA",
+  "scale": 1.0,
+  "slug": "namaqualand_cliff_01",
+  "solid": true,
+  "tags": [
+   "canyon",
+   "forge"
+  ],
+  "tris": 94369
+ },
+ "crane_gantry": {
+  "category": "Industrial",
+  "coll": "none",
+  "extent": [
+   610.9367065429688,
+   106.99185943603516,
+   256.6290702819824
+  ],
+  "kind": "crane",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   0.0,
+   43.66974639892578,
+   -134.68352127075195
+  ],
+  "path": "/Game/Props/Industrial/SM_CraneGantry.SM_CraneGantry",
+  "scale": 1.0,
+  "slug": "overhead_crane",
+  "solid": false,
+  "tags": [
+   "dock",
+   "foundry",
+   "forge"
+  ],
+  "tris": 89908
+ },
+ "crate_wood_a": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   41.26364517211914,
+   20.44768714904785,
+   17.48091486096382
+  ],
+  "kind": "crate",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.0,
+   0.8337249755859375,
+   16.687580317258835
+  ],
+  "path": "/Game/Props/Industrial/SM_CrateWoodA.SM_CrateWoodA",
+  "scale": 1.0,
+  "slug": "wooden_crate_01",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "dock",
+   "canyon",
+   "glacier",
+   "forge"
+  ],
+  "tris": 6576
+ },
+ "crate_wood_b": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   26.455047607421875,
+   58.3162899017334,
+   22.264051616191864
+  ],
+  "kind": "crate",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.0,
+   -0.017744064331054688,
+   21.28168660402298
+  ],
+  "path": "/Game/Props/Industrial/SM_CrateWoodB.SM_CrateWoodB",
+  "scale": 1.0,
+  "slug": "wooden_crate_02",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "dock",
+   "canyon",
+   "glacier",
+   "forge"
+  ],
+  "tris": 4492
+ },
+ "duct_a": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   18.52110767364502,
+   71.10353237969468,
+   18.53430938720703
+  ],
+  "kind": "duct",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   2.384185791015625e-05,
+   71.10352938788344,
+   0.0
+  ],
+  "path": "/Game/Props/Industrial/SM_DuctA.SM_DuctA",
+  "scale": 1.0,
+  "slug": "modular_airduct_circular_01",
+  "solid": true,
+  "tags": [
+   "skyline",
+   "foundry",
+   "neon",
+   "forge"
+  ],
+  "tris": 512
+ },
+ "duct_b": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   18.52110767364502,
+   47.415049683705774,
+   18.53430938720703
+  ],
+  "kind": "duct",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   -7.152557373046875e-05,
+   47.41504370008329,
+   0.0
+  ],
+  "path": "/Game/Props/Industrial/SM_DuctB.SM_DuctB",
+  "scale": 1.0,
+  "slug": "modular_airduct_circular_01",
+  "solid": true,
+  "tags": [
+   "skyline",
+   "foundry",
+   "neon",
+   "forge"
+  ],
+  "tris": 512
+ },
+ "duct_c": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   18.56335163116455,
+   14.792718765325844,
+   19.207828521728516
+  ],
+  "kind": "duct",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   0.008736610412597656,
+   14.77510083001107,
+   -0.6404571533203125
+  ],
+  "path": "/Game/Props/Industrial/SM_DuctC.SM_DuctC",
+  "scale": 1.0,
+  "slug": "modular_airduct_circular_01",
+  "solid": true,
+  "tags": [
+   "skyline",
+   "foundry",
+   "neon",
+   "forge"
+  ],
+  "tris": 514
+ },
+ "duct_d": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   27.139119148254395,
+   7.553756302424176,
+   27.158456802368164
+  ],
+  "kind": "duct",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   2.384185791015625e-05,
+   7.553753310612933,
+   0.0
+  ],
+  "path": "/Game/Props/Industrial/SM_DuctD.SM_DuctD",
+  "scale": 1.0,
+  "slug": "modular_airduct_circular_01",
+  "solid": true,
+  "tags": [
+   "skyline",
+   "foundry",
+   "neon",
+   "forge"
+  ],
+  "tris": 3340
+ },
+ "fence_a": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   46.70254063606262,
+   2.4316025972366333,
+   118.50000214576721
+  ],
+  "kind": "fence",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   -49.49960780143738,
+   0.061998963356018066,
+   124.49999785423279
+  ],
+  "path": "/Game/Props/Industrial/SM_FenceA.SM_FenceA",
+  "scale": 1.0,
+  "slug": "modular_chainlink_fence",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "dock",
+   "neon",
+   "skyline",
+   "glacier"
+  ],
+  "tris": 3028
+ },
+ "fence_b": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   95.70261406898499,
+   2.4316025972366333,
+   118.50000214576721
+  ],
+  "kind": "fence",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   -99.49965643882751,
+   0.061998963356018066,
+   124.49999785423279
+  ],
+  "path": "/Game/Props/Industrial/SM_FenceB.SM_FenceB",
+  "scale": 1.0,
+  "slug": "modular_chainlink_fence",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "dock",
+   "neon",
+   "skyline",
+   "glacier"
+  ],
+  "tris": 3054
+ },
+ "fern_a": {
+  "category": "Plants",
+  "coll": "none",
+  "extent": [
+   49.48737144470215,
+   44.684486389160156,
+   21.38473641872406
+  ],
+  "kind": "plant",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   -3.3268871307373047,
+   2.497039794921875,
+   18.33370840549469
+  ],
+  "path": "/Game/Props/Plants/SM_FernA.SM_FernA",
+  "scale": 1.0,
+  "slug": "fern_02",
+  "solid": false,
+  "tags": [
+   "temple",
+   "glacier"
+  ],
+  "tris": 2384
+ },
+ "fern_b": {
+  "category": "Plants",
+  "coll": "none",
+  "extent": [
+   43.716291427612305,
+   38.26128387451172,
+   17.451018452644348
+  ],
+  "kind": "plant",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   0.7223339080810547,
+   -3.4668960571289062,
+   14.573651194572449
+  ],
+  "path": "/Game/Props/Plants/SM_FernB.SM_FernB",
+  "scale": 1.0,
+  "slug": "fern_02",
+  "solid": false,
+  "tags": [
+   "temple",
+   "glacier"
+  ],
+  "tris": 2248
+ },
+ "fir_a": {
+  "category": "Trees",
+  "coll": "trunk:7",
+  "extent": [
+   43.05732536315918,
+   41.111806869506836,
+   65.03689694404602
+  ],
+  "kind": "tree",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -0.6383609771728516,
+   -1.5087604522705078,
+   64.24671816825867
+  ],
+  "path": "/Game/Props/Trees/SM_FirA.SM_FirA",
+  "scale": 4.0,
+  "slug": "fir_sapling",
+  "solid": true,
+  "tags": [
+   "glacier"
+  ],
+  "tris": 157402
+ },
+ "fire_escape_a": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   149.73194122314453,
+   68.57789134979248,
+   200.27625274658203
+  ],
+  "kind": "structure",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   -16.436668395996094,
+   -45.64439868927002,
+   -39.99321746826172
+  ],
+  "path": "/Game/Props/Industrial/SM_FireEscapeA.SM_FireEscapeA",
+  "scale": 1.0,
+  "slug": "modular_fire_escape",
+  "solid": true,
+  "tags": [
+   "neon",
+   "skyline"
+  ],
+  "tris": 5810
+ },
+ "fire_escape_b": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   239.6547088623047,
+   68.22160339355469,
+   38.62097501754761
+  ],
+  "kind": "structure",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   7.7377777099609375,
+   -16.79119873046875,
+   -31.40183687210083
+  ],
+  "path": "/Game/Props/Industrial/SM_FireEscapeB.SM_FireEscapeB",
+  "scale": 1.0,
+  "slug": "modular_fire_escape",
+  "solid": true,
+  "tags": [
+   "neon",
+   "skyline"
+  ],
+  "tris": 1244
+ },
+ "fire_escape_c": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   38.748661041259766,
+   3.2206919193267822,
+   323.2935791015625
+  ],
+  "kind": "structure",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   0.07410812377929688,
+   -0.6532843112945557,
+   -33.194854736328125
+  ],
+  "path": "/Game/Props/Industrial/SM_FireEscapeC.SM_FireEscapeC",
+  "scale": 1.0,
+  "slug": "modular_fire_escape",
+  "solid": true,
+  "tags": [
+   "neon",
+   "skyline"
+  ],
+  "tris": 632
+ },
+ "fire_pit": {
+  "category": "Temple",
+  "coll": "convex:1",
+  "extent": [
+   72.42481231689453,
+   71.66172409057617,
+   19.416303634643555
+  ],
+  "kind": "brazier",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   -1.2068328857421875,
+   0.17082595825195312,
+   0.07401084899902344
+  ],
+  "path": "/Game/Props/Temple/SM_FirePit.SM_FirePit",
+  "scale": 1.0,
+  "slug": "stone_fire_pit",
+  "solid": true,
+  "tags": [
+   "temple",
+   "canyon",
+   "glacier"
+  ],
+  "tris": 3887
+ },
+ "gate_iron": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   147.5045928955078,
+   4.866824269294739,
+   146.43268504738808
+  ],
+  "kind": "gate",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   0.0,
+   1.2840412855148315,
+   145.64534839987755
+  ],
+  "path": "/Game/Props/Industrial/SM_GateIron.SM_GateIron",
+  "scale": 1.0,
+  "slug": "large_iron_gate",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "neon",
+   "temple",
+   "forge"
+  ],
+  "tris": 38140
+ },
+ "generator": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   40.91704177856445,
+   28.200000762939453,
+   28.84616243490018
+  ],
+  "kind": "machine",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   -0.5347061157226562,
+   0.0,
+   28.851969126379117
+  ],
+  "path": "/Game/Props/Industrial/SM_Generator.SM_Generator",
+  "scale": 1.0,
+  "slug": "portable_generator",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "forge",
+   "dock",
+   "glacier"
+  ],
+  "tris": 26419
+ },
+ "hydrant_a": {
+  "category": "Industrial",
+  "coll": "convex:1",
+  "extent": [
+   13.73117733001709,
+   15.88717794418335,
+   39.972800474613905
+  ],
+  "kind": "street",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -0.4457101821899414,
+   3.233511447906494,
+   39.96392895653844
+  ],
+  "path": "/Game/Props/Industrial/SM_HydrantA.SM_HydrantA",
+  "scale": 1.0,
+  "slug": "fire_hydrant",
+  "solid": true,
+  "tags": [
+   "neon",
+   "skyline",
+   "foundry"
+  ],
+  "tris": 43158
+ },
+ "jerrycan": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   17.51649284362793,
+   8.587194442749023,
+   22.757997775741387
+  ],
+  "kind": "tank",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   0.5002937316894531,
+   -0.27406978607177734,
+   22.759385799698066
+  ],
+  "path": "/Game/Props/Industrial/SM_Jerrycan.SM_Jerrycan",
+  "scale": 1.0,
+  "slug": "metal_jerrycan",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "dock",
+   "glacier",
+   "canyon",
+   "forge"
+  ],
+  "tris": 20022
+ },
+ "lamp_hanging": {
+  "category": "Lighting",
+  "coll": "none",
+  "extent": [
+   27.48032569885254,
+   27.480321884155273,
+   67.76750874519348
+  ],
+  "kind": "lamp",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   5.7220458984375e-06,
+   -1.52587890625e-05,
+   -66.23378825187683
+  ],
+  "path": "/Game/Props/Lighting/SM_LampHanging.SM_LampHanging",
+  "scale": 1.0,
+  "slug": "hanging_industrial_lamp",
+  "solid": false,
+  "tags": [
+   "foundry",
+   "forge",
+   "dock"
+  ],
+  "tris": 9530
+ },
+ "lamp_security": {
+  "category": "Lighting",
+  "coll": "none",
+  "extent": [
+   16.157236099243164,
+   20.86115288734436,
+   26.548831939697266
+  ],
+  "kind": "lamp",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   -0.03959083557128906,
+   17.742755651474,
+   -9.384944915771484
+  ],
+  "path": "/Game/Props/Lighting/SM_LampSecurity.SM_LampSecurity",
+  "scale": 1.0,
+  "slug": "security_light",
+  "solid": false,
+  "tags": [
+   "neon",
+   "foundry",
+   "dock",
+   "skyline"
+  ],
+  "tris": 4668
+ },
+ "lamp_street_a": {
+  "category": "Lighting",
+  "coll": "trunk:10",
+  "extent": [
+   35.21681213378906,
+   19.324658393859863,
+   193.52777099609375
+  ],
+  "kind": "lamp",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.0,
+   9.5367431640625e-07,
+   193.52777099609375
+  ],
+  "path": "/Game/Props/Lighting/SM_LampStreetA.SM_LampStreetA",
+  "scale": 1.0,
+  "slug": "street_lamp_01",
+  "solid": true,
+  "tags": [
+   "neon",
+   "skyline",
+   "dock",
+   "foundry"
+  ],
+  "tris": 30610
+ },
+ "lamp_street_b": {
+  "category": "Lighting",
+  "coll": "trunk:10",
+  "extent": [
+   19.324658393859863,
+   40.33946343641833,
+   83.75209999084473
+  ],
+  "kind": "lamp",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   -2.86102294921875e-06,
+   40.33946112412855,
+   44.25974082946777
+  ],
+  "path": "/Game/Props/Lighting/SM_LampStreetB.SM_LampStreetB",
+  "scale": 1.0,
+  "slug": "street_lamp_02",
+  "solid": true,
+  "tags": [
+   "neon",
+   "skyline",
+   "dock",
+   "foundry"
+  ],
+  "tris": 20338
+ },
+ "lantern": {
+  "category": "Lighting",
+  "coll": "none",
+  "extent": [
+   11.052404403686523,
+   11.736220836639404,
+   26.50682783126831
+  ],
+  "kind": "lamp",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.0006999969482421875,
+   0.6818394660949707,
+   25.22673463821411
+  ],
+  "path": "/Game/Props/Lighting/SM_Lantern.SM_Lantern",
+  "scale": 1.0,
+  "slug": "wooden_lantern_01",
+  "solid": false,
+  "tags": [
+   "temple",
+   "canyon",
+   "dock"
+  ],
+  "tris": 8321
+ },
+ "pier_a": {
+  "category": "Marine",
+  "coll": "box",
+  "extent": [
+   124.4791955947876,
+   175.89543533325195,
+   213.3020420074463
+  ],
+  "kind": "structure",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   101.96976375579834,
+   146.37046432495117,
+   155.4825038909912
+  ],
+  "path": "/Game/Props/Marine/SM_PierA.SM_PierA",
+  "scale": 1.0,
+  "slug": "modular_wooden_pier",
+  "solid": true,
+  "tags": [
+   "dock"
+  ],
+  "tris": 23280
+ },
+ "pier_b": {
+  "category": "Marine",
+  "coll": "box",
+  "extent": [
+   125.35156726837158,
+   169.6157398223877,
+   191.8838882446289
+  ],
+  "kind": "structure",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   97.44616222381592,
+   137.0732250213623,
+   96.9242172241211
+  ],
+  "path": "/Game/Props/Marine/SM_PierB.SM_PierB",
+  "scale": 1.0,
+  "slug": "modular_wooden_pier",
+  "solid": true,
+  "tags": [
+   "dock"
+  ],
+  "tris": 11758
+ },
+ "pipe_a": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   10.35538101196289,
+   10.316069602966309,
+   42.953094482421875
+  ],
+  "kind": "pipe",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   -3.814697265625e-06,
+   8.58306884765625e-06,
+   0.0
+  ],
+  "path": "/Game/Props/Industrial/SM_PipeA.SM_PipeA",
+  "scale": 1.0,
+  "slug": "modular_industrial_pipes_01",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "forge",
+   "skyline",
+   "neon"
+  ],
+  "tris": 600
+ },
+ "pipe_b": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   10.355195999145508,
+   10.316049098968506,
+   97.73197937011719
+  ],
+  "kind": "pipe",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   -9.5367431640625e-06,
+   -1.2874603271484375e-05,
+   2.288818359375e-05
+  ],
+  "path": "/Game/Props/Industrial/SM_PipeB.SM_PipeB",
+  "scale": 1.0,
+  "slug": "modular_industrial_pipes_01",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "forge",
+   "skyline",
+   "neon"
+  ],
+  "tris": 648
+ },
+ "pipe_c": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   29.932435035705566,
+   10.318840980529785,
+   65.71923828125
+  ],
+  "kind": "pipe",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   -0.8112802505493164,
+   0.033675193786621094,
+   -1.3110198974609375
+  ],
+  "path": "/Game/Props/Industrial/SM_PipeC.SM_PipeC",
+  "scale": 1.0,
+  "slug": "modular_industrial_pipes_01",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "forge",
+   "skyline",
+   "neon"
+  ],
+  "tris": 984
+ },
+ "pipe_d": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   29.90438938140869,
+   10.317249298095703,
+   21.643314361572266
+  ],
+  "kind": "pipe",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   0.02057170867919922,
+   0.0011949539184570312,
+   0.001239776611328125
+  ],
+  "path": "/Game/Props/Industrial/SM_PipeD.SM_PipeD",
+  "scale": 1.0,
+  "slug": "modular_industrial_pipes_01",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "forge",
+   "skyline",
+   "neon"
+  ],
+  "tris": 984
+ },
+ "pipe_e": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   17.84028911590576,
+   10.319085121154785,
+   20.55402660369873
+  ],
+  "kind": "pipe",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   -0.00042629241943359375,
+   0.0030384063720703125,
+   -0.037917137145996094
+  ],
+  "path": "/Game/Props/Industrial/SM_PipeE.SM_PipeE",
+  "scale": 1.0,
+  "slug": "modular_industrial_pipes_01",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "forge",
+   "skyline",
+   "neon"
+  ],
+  "tris": 1408
+ },
+ "plant_anthurium_a": {
+  "category": "Plants",
+  "coll": "none",
+  "extent": [
+   44.810813903808594,
+   57.09453582763672,
+   24.984217822551727
+  ],
+  "kind": "plant",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   2.8120689392089844,
+   8.079566955566406,
+   23.950318157672882
+  ],
+  "path": "/Game/Props/Plants/SM_PlantAnthuriumA.SM_PlantAnthuriumA",
+  "scale": 1.0,
+  "slug": "anthurium_botany_01",
+  "solid": false,
+  "tags": [
+   "temple"
+  ],
+  "tris": 15808
+ },
+ "plant_anthurium_b": {
+  "category": "Plants",
+  "coll": "none",
+  "extent": [
+   37.83337211608887,
+   28.58102798461914,
+   23.586975425481796
+  ],
+  "kind": "plant",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -0.012716293334960938,
+   -1.8553657531738281,
+   22.911582618951797
+  ],
+  "path": "/Game/Props/Plants/SM_PlantAnthuriumB.SM_PlantAnthuriumB",
+  "scale": 1.0,
+  "slug": "anthurium_botany_01",
+  "solid": false,
+  "tags": [
+   "temple"
+  ],
+  "tris": 15544
+ },
+ "plant_calathea_a": {
+  "category": "Plants",
+  "coll": "none",
+  "extent": [
+   30.029995918273926,
+   26.281383514404297,
+   21.21471333503723
+  ],
+  "kind": "plant",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.658177375793457,
+   -5.26841926574707,
+   20.372109174728394
+  ],
+  "path": "/Game/Props/Plants/SM_PlantCalatheaA.SM_PlantCalatheaA",
+  "scale": 1.0,
+  "slug": "calathea_orbifolia_01",
+  "solid": false,
+  "tags": [
+   "temple"
+  ],
+  "tris": 5904
+ },
+ "plant_calathea_b": {
+  "category": "Plants",
+  "coll": "none",
+  "extent": [
+   17.371190071105957,
+   22.01409149169922,
+   15.160137057304382
+  ],
+  "kind": "plant",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   -0.4703092575073242,
+   2.2671585083007812,
+   14.55841076374054
+  ],
+  "path": "/Game/Props/Plants/SM_PlantCalatheaB.SM_PlantCalatheaB",
+  "scale": 1.0,
+  "slug": "calathea_orbifolia_01",
+  "solid": false,
+  "tags": [
+   "temple"
+  ],
+  "tris": 3446
+ },
+ "propane_tank": {
+  "category": "Industrial",
+  "coll": "convex:1",
+  "extent": [
+   16.868083953857422,
+   16.868083953857422,
+   27.689751159399748
+  ],
+  "kind": "tank",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.0,
+   0.0,
+   27.69247006252408
+  ],
+  "path": "/Game/Props/Industrial/SM_PropaneTank.SM_PropaneTank",
+  "scale": 1.0,
+  "slug": "propane_tank",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "forge",
+   "glacier",
+   "neon"
+  ],
+  "tris": 5238
+ },
+ "rock_boulder": {
+  "category": "Rocks",
+  "coll": "convex:3",
+  "extent": [
+   63.606781005859375,
+   91.5167121887207,
+   50.19150972366333
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -11.209190368652344,
+   -3.3273353576660156,
+   42.82721281051636
+  ],
+  "path": "/Game/Props/Rocks/SM_RockBoulder.SM_RockBoulder",
+  "scale": 1.0,
+  "slug": "boulder_01",
+  "solid": true,
+  "tags": [
+   "glacier",
+   "temple",
+   "forge",
+   "canyon"
+  ],
+  "tris": 66122
+ },
+ "rock_boulder_l": {
+  "category": "Rocks",
+  "coll": "convex:3",
+  "extent": [
+   63.606781005859375,
+   91.5167121887207,
+   50.19150972366333
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -11.209190368652344,
+   -3.3273353576660156,
+   42.82721281051636
+  ],
+  "path": "/Game/Props/Rocks/SM_RockBoulder.SM_RockBoulder",
+  "scale": 2.0,
+  "slug": "boulder_01",
+  "solid": true,
+  "tags": [
+   "glacier",
+   "temple",
+   "forge",
+   "canyon"
+  ],
+  "tris": 66122
+ },
+ "rock_boulder_s": {
+  "category": "Rocks",
+  "coll": "convex:3",
+  "extent": [
+   63.606781005859375,
+   91.5167121887207,
+   50.19150972366333
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -11.209190368652344,
+   -3.3273353576660156,
+   42.82721281051636
+  ],
+  "path": "/Game/Props/Rocks/SM_RockBoulder.SM_RockBoulder",
+  "scale": 0.5,
+  "slug": "boulder_01",
+  "solid": true,
+  "tags": [
+   "glacier",
+   "temple",
+   "forge",
+   "canyon"
+  ],
+  "tris": 66122
+ },
+ "rock_flat": {
+  "category": "Rocks",
+  "coll": "convex:1",
+  "extent": [
+   8.444095611572266,
+   16.013848304748535,
+   7.186007350683212
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -0.3139162063598633,
+   -1.7836503982543945,
+   6.995291858911514
+  ],
+  "path": "/Game/Props/Rocks/SM_RockFlat.SM_RockFlat",
+  "scale": 4.0,
+  "slug": "rock_07",
+  "solid": true,
+  "tags": [
+   "glacier",
+   "temple",
+   "canyon"
+  ],
+  "tris": 14844
+ },
+ "rock_flat_l": {
+  "category": "Rocks",
+  "coll": "convex:1",
+  "extent": [
+   8.444095611572266,
+   16.013848304748535,
+   7.186007350683212
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -0.3139162063598633,
+   -1.7836503982543945,
+   6.995291858911514
+  ],
+  "path": "/Game/Props/Rocks/SM_RockFlat.SM_RockFlat",
+  "scale": 8.0,
+  "slug": "rock_07",
+  "solid": true,
+  "tags": [
+   "glacier",
+   "temple",
+   "canyon"
+  ],
+  "tris": 14844
+ },
+ "rock_flat_s": {
+  "category": "Rocks",
+  "coll": "convex:1",
+  "extent": [
+   8.444095611572266,
+   16.013848304748535,
+   7.186007350683212
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -0.3139162063598633,
+   -1.7836503982543945,
+   6.995291858911514
+  ],
+  "path": "/Game/Props/Rocks/SM_RockFlat.SM_RockFlat",
+  "scale": 2.0,
+  "slug": "rock_07",
+  "solid": true,
+  "tags": [
+   "glacier",
+   "temple",
+   "canyon"
+  ],
+  "tris": 14844
+ },
+ "rock_moss_big_a": {
+  "category": "Temple",
+  "coll": "convex:3",
+  "extent": [
+   111.88160705566406,
+   168.44022369384766,
+   73.63490676879883
+  ],
+  "kind": "rock",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.47951507568359375,
+   -1.6638107299804688,
+   7.978038787841797
+  ],
+  "path": "/Game/Props/Temple/SM_RockMossBigA.SM_RockMossBigA",
+  "scale": 1.0,
+  "slug": "rock_moss_set_01",
+  "solid": true,
+  "tags": [
+   "temple"
+  ],
+  "tris": 11000
+ },
+ "rock_moss_big_b": {
+  "category": "Temple",
+  "coll": "convex:3",
+  "extent": [
+   132.76904296875,
+   163.18601989746094,
+   63.099557876586914
+  ],
+  "kind": "rock",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   5.4635467529296875,
+   -1.2554168701171875,
+   16.53761100769043
+  ],
+  "path": "/Game/Props/Temple/SM_RockMossBigB.SM_RockMossBigB",
+  "scale": 1.0,
+  "slug": "rock_moss_set_01",
+  "solid": true,
+  "tags": [
+   "temple"
+  ],
+  "tris": 10996
+ },
+ "rock_moss_big_c": {
+  "category": "Temple",
+  "coll": "convex:3",
+  "extent": [
+   106.3814697265625,
+   98.23706817626953,
+   88.41598892211914
+  ],
+  "kind": "rock",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   11.353584289550781,
+   9.495170593261719,
+   22.31893539428711
+  ],
+  "path": "/Game/Props/Temple/SM_RockMossBigC.SM_RockMossBigC",
+  "scale": 1.0,
+  "slug": "rock_moss_set_01",
+  "solid": true,
+  "tags": [
+   "temple"
+  ],
+  "tris": 10589
+ },
+ "rock_moss_big_d": {
+  "category": "Temple",
+  "coll": "convex:3",
+  "extent": [
+   90.86613845825195,
+   149.93318939208984,
+   60.27253532409668
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   4.799373626708984,
+   14.839256286621094,
+   3.017087936401367
+  ],
+  "path": "/Game/Props/Temple/SM_RockMossBigD.SM_RockMossBigD",
+  "scale": 1.0,
+  "slug": "rock_moss_set_01",
+  "solid": true,
+  "tags": [
+   "temple"
+  ],
+  "tris": 16548
+ },
+ "rock_moss_small_a": {
+  "category": "Temple",
+  "coll": "convex:2",
+  "extent": [
+   60.316566467285156,
+   49.18229866027832,
+   26.43359524011612
+  ],
+  "kind": "rock",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   6.8525848388671875,
+   4.769548416137695,
+   25.333212316036224
+  ],
+  "path": "/Game/Props/Temple/SM_RockMossSmallA.SM_RockMossSmallA",
+  "scale": 1.0,
+  "slug": "rock_moss_set_02",
+  "solid": true,
+  "tags": [
+   "temple"
+  ],
+  "tris": 8000
+ },
+ "rock_moss_small_b": {
+  "category": "Temple",
+  "coll": "convex:2",
+  "extent": [
+   78.97763061523438,
+   72.1728286743164,
+   36.80051815509796
+  ],
+  "kind": "rock",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   3.1750869750976562,
+   -0.4594573974609375,
+   33.57839572429657
+  ],
+  "path": "/Game/Props/Temple/SM_RockMossSmallB.SM_RockMossSmallB",
+  "scale": 1.0,
+  "slug": "rock_moss_set_02",
+  "solid": true,
+  "tags": [
+   "temple"
+  ],
+  "tris": 7999
+ },
+ "rock_moss_small_c": {
+  "category": "Temple",
+  "coll": "convex:2",
+  "extent": [
+   110.14617919921875,
+   77.58180236816406,
+   38.42268967628479
+  ],
+  "kind": "rock",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   3.74749755859375,
+   -0.8744125366210938,
+   35.99076247215271
+  ],
+  "path": "/Game/Props/Temple/SM_RockMossSmallC.SM_RockMossSmallC",
+  "scale": 1.0,
+  "slug": "rock_moss_set_02",
+  "solid": true,
+  "tags": [
+   "temple"
+  ],
+  "tris": 8000
+ },
+ "rock_red_a": {
+  "category": "Rocks",
+  "coll": "convex:3",
+  "extent": [
+   126.60711288452148,
+   61.71314811706543,
+   44.13188982009888
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   8.20645523071289,
+   0.8437519073486328,
+   38.18456983566284
+  ],
+  "path": "/Game/Props/Rocks/SM_RockRedA.SM_RockRedA",
+  "scale": 1.0,
+  "slug": "namaqualand_boulder_02",
+  "solid": true,
+  "tags": [
+   "canyon",
+   "forge"
+  ],
+  "tris": 97964
+ },
+ "rock_red_a_l": {
+  "category": "Rocks",
+  "coll": "convex:3",
+  "extent": [
+   126.60711288452148,
+   61.71314811706543,
+   44.13188982009888
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   8.20645523071289,
+   0.8437519073486328,
+   38.18456983566284
+  ],
+  "path": "/Game/Props/Rocks/SM_RockRedA.SM_RockRedA",
+  "scale": 2.0,
+  "slug": "namaqualand_boulder_02",
+  "solid": true,
+  "tags": [
+   "canyon",
+   "forge"
+  ],
+  "tris": 97964
+ },
+ "rock_red_a_s": {
+  "category": "Rocks",
+  "coll": "convex:3",
+  "extent": [
+   126.60711288452148,
+   61.71314811706543,
+   44.13188982009888
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   8.20645523071289,
+   0.8437519073486328,
+   38.18456983566284
+  ],
+  "path": "/Game/Props/Rocks/SM_RockRedA.SM_RockRedA",
+  "scale": 0.5,
+  "slug": "namaqualand_boulder_02",
+  "solid": true,
+  "tags": [
+   "canyon",
+   "forge"
+  ],
+  "tris": 97964
+ },
+ "rock_red_b": {
+  "category": "Rocks",
+  "coll": "convex:3",
+  "extent": [
+   120.35485458374023,
+   153.27030181884766,
+   73.65965688228607
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   14.873767852783203,
+   14.312232971191406,
+   72.1893116235733
+  ],
+  "path": "/Game/Props/Rocks/SM_RockRedB.SM_RockRedB",
+  "scale": 1.0,
+  "slug": "namaqualand_boulder_03",
+  "solid": true,
+  "tags": [
+   "canyon",
+   "forge"
+  ],
+  "tris": 64826
+ },
+ "rock_red_b_l": {
+  "category": "Rocks",
+  "coll": "convex:3",
+  "extent": [
+   120.35485458374023,
+   153.27030181884766,
+   73.65965688228607
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   14.873767852783203,
+   14.312232971191406,
+   72.1893116235733
+  ],
+  "path": "/Game/Props/Rocks/SM_RockRedB.SM_RockRedB",
+  "scale": 2.0,
+  "slug": "namaqualand_boulder_03",
+  "solid": true,
+  "tags": [
+   "canyon",
+   "forge"
+  ],
+  "tris": 64826
+ },
+ "rock_red_b_s": {
+  "category": "Rocks",
+  "coll": "convex:3",
+  "extent": [
+   120.35485458374023,
+   153.27030181884766,
+   73.65965688228607
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   14.873767852783203,
+   14.312232971191406,
+   72.1893116235733
+  ],
+  "path": "/Game/Props/Rocks/SM_RockRedB.SM_RockRedB",
+  "scale": 0.5,
+  "slug": "namaqualand_boulder_03",
+  "solid": true,
+  "tags": [
+   "canyon",
+   "forge"
+  ],
+  "tris": 64826
+ },
+ "rock_red_c": {
+  "category": "Rocks",
+  "coll": "convex:3",
+  "extent": [
+   126.10765838623047,
+   124.82111740112305,
+   95.02311432361603
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -7.921638488769531,
+   21.716358184814453,
+   92.08455169200897
+  ],
+  "path": "/Game/Props/Rocks/SM_RockRedC.SM_RockRedC",
+  "scale": 1.0,
+  "slug": "namaqualand_boulder_04",
+  "solid": true,
+  "tags": [
+   "canyon",
+   "forge"
+  ],
+  "tris": 59066
+ },
+ "rock_red_c_l": {
+  "category": "Rocks",
+  "coll": "convex:3",
+  "extent": [
+   126.10765838623047,
+   124.82111740112305,
+   95.02311432361603
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -7.921638488769531,
+   21.716358184814453,
+   92.08455169200897
+  ],
+  "path": "/Game/Props/Rocks/SM_RockRedC.SM_RockRedC",
+  "scale": 2.0,
+  "slug": "namaqualand_boulder_04",
+  "solid": true,
+  "tags": [
+   "canyon",
+   "forge"
+  ],
+  "tris": 59066
+ },
+ "rock_red_c_s": {
+  "category": "Rocks",
+  "coll": "convex:3",
+  "extent": [
+   126.10765838623047,
+   124.82111740112305,
+   95.02311432361603
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -7.921638488769531,
+   21.716358184814453,
+   92.08455169200897
+  ],
+  "path": "/Game/Props/Rocks/SM_RockRedC.SM_RockRedC",
+  "scale": 0.5,
+  "slug": "namaqualand_boulder_04",
+  "solid": true,
+  "tags": [
+   "canyon",
+   "forge"
+  ],
+  "tris": 59066
+ },
+ "rock_red_small": {
+  "category": "Rocks",
+  "coll": "convex:1",
+  "extent": [
+   11.343203067779541,
+   10.84798812866211,
+   7.624267473816872
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   0.11509275436401367,
+   0.00010967254638671875,
+   7.505128964781761
+  ],
+  "path": "/Game/Props/Rocks/SM_RockRedSmall.SM_RockRedSmall",
+  "scale": 4.0,
+  "slug": "namaqualand_rocks_01",
+  "solid": true,
+  "tags": [
+   "canyon"
+  ],
+  "tris": 13582
+ },
+ "rock_red_small_l": {
+  "category": "Rocks",
+  "coll": "convex:1",
+  "extent": [
+   11.343203067779541,
+   10.84798812866211,
+   7.624267473816872
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   0.11509275436401367,
+   0.00010967254638671875,
+   7.505128964781761
+  ],
+  "path": "/Game/Props/Rocks/SM_RockRedSmall.SM_RockRedSmall",
+  "scale": 8.0,
+  "slug": "namaqualand_rocks_01",
+  "solid": true,
+  "tags": [
+   "canyon"
+  ],
+  "tris": 13582
+ },
+ "rock_red_small_s": {
+  "category": "Rocks",
+  "coll": "convex:1",
+  "extent": [
+   11.343203067779541,
+   10.84798812866211,
+   7.624267473816872
+  ],
+  "kind": "rock",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   0.11509275436401367,
+   0.00010967254638671875,
+   7.505128964781761
+  ],
+  "path": "/Game/Props/Rocks/SM_RockRedSmall.SM_RockRedSmall",
+  "scale": 2.0,
+  "slug": "namaqualand_rocks_01",
+  "solid": true,
+  "tags": [
+   "canyon"
+  ],
+  "tris": 13582
+ },
+ "sea_marker": {
+  "category": "Marine",
+  "coll": "convex:1",
+  "extent": [
+   150.24019622802734,
+   150.24024200439453,
+   341.9353485107422
+  ],
+  "kind": "marine",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -7.62939453125e-06,
+   -7.62939453125e-06,
+   213.7519073486328
+  ],
+  "path": "/Game/Props/Marine/SM_SeaMarker.SM_SeaMarker",
+  "scale": 1.0,
+  "slug": "lateral_sea_marker",
+  "solid": true,
+  "tags": [
+   "dock"
+  ],
+  "tris": 13014
+ },
+ "shrub_a": {
+  "category": "Plants",
+  "coll": "none",
+  "extent": [
+   65.60027313232422,
+   82.05034637451172,
+   84.4488585293293
+  ],
+  "kind": "plant",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   11.164680480957031,
+   -4.216651916503906,
+   83.8111512362957
+  ],
+  "path": "/Game/Props/Plants/SM_ShrubA.SM_ShrubA",
+  "scale": 1.0,
+  "slug": "shrub_02",
+  "solid": false,
+  "tags": [
+   "temple",
+   "canyon"
+  ],
+  "tris": 7590
+ },
+ "shrub_b": {
+  "category": "Plants",
+  "coll": "none",
+  "extent": [
+   88.33893585205078,
+   114.25312805175781,
+   65.73833668231964
+  ],
+  "kind": "plant",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   15.470771789550781,
+   1.8613052368164062,
+   64.06036937236786
+  ],
+  "path": "/Game/Props/Plants/SM_ShrubB.SM_ShrubB",
+  "scale": 1.0,
+  "slug": "shrub_02",
+  "solid": false,
+  "tags": [
+   "temple",
+   "canyon"
+  ],
+  "tris": 9234
+ },
+ "shutter_door": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   54.000003814697266,
+   15.004285629838705,
+   119.9986725598792
+  ],
+  "kind": "gate",
+  "lods": 1,
+  "nanite": false,
+  "origin": [
+   0.0,
+   14.904285613447428,
+   119.99890129265987
+  ],
+  "path": "/Game/Props/Industrial/SM_ShutterDoor.SM_ShutterDoor",
+  "scale": 1.0,
+  "slug": "rollershutter_door",
+  "solid": true,
+  "tags": [
+   "neon",
+   "foundry",
+   "dock"
+  ],
+  "tris": 552
+ },
+ "statue_gothic": {
+  "category": "Temple",
+  "coll": "box",
+  "extent": [
+   73.87319946289062,
+   78.18790435791016,
+   86.99488830566406
+  ],
+  "kind": "statue",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -1.554229736328125,
+   -67.96105194091797,
+   -33.78313446044922
+  ],
+  "path": "/Game/Props/Temple/SM_StatueGothic.SM_StatueGothic",
+  "scale": 1.0,
+  "slug": "gothic_statue",
+  "solid": true,
+  "tags": [
+   "temple"
+  ],
+  "tris": 27739
+ },
+ "stump_a": {
+  "category": "Trees",
+  "coll": "convex:1",
+  "extent": [
+   71.27752304077148,
+   79.51571655273438,
+   28.63337802886963
+  ],
+  "kind": "stump",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -7.164417266845703,
+   3.4713897705078125,
+   9.335536003112793
+  ],
+  "path": "/Game/Props/Trees/SM_StumpA.SM_StumpA",
+  "scale": 1.0,
+  "slug": "tree_stump_01",
+  "solid": true,
+  "tags": [
+   "glacier",
+   "canyon",
+   "temple"
+  ],
+  "tris": 41046
+ },
+ "tree_quiver_b": {
+  "category": "Trees",
+  "coll": "trunk:12",
+  "extent": [
+   43.58193016052246,
+   44.04099082946777,
+   73.4430320262909
+  ],
+  "kind": "tree",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -4.807016372680664,
+   0.8360195159912109,
+   68.51280903816223
+  ],
+  "path": "/Game/Props/Trees/SM_TreeQuiverB.SM_TreeQuiverB",
+  "scale": 1.0,
+  "slug": "quiver_tree_02",
+  "solid": true,
+  "tags": [
+   "canyon"
+  ],
+  "tris": 82074
+ },
+ "trunk_dead_b": {
+  "category": "Trees",
+  "coll": "convex:2",
+  "extent": [
+   202.56818389892578,
+   52.806434631347656,
+   52.7536678314209
+  ],
+  "kind": "tree",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   10.126487731933594,
+   2.724273681640625,
+   19.91844367980957
+  ],
+  "path": "/Game/Props/Trees/SM_TrunkDeadB.SM_TrunkDeadB",
+  "scale": 1.0,
+  "slug": "dead_tree_trunk_02",
+  "solid": true,
+  "tags": [
+   "canyon",
+   "glacier"
+  ],
+  "tris": 83128
+ },
+ "trunk_quiver": {
+  "category": "Trees",
+  "coll": "convex:1",
+  "extent": [
+   15.323649883270264,
+   13.404320240020752,
+   99.70528054237366
+  ],
+  "kind": "tree",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -1.7262654304504395,
+   0.29795026779174805,
+   100.88912558555603
+  ],
+  "path": "/Game/Props/Trees/SM_TrunkQuiver.SM_TrunkQuiver",
+  "scale": 1.0,
+  "slug": "dead_quiver_trunk",
+  "solid": true,
+  "tags": [
+   "canyon"
+  ],
+  "tris": 17978
+ },
+ "tyre": {
+  "category": "Industrial",
+  "coll": "convex:1",
+  "extent": [
+   30.000001907348633,
+   8.25,
+   30.000001907348633
+  ],
+  "kind": "junk",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.0,
+   -0.02633190155029297,
+   0.0
+  ],
+  "path": "/Game/Props/Industrial/SM_Tyre.SM_Tyre",
+  "scale": 1.0,
+  "slug": "old_tyre",
+  "solid": true,
+  "tags": [
+   "foundry",
+   "neon",
+   "canyon",
+   "dock",
+   "forge"
+  ],
+  "tris": 2880
+ },
+ "utility_box_a": {
+  "category": "Industrial",
+  "coll": "box",
+  "extent": [
+   26.000011444091797,
+   21.600000381469727,
+   56.01667022705078
+  ],
+  "kind": "machine",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   0.0,
+   0.6000003814697266,
+   56.01667022705078
+  ],
+  "path": "/Game/Props/Industrial/SM_UtilityBoxA.SM_UtilityBoxA",
+  "scale": 1.0,
+  "slug": "utility_box_01",
+  "solid": true,
+  "tags": [
+   "neon",
+   "skyline",
+   "foundry"
+  ],
+  "tris": 4404
+ },
+ "vase_brass": {
+  "category": "Temple",
+  "coll": "convex:1",
+  "extent": [
+   11.365958213806152,
+   11.365959167480469,
+   34.62359703332186
+  ],
+  "kind": "vase",
+  "lods": 1,
+  "nanite": true,
+  "origin": [
+   -5.7220458984375e-06,
+   0.0,
+   34.768874280154705
+  ],
+  "path": "/Game/Props/Temple/SM_VaseBrass.SM_VaseBrass",
+  "scale": 1.0,
+  "slug": "brass_vase_01",
+  "solid": true,
+  "tags": [
+   "temple"
+  ],
+  "tris": 21440
+ },
+ "vase_ceramic": {
+  "category": "Temple",
+  "coll": "convex:1",
+  "extent": [
+   12.751498222351074,
+   12.751497268676758,
+   21.977652268949896
+  ],
+  "kind": "vase",
+  "lods": 4,
+  "nanite": false,
+  "origin": [
+   -9.5367431640625e-07,
+   0.0,
+   21.965844435151666
+  ],
+  "path": "/Game/Props/Temple/SM_VaseCeramic.SM_VaseCeramic",
+  "scale": 1.0,
+  "slug": "antique_ceramic_vase_01",
+  "solid": true,
+  "tags": [
+   "temple",
+   "canyon"
+  ],
+  "tris": 9408
+ }
+}

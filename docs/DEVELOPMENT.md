@@ -165,3 +165,11 @@ with Glow 6, and characters made of one glossy material (roughness 0.3-0.5, acce
 - Look test rooms: `Tools/make_looks.py` builds `/Game/Dev/Looks/LookTest_<look>` (grey cards, spheres from matte to glossy, a showroom spot). Never commit `Content/Dev`.
 - People use `/Game/Characters/M_IACharacter` (matte cloth detail, plate/fabric split from the mannequin's own albedo map, `Rim` edge light in the team colour). Beams, sparks and jump pads keep `M_IABody` (pure emissive).
   Run `Tools/make_character_assets.py` after cloning (it downloads the CC0 cloth texture into `~/AssetCache` and imports it). `-IASlotDebug` colours the two body slots red and blue.
+## 15. 3D props (PROPS)
+
+Realistic props and nature (rocks, trees, barrels, crates, lamps, statues ...) are CC0 models from Poly Haven, imported to `/Game/Props`.
+- `python Tools/fetch_models.py --all` downloads the glTF models (1k textures) into `%USERPROFILE%\AssetCache\models` (outside the repository, shared between checkouts; use UE's embedded Python, there is no system Python). `Tools/props_spec.py` lists what is used and how it is imported.
+- `Tools/run_ue.ps1 -Script Tools\import_props.py` imports them (Interchange), builds simple collision, Nanite/LODs and our own materials (`M_Prop`: roughness never below 0.5 unless metal, no emissive), and writes `Tools/props_measured.json`. Commit the imported `Content/Props` folder together with that file.
+- Map scripts: `import props` after `import mapkit`, then `b.prop(label, name, x, y, z, yaw=..., scale=...)` (z = ground height) and `b.scatter(names, region, count, seed=...)`. The catalogue and the exact API are documented at the top of `Tools/props.py`.
+- `Tools/props_demo.py` builds the throwaway level `/Game/Maps/_PropDemo` with every prop in labelled rows; `Tools/props_demo_shots.ps1` takes the screenshots. Delete the level afterwards (`-Delete`).
+- Props referenced by a map are cooked with it; nothing in `/Game/Props` is loaded by path in code, so no `DirectoriesToAlwaysCook` entry is needed. Every model's author and licence is in `NOTICE.md`.
