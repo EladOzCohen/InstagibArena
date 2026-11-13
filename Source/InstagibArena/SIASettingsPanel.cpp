@@ -521,11 +521,21 @@ TSharedRef<SWidget> SIASettingsPanel::BuildVideoTab()
 							S->ApplyNonResolutionSettings();
 							S->SaveSettings();
 							IASettings::SetMotionBlurEnabled(IASettings::IsMotionBlurEnabled());
+							IASettings::ApplyAntiAliasingForQuality();
 						}
 					},
 					[Settings, Level]() { const UGameUserSettings* S = Settings(); return S && S->GetOverallScalabilityLevel() == Level; }, 84.f, 15)
 			];
 		}
+		// The automatic choice on the first start (or a hand-edited ini) can mix levels: say so instead of showing nothing selected.
+		Chips->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(8.f, 0.f, 0.f, 0.f)
+		[
+			Note([Settings]()
+			{
+				const UGameUserSettings* S = Settings();
+				return (S && S->GetOverallScalabilityLevel() < 0) ? INVTEXT("Custom mix") : FText::GetEmpty();
+			})
+		];
 		Add(Row(INVTEXT("Quality"), Chips, 220.f, INVTEXT("Sets shadows, effects, textures and more at once. Choose a lower level if the game runs slowly.")));
 	}
 

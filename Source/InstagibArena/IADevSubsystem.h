@@ -89,6 +89,15 @@ private:
 	float FrameTimeSum = 0.f;
 	int32 FrameTimeCount = 0;
 	int32 FrameHitches = 0;
+	/** Sums of the engine's own per-frame timings (milliseconds) over the same window as FrameTimeSum. */
+	double FrameGpuSum = 0.0;
+	double FrameGameSum = 0.0;
+	double FrameRenderSum = 0.0;
+
+	/** -IAConsole="30:ProfileGPU;45:stat unit": console commands run at a time (seconds after start). */
+	TArray<TPair<float, FString>> ConsoleScript;
+	float ConsoleClock = 0.f;
+	FTSTicker::FDelegateHandle ConsoleHandle;
 
 	TArray<FVector> ShowroomHome;
 	float ShowroomWalkTime = 0.f;

@@ -5,6 +5,8 @@
 #include "IACharacterRoster.h"
 #include "Engine/Engine.h"
 #include "GameFramework/GameUserSettings.h"
+#include "RHI.h"
+#include "Scalability.h"
 #include "IPAddress.h"
 #include "Misc/ConfigCacheIni.h"
 #include "SocketSubsystem.h"
@@ -13,6 +15,29 @@ namespace
 {
 	const TCHAR* const Section = TEXT("InstagibArena.Settings");
 	const TCHAR* const SetupSection = TEXT("InstagibArena.LastMatch");
+
+	// Settings that are read every frame (UI scale, crosshair, mouse) are cached here. Every writer in this file calls
+	// InvalidateCache(); on top of that a cached value is re-read at least once a second, in case the ini file was
+	// reloaded by the engine (GameUserSettings::LoadSettings) behind our back.
+	uint32 CacheGeneration = 1;
+	void InvalidateCache() { ++CacheGeneration; }
+
+	template <typename T>
+	struct TCachedSetting
+	{
+		uint32 Generation = 0;
+		double Time = -1000.0;
+		T Value{};
+
+		bool IsFresh() const { return Generation == CacheGeneration && FPlatformTime::Seconds() - Time < 1.0; }
+		const T& Store(const T& NewValue)
+		{
+			Value = NewValue;
+			Generation = CacheGeneration;
+			Time = FPlatformTime::Seconds();
+			return Value;
+		}
+	};
 
 	float ReadFloat(const TCHAR* Key, float Default)
 	{
@@ -23,6 +48,7 @@ namespace
 
 	void WriteFloat(const TCHAR* Key, float Value)
 	{
+		InvalidateCache();
 		GConfig->SetFloat(Section, Key, Value, GGameUserSettingsIni);
 		GConfig->Flush(false, GGameUserSettingsIni);
 	}
@@ -36,6 +62,7 @@ namespace
 
 	void WriteString(const TCHAR* Key, const FString& Value)
 	{
+		InvalidateCache();
 		GConfig->SetString(Section, Key, *Value, GGameUserSettingsIni);
 		GConfig->Flush(false, GGameUserSettingsIni);
 	}
@@ -117,10 +144,18 @@ void FIAMatchSetup::Save() const
 
 namespace IASettings
 {
-	float GetMouseSensitivity() { return FMath::Clamp(ReadFloat(TEXT("MouseSensitivity"), 1.f), 0.1f, 3.f); }
+	float GetMouseSensitivity()
+	{
+		static TCachedSetting<float> Cache;
+		return Cache.IsFresh() ? Cache.Value : Cache.Store(FMath::Clamp(ReadFloat(TEXT("MouseSensitivity"), 1.f), 0.1f, 3.f));
+	}
 	void SetMouseSensitivity(float Value) { WriteFloat(TEXT("MouseSensitivity"), FMath::Clamp(Value, 0.1f, 3.f)); }
 
-	float GetFieldOfView() { return FMath::Clamp(ReadFloat(TEXT("FieldOfView"), 90.f), 70.f, 110.f); }
+	float GetFieldOfView()
+	{
+		static TCachedSetting<float> Cache;
+		return Cache.IsFresh() ? Cache.Value : Cache.Store(FMath::Clamp(ReadFloat(TEXT("FieldOfView"), 90.f), 70.f, 110.f));
+	}
 	void SetFieldOfView(float Value) { WriteFloat(TEXT("FieldOfView"), FMath::Clamp(Value, 70.f, 110.f)); }
 
 	FString GetPlayerName() { return ReadString(TEXT("PlayerName")); }
@@ -163,26 +198,38 @@ namespace IASettings
 
 	int32 GetCrosshairStyle()
 	{
+		static TCachedSetting<int32> Cache;
+		if (Cache.IsFresh())
+		{
+			return Cache.Value;
+		}
 		int32 Style = 0;
 		GConfig->GetInt(Section, TEXT("CrosshairStyle"), Style, GGameUserSettingsIni);
-		return FMath::Clamp(Style, 0, CrosshairStyleCount - 1);
+		return Cache.Store(FMath::Clamp(Style, 0, CrosshairStyleCount - 1));
 	}
 
 	void SetCrosshairStyle(int32 Style)
 	{
+		InvalidateCache();
 		GConfig->SetInt(Section, TEXT("CrosshairStyle"), FMath::Clamp(Style, 0, CrosshairStyleCount - 1), GGameUserSettingsIni);
 		GConfig->Flush(false, GGameUserSettingsIni);
 	}
 
 	int32 GetCrosshairColorIndex()
 	{
+		static TCachedSetting<int32> Cache;
+		if (Cache.IsFresh())
+		{
+			return Cache.Value;
+		}
 		int32 Index = 0;
 		GConfig->GetInt(Section, TEXT("CrosshairColor"), Index, GGameUserSettingsIni);
-		return FMath::Clamp(Index, 0, CrosshairColorCount - 1);
+		return Cache.Store(FMath::Clamp(Index, 0, CrosshairColorCount - 1));
 	}
 
 	void SetCrosshairColorIndex(int32 Index)
 	{
+		InvalidateCache();
 		GConfig->SetInt(Section, TEXT("CrosshairColor"), FMath::Clamp(Index, 0, CrosshairColorCount - 1), GGameUserSettingsIni);
 		GConfig->Flush(false, GGameUserSettingsIni);
 	}
@@ -196,44 +243,66 @@ namespace IASettings
 		return Palette[GetCrosshairColorIndex()];
 	}
 
-	float GetCrosshairScale() { return FMath::Clamp(ReadFloat(TEXT("CrosshairScale"), 1.f), 0.5f, 2.f); }
+	float GetCrosshairScale()
+	{
+		static TCachedSetting<float> Cache;
+		return Cache.IsFresh() ? Cache.Value : Cache.Store(FMath::Clamp(ReadFloat(TEXT("CrosshairScale"), 1.f), 0.5f, 2.f));
+	}
 	void SetCrosshairScale(float Scale) { WriteFloat(TEXT("CrosshairScale"), FMath::Clamp(Scale, 0.5f, 2.f)); }
 
 	bool IsCameraBobEnabled()
 	{
+		static TCachedSetting<bool> Cache;
+		if (Cache.IsFresh())
+		{
+			return Cache.Value;
+		}
 		bool bValue = true;
 		GConfig->GetBool(Section, TEXT("CameraBob"), bValue, GGameUserSettingsIni);
-		return bValue;
+		return Cache.Store(bValue);
 	}
 
 	void SetCameraBobEnabled(bool bEnabled)
 	{
+		InvalidateCache();
 		GConfig->SetBool(Section, TEXT("CameraBob"), bEnabled, GGameUserSettingsIni);
 		GConfig->Flush(false, GGameUserSettingsIni);
 	}
 
 	bool IsViewRollEnabled()
 	{
+		static TCachedSetting<bool> Cache;
+		if (Cache.IsFresh())
+		{
+			return Cache.Value;
+		}
 		bool bValue = true;
 		GConfig->GetBool(Section, TEXT("ViewRoll"), bValue, GGameUserSettingsIni);
-		return bValue;
+		return Cache.Store(bValue);
 	}
 
 	void SetViewRollEnabled(bool bEnabled)
 	{
+		InvalidateCache();
 		GConfig->SetBool(Section, TEXT("ViewRoll"), bEnabled, GGameUserSettingsIni);
 		GConfig->Flush(false, GGameUserSettingsIni);
 	}
 
 	bool IsReducedMotion()
 	{
+		static TCachedSetting<bool> Cache;
+		if (Cache.IsFresh())
+		{
+			return Cache.Value;
+		}
 		bool bValue = false;
 		GConfig->GetBool(Section, TEXT("ReducedMotion"), bValue, GGameUserSettingsIni);
-		return bValue;
+		return Cache.Store(bValue);
 	}
 
 	void SetReducedMotion(bool bEnabled)
 	{
+		InvalidateCache();
 		GConfig->SetBool(Section, TEXT("ReducedMotion"), bEnabled, GGameUserSettingsIni);
 		GConfig->Flush(false, GGameUserSettingsIni);
 	}
@@ -276,7 +345,12 @@ namespace IASettings
 
 namespace IASettings
 {
-	float GetUiScale() { return FMath::Clamp(ReadFloat(TEXT("UiScale"), 1.f), 0.8f, 1.5f); }
+	float GetUiScale()
+	{
+		// Asked by Slate for every menu widget on every frame (DPIScale_Lambda), so it is cached.
+		static TCachedSetting<float> Cache;
+		return Cache.IsFresh() ? Cache.Value : Cache.Store(FMath::Clamp(ReadFloat(TEXT("UiScale"), 1.f), 0.8f, 1.5f));
+	}
 	void SetUiScale(float Scale) { WriteFloat(TEXT("UiScale"), FMath::RoundToFloat(FMath::Clamp(Scale, 0.8f, 1.5f) * 10.f) / 10.f); }
 
 	bool IsMotionBlurEnabled()
@@ -461,6 +535,15 @@ namespace IASettings
 		return true;
 	}
 
+	void ApplyAntiAliasingForQuality()
+	{
+		if (IConsoleVariable* Variable = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AntiAliasingMethod")))
+		{
+			const int32 AntiAliasingLevel = Scalability::GetQualityLevels().AntiAliasingQuality;
+			Variable->Set(AntiAliasingLevel <= 1 ? 2 : 4, ECVF_SetByGameSetting);   // 2 = TAA, 4 = TSR
+		}
+	}
+
 	void ApplyStartupSettings()
 	{
 		// First start on this computer: let the engine measure the CPU and GPU once and choose the graphics quality,
@@ -473,12 +556,28 @@ namespace IASettings
 			{
 				GameSettings->RunHardwareBenchmark();
 				GameSettings->ApplyHardwareBenchmarkResults();
-				UE_LOG(LogTemp, Log, TEXT("InstagibArena: first start, graphics quality chosen automatically (overall level %d)"),
-					GameSettings->GetOverallScalabilityLevel());
+				const int32 BenchmarkLevel = Scalability::GetQualityLevels().GetMinQualityLevel();
+
+				// The benchmark rates a laptop with a fast CPU too high (an Iris Xe laptop got Epic/High mixed) and returns a
+				// mix of levels, which the video page shows as "Custom". Use ONE level for everything, and let integrated
+				// graphics (which share memory with the CPU) start no higher than IntegratedStartLevel.
+				const FString Adapter = GRHIAdapterName;
+				const bool bNamedIntegrated = Adapter.Contains(TEXT("Iris")) || Adapter.Contains(TEXT("UHD")) || Adapter.Contains(TEXT("HD Graphics"))
+					|| Adapter.Contains(TEXT("Radeon(TM) Graphics")) || Adapter.Contains(TEXT("Radeon Graphics")) || Adapter.Contains(TEXT("Vega"))
+					|| (Adapter.Contains(TEXT("Radeon")) && Adapter.EndsWith(TEXT("M")));
+				const bool bIntegrated = (bNamedIntegrated && !Adapter.Contains(TEXT(" RX "))) || GRHIDeviceIsIntegrated;
+				const int32 IntegratedStartLevel = 1;
+				const int32 Level = FMath::Clamp(bIntegrated ? FMath::Min(BenchmarkLevel, IntegratedStartLevel) : BenchmarkLevel, 0, 3);
+				GameSettings->SetOverallScalabilityLevel(Level);
+				GameSettings->ApplyNonResolutionSettings();
+				GameSettings->SaveSettings();
+				UE_LOG(LogTemp, Log, TEXT("InstagibArena: first start, graphics quality chosen automatically: benchmark %d, adapter '%s' (integrated %d), level %d"),
+					BenchmarkLevel, *Adapter, bIntegrated ? 1 : 0, Level);
 				GConfig->SetBool(Section, TEXT("AutoQualityDone"), true, GGameUserSettingsIni);
 				GConfig->Flush(false, GGameUserSettingsIni);
 			}
 		}
+		ApplyAntiAliasingForQuality();
 		if (!IsMotionBlurEnabled())
 		{
 			SetMotionBlurEnabled(false);

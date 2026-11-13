@@ -24,5 +24,8 @@ public class InstagibArena : ModuleRules
 			"ApplicationCore",
 			"MoviePlayer"
 		});
+
+		// Frame timings in the development flags (-IAReport) and the hardware name for the first-start quality choice.
+		PrivateDependencyModuleNames.AddRange(new string[] { "RHI", "RenderCore" });
 	}
 }

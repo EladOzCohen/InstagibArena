@@ -617,7 +617,26 @@ void AIAHUD::DrawKillFeed(const AIAGameState& GS, float Now)
 		}
 	}
 
-	float Y = Margin;
+	// Width of one row (the same numbers as in the drawing loop below).
+	auto RowWidth = [&](const FIAFeedEntry& Entry)
+	{
+		const bool bArrowRow = !Entry.bFell && !Entry.bSuicide;
+		const FString MiddleText = Entry.bFell ? FString(TEXT("fell")) : (Entry.bSuicide ? FString(TEXT("self-fragged")) : FString());
+		return 10.f * S * 2.f + (bArrowRow ? TextWidth(Entry.KillerName, Px) + 22.f * S + 8.f * S : 0.f) + TextWidth(Entry.VictimName, Px)
+			+ (MiddleText.IsEmpty() ? 0.f : TextWidth(MiddleText, Px * 0.85f) + 8.f * S);
+	};
+
+	// On 4:3 and other narrow screens the feed would run under the top bar (scores and clock, centred, 648 units wide):
+	// then it starts below the bar and its caption instead of at the top corner.
+	float WidestRow = 0.f;
+	for (const FIAFeedEntry* Entry : Shown)
+	{
+		WidestRow = FMath::Max(WidestRow, RowWidth(*Entry));
+	}
+	const float TopBarRight = Canvas->ClipX * 0.5f + (176.f * 0.5f + 6.f + 230.f) * S;
+	const bool bUnderBar = Canvas->ClipX - Margin - WidestRow < TopBarRight + 12.f * S;
+
+	float Y = bUnderBar ? 100.f * S : Margin;
 	for (const FIAFeedEntry* Entry : Shown)
 	{
 		const float Age = Now - Entry->Time;

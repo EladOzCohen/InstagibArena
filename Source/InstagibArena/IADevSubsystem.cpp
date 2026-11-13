@@ -27,6 +27,8 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "UnrealClient.h"
+#include "RHI.h"
+#include "RenderTimer.h"
 
 void UIADevSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -55,9 +57,42 @@ void UIADevSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			FrameTimeMax = FMath::Max(FrameTimeMax, Dt);
 			FrameTimeSum += Dt;
 			++FrameTimeCount;
+			FrameGpuSum += FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles());
+			FrameGameSum += FPlatformTime::ToMilliseconds(GGameThreadTime);
+			FrameRenderSum += FPlatformTime::ToMilliseconds(GRenderThreadTime);
 			if (Dt > 0.1f)
 			{
 				++FrameHitches;
+			}
+			return true;
+		}), 0.f);
+	}
+	// -IAConsole="30:ProfileGPU;45:r.Shadow.Virtual.Enable 0": console commands at a time (seconds after start).
+	FString ConsoleText;
+	if (FParse::Value(FCommandLine::Get(), TEXT("IAConsole="), ConsoleText, /*bShouldStopOnSeparator*/ false))
+	{
+		TArray<FString> Items;
+		ConsoleText.ParseIntoArray(Items, TEXT(";"));
+		for (const FString& Item : Items)
+		{
+			FString TimeText, Command;
+			if (Item.Split(TEXT(":"), &TimeText, &Command))
+			{
+				ConsoleScript.Emplace(FCString::Atof(*TimeText), Command.TrimStartAndEnd());
+			}
+		}
+		ConsoleHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float Dt)
+		{
+			ConsoleClock += Dt;
+			UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+			for (int32 I = ConsoleScript.Num() - 1; I >= 0; --I)
+			{
+				if (ConsoleClock >= ConsoleScript[I].Key && GEngine)
+				{
+					UE_LOG(LogInstagib, Log, TEXT("CONSOLE %.1f: %s"), ConsoleClock, *ConsoleScript[I].Value);
+					GEngine->Exec(World, *ConsoleScript[I].Value);
+					ConsoleScript.RemoveAt(I);
+				}
 			}
 			return true;
 		}), 0.f);
@@ -156,6 +191,37 @@ void UIADevSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			}
 		}
 
+		// -IAShotStart=N: the camera stands where player start number N (sorted by name) is, at eye height, looking the way
+		// a player spawns. Same view in every run: this is what the performance measurements use.
+		int32 ShotStart = -1;
+		if (!CameraHandle.IsValid() && FParse::Value(FCommandLine::Get(), TEXT("IAShotStart="), ShotStart) && ShotStart >= 0)
+		{
+			CameraHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, ShotStart](float Dt)
+			{
+				UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+				if (World && !Camera.IsValid())
+				{
+					TArray<APlayerStart*> Starts;
+					for (TActorIterator<APlayerStart> It(World); It; ++It)
+					{
+						Starts.Add(*It);
+					}
+					Starts.Sort([](const APlayerStart& A, const APlayerStart& B) { return A.GetName() < B.GetName(); });
+					if (Starts.IsValidIndex(ShotStart))
+					{
+						CameraLocation = Starts[ShotStart]->GetActorLocation() + FVector(0.f, 0.f, 70.f);
+						CameraRotation = FRotator(-4.f, Starts[ShotStart]->GetActorRotation().Yaw, 0.f);
+						UE_LOG(LogInstagib, Log, TEXT("DevSubsystem: camera at player start %d -> %s yaw %.0f"), ShotStart, *CameraLocation.ToCompactString(), CameraRotation.Yaw);
+					}
+					else
+					{
+						return true;   // the level is not loaded yet
+					}
+				}
+				return PlaceCamera(Dt);
+			}), 0.25f);
+		}
+
 		if (FParse::Param(FCommandLine::Get(), TEXT("IAShotAuto")))
 		{
 			bAutoShot = true;
@@ -179,6 +245,7 @@ void UIADevSubsystem::Deinitialize()
 	FTSTicker::GetCoreTicker().RemoveTicker(FireHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ShowroomHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(FrameStatHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(ConsoleHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(MoveTestHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ShowroomWalkHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(CameraHandle);
@@ -286,12 +353,15 @@ bool UIADevSubsystem::Report(float DeltaTime)
 	UE_LOG(LogInstagib, Log, TEXT("REPORT %s clock=%d red=%d blue=%d over=%d players=%d pawns=%d local=%s :: %s"),
 		Net, Clock, Red, Blue, bOver ? 1 : 0, Count, Pawns, *Local, *Players);
 	UE_LOG(LogInstagib, Log, TEXT("HUMANS %s clock=%d %s"), Net, Clock, *Humans);
-	UE_LOG(LogInstagib, Log, TEXT("FRAMES %s clock=%d avg=%.1f ms max=%.1f ms over100ms=%d (frames=%d)"), Net, Clock,
-		FrameTimeCount > 0 ? FrameTimeSum / FrameTimeCount * 1000.f : 0.f, FrameTimeMax * 1000.f, FrameHitches, FrameTimeCount);
+	UE_LOG(LogInstagib, Log, TEXT("FRAMES %s clock=%d avg=%.1f ms max=%.1f ms over100ms=%d (frames=%d) gpu=%.1f game=%.1f render=%.1f"), Net, Clock,
+		FrameTimeCount > 0 ? FrameTimeSum / FrameTimeCount * 1000.f : 0.f, FrameTimeMax * 1000.f, FrameHitches, FrameTimeCount,
+		FrameTimeCount > 0 ? FrameGpuSum / FrameTimeCount : 0.0, FrameTimeCount > 0 ? FrameGameSum / FrameTimeCount : 0.0,
+		FrameTimeCount > 0 ? FrameRenderSum / FrameTimeCount : 0.0);
 	FrameTimeMax = 0.f;
 	FrameTimeSum = 0.f;
 	FrameTimeCount = 0;
 	FrameHitches = 0;
+	FrameGpuSum = FrameGameSum = FrameRenderSum = 0.0;
 	return true;
 }
 
