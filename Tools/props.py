@@ -287,3 +287,7 @@ mapkit.MapBuilder.prop = _prop
 mapkit.MapBuilder.scatter = _scatter
 mapkit.MapBuilder.prop_names = _prop_names
 mapkit.MapBuilder.ground_at = _ground_at
+
+# Burning props (barrel_fire, fire_pit) get an animated flame; see mapkit_fx.py
+import mapkit_fx  # noqa: E402
+mapkit_fx._install_prop_flames()

@@ -29,11 +29,18 @@ private:
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> Mesh;
 
+	/** Soft additive glow around the hot core (M_IAGlowShell). */
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> Shell;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> ShellMaterial;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> Material;
 
 	float Age = 0.f;
 	float Lifetime = 0.4f;
-	float StartThickness = 5.f;
+	float StartThickness = 2.6f;
 	float Length = 100.f;
 };

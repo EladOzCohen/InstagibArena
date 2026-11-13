@@ -40,9 +40,29 @@ void AIABeam::Init(const FVector& Start, const FVector& End, const FLinearColor&
 	if (UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Characters/M_IABody.M_IABody")))
 	{
 		Material = UMaterialInstanceDynamic::Create(Base, this);
-		Material->SetVectorParameterValue(TEXT("Color"), Color);
-		Material->SetScalarParameterValue(TEXT("Glow"), 10.f);
+		// A thin, whitened core ...
+		Material->SetVectorParameterValue(TEXT("Color"), FMath::Lerp(Color, FLinearColor::White, 0.45f));
+		Material->SetScalarParameterValue(TEXT("Glow"), 8.f);
 		Mesh->SetMaterial(0, Material);
+	}
+
+	// ... inside a soft coloured sleeve that fades towards its silhouette (child of the core: it thins out with it).
+	UStaticMesh* Cylinder = Mesh->GetStaticMesh();
+	if (UMaterialInterface* ShellBase = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/FX/M_IAGlowShell.M_IAGlowShell")))
+	{
+		Shell = NewObject<UStaticMeshComponent>(this);
+		Shell->SetStaticMesh(Cylinder);
+		Shell->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Shell->SetCastShadow(false);
+		Shell->SetupAttachment(Mesh);
+		Shell->SetRelativeScale3D(FVector(4.5f, 4.5f, 1.f));
+		Shell->RegisterComponent();
+		ShellMaterial = UMaterialInstanceDynamic::Create(ShellBase, this);
+		ShellMaterial->SetVectorParameterValue(TEXT("Color"), Color);
+		ShellMaterial->SetScalarParameterValue(TEXT("Glow"), 2.2f);
+		ShellMaterial->SetScalarParameterValue(TEXT("Exponent"), 1.8f);
+		ShellMaterial->SetScalarParameterValue(TEXT("HideCaps"), 1.f);
+		Shell->SetMaterial(0, ShellMaterial);
 	}
 
 	Mesh->SetWorldScale3D(FVector(StartThickness / 100.f, StartThickness / 100.f, Length / 100.f));
@@ -65,6 +85,10 @@ void AIABeam::Tick(float DeltaSeconds)
 	Mesh->SetWorldScale3D(FVector(Thickness / 100.f, Thickness / 100.f, Length / 100.f));
 	if (Material)
 	{
-		Material->SetScalarParameterValue(TEXT("Glow"), 10.f * Alpha);
+		Material->SetScalarParameterValue(TEXT("Glow"), 8.f * Alpha);
+	}
+	if (ShellMaterial)
+	{
+		ShellMaterial->SetScalarParameterValue(TEXT("Glow"), 2.2f * Alpha);
 	}
 }
