@@ -426,6 +426,22 @@ namespace IASettings
 
 	void ApplyStartupSettings()
 	{
+		// First start on this computer: let the engine measure the CPU and GPU once and choose the graphics quality,
+		// so that weak laptops do not start at "Epic". The player can still change it in Settings > Video.
+		{
+			bool bAutoQualityDone = false;
+			GConfig->GetBool(Section, TEXT("AutoQualityDone"), bAutoQualityDone, GGameUserSettingsIni);
+			UGameUserSettings* GameSettings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+			if (!bAutoQualityDone && GameSettings && !FParse::Param(FCommandLine::Get(), TEXT("IANoAutoQuality")))
+			{
+				GameSettings->RunHardwareBenchmark();
+				GameSettings->ApplyHardwareBenchmarkResults();
+				UE_LOG(LogTemp, Log, TEXT("InstagibArena: first start, graphics quality chosen automatically (overall level %d)"),
+					GameSettings->GetOverallScalabilityLevel());
+				GConfig->SetBool(Section, TEXT("AutoQualityDone"), true, GGameUserSettingsIni);
+				GConfig->Flush(false, GGameUserSettingsIni);
+			}
+		}
 		if (!IsMotionBlurEnabled())
 		{
 			SetMotionBlurEnabled(false);

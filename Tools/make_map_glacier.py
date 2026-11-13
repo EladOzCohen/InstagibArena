@@ -33,7 +33,7 @@ m.look("arctic", ev=1.0, sky_intensity=4.2, sky_rgb=(0.96, 0.98, 1.0), ground_rg
 
 # ------------------------------------------------------------------------------------------------ materials
 snow = S("Snow", tiling=4.0, tag="Glacier")
-snow_b = S("SnowBlue", tiling=4.0, tag="Glacier")
+snow_b = S("SnowBlue", tiling=4.0, albedo=(214, 226, 238), tag="GlacierDrift")
 # Frozen water: the Ice scan looks like a water surface when it fills a whole wall, so big ice faces use a pale blue
 # frosted-snow texture with a little gloss (still matte enough not to look wet).
 ice = S("SnowBlue", albedo=(196, 212, 226), tiling=3.0, rb=-0.2, ns=1.2, macro=0.2, tag="GlacierIce2")
