@@ -24,6 +24,10 @@ import props  # noqa: E402,F401
 from mapkit import MapBuilder  # noqa: E402
 from matlib import surface, glass  # noqa: E402
 from mapkit_d import Frame, hcolumn, tube, beam, sphere, diamond  # noqa: E402
+import mapkit_b as kb  # noqa: E402
+import mesh_b as mb  # noqa: E402
+import mesh_misc_b as mm  # noqa: E402
+import mesh_nat_n as nn  # noqa: E402
 
 m = MapBuilder("/Game/Maps/DM-Glacier")
 rng = random.Random(88)
@@ -32,8 +36,8 @@ S = surface
 m.look("arctic", ev=1.0, sky_intensity=4.2, sky_rgb=(0.96, 0.98, 1.0), ground_rgb=(0.62, 0.64, 0.68), sun_lux=12.0, fog_density=0.0020)
 
 # ------------------------------------------------------------------------------------------------ materials
-snow = S("Snow", tiling=4.0, tag="Glacier")
-snow_b = S("SnowBlue", tiling=4.0, albedo=(214, 226, 238), tag="GlacierDrift")
+snow = S("Snow", albedo=(212, 218, 230), tiling=7.0, ns=1.0, macro=0.2, tag="Glacier3")
+snow_b = S("SnowBlue", tiling=6.0, albedo=(200, 214, 230), ns=1.0, tag="GlacierDrift3")
 # Frozen water: the Ice scan looks like a water surface when it fills a whole wall, so big ice faces use a pale blue
 # frosted-snow texture with a little gloss (still matte enough not to look wet).
 ice = S("SnowBlue", albedo=(196, 212, 226), tiling=3.0, rb=-0.2, ns=1.2, macro=0.2, tag="GlacierIce2")
@@ -84,7 +88,7 @@ def snow_patch(label, x, y, z, sx, sy, sz=8.0, yaw=0.0, mat=None):
 
 # ------------------------------------------------------------------------------------------------ ground and perimeter
 m.box("Snowfield", 0, 0, -100, HX * 2, HY * 2, 200, mat=snow)
-m.box("OuterPlain", 0, 0, -205, 60000, 60000, 400, mat=S("Snow", tiling=8.0, tag="GlacierFar"), solid=False)
+m.box("OuterPlain", 0, 0, -205, 60000, 60000, 400, mat=S("Snow", albedo=(206, 212, 224), tiling=8.0, tag="GlacierFar2"), solid=False)
 
 # drifts: undulating snow all over the plateau (low, no collision)
 for i in range(70):
@@ -107,17 +111,10 @@ for side in range(4):
         sgn = 1 if side < 2 else -1
         cx, cy = (a, sgn * off) if horiz else (sgn * off, a)
         kind = (1, 1, 3, 1, 0, 3)[n % 6]
-        m.box("Wall_%d" % n, cx, cy, h / 2 - 100, w if horiz else 400, 400 if horiz else w, h + 100,
-              yaw=rng.uniform(-4, 4), mat=(ice, grock, ice_deep, drock)[kind])
-        # a rock face (cliff scan) breaking the straight edge, partly sunk into the wall
-        face_x = cx - (0 if horiz else sgn * 190)
-        face_y = cy - (sgn * 190 if horiz else 0)
-        yaw = (-90 if sgn > 0 else 90) if horiz else (180 if sgn > 0 else 0)
-        for layer, (back, sc, nm) in enumerate(((-20, rng.uniform(1.9, 2.4), "cliff_a"), (140, rng.uniform(2.6, 3.4), "cliff_b"))):
-            lx = cx + (0 if horiz else sgn * back)
-            ly = cy + (sgn * back if horiz else 0)
-            m.prop("WallCliff_%d_%d" % (n, layer), nm, lx, ly, -30, yaw=yaw + rng.uniform(-14, 14),
-                   scale=sc * (1.15 if n % 2 else 1.0), material=grock if kind != 0 or layer else ice, solid=False, sink=0.1)
+        # the block is only the collision now (hidden): a generated layered cliff with a snow cornice stands in front of it
+        wall_box = m.box("Wall_%d" % n, cx, cy, h / 2 - 100, w if horiz else 400, 400 if horiz else w, h + 100,
+                         yaw=rng.uniform(-4, 4), mat=(ice, grock, ice_deep, drock)[kind])
+        wall_box.set_actor_hidden_in_game(True)
         # a snow bank leaning against the foot of the wall
         bx = cx - (0 if horiz else sgn * 260)
         by = cy - (sgn * 260 if horiz else 0)
@@ -125,20 +122,55 @@ for side in range(4):
         pos += w
         n += 1
 
-# mountains behind the wall: big cliffs in rock and snow, then a pine forest on the plain
-MOUNT = [("cliff_a", 16.0, "snow"), ("cliff_b", 20.0, "rock"), ("cliff_a", 13.0, "rock"), ("cliff_b", 24.0, "snow")]
-mats_m = {"snow": S("Snow", tiling=6.0, tag="GlacierFar"), "rock": S("GlacierRock", tiling=6.0, tag="GlacierFar")}
+# generated layered cliffs with a snow cornice in front of the (now invisible) wall blocks
+def smooth(a, b, x):
+    return mb.smoothstep(a, b, x)
+
+
+def cliff_off(seed, lay, reach=420.0, vmin=26.0):
+    def off(u, z):
+        raw = (lay.profile(u, z, 70.0) + 95.0 * mb.fbm(u / 900.0 + seed, z / 420.0, 0.0, 3, seed) + 40.0 * mb.fbm(u / 160.0, z / 110.0, 0.0, 2, seed + 3)
+               + 22.0 * nn.plateau(u, z, 140.0, 80.0, seed + 5) - 40.0 * mb.ridged(u / 130.0, z / 1400.0, 0.0, 2, seed + 7))
+        v = 70.0 + raw + 80.0 * smooth(430.0, 560.0, z)            # the snow cornice leans out at the top
+        return max(vmin, min(v * (0.45 + 0.55 * smooth(40.0, 300.0, z)), 30.0 + reach * smooth(120.0, 420.0, z)))
+    return off
+
+
+def cliff_run(label, org, yaw, width, zs, mats, seed, depth=700.0, top_snow=True, rim_amp=60.0, cap=True, reach=420.0, vmin=26.0):
+    rim = (lambda u: rim_amp * (mb.fbm(u / 700.0 + seed, 0.3, 0.0, 2, seed + 31) - 0.3)) if rim_amp else None
+    lay = nn.Layers(zs, seed, wob=22.0, wob_len=380.0, rim=rim, rim_from=zs[0] + (zs[-1] - zs[0]) * 0.5)
+    off = cliff_off(seed, lay, reach, vmin)
+    for k in range(len(zs) - 1):
+        top = k == len(zs) - 2
+        mesh = nn.cliff_strip2(width, lambda u, k=k: lay.boundary(k, u), lambda u, k=k: lay.boundary(k + 1, u), off, depth, cell=85.0,
+                               cap=bool(top and cap), cap_fn=(lambda u, y: 55.0 * mb.fbm(u / 500.0 + seed, y / 300.0, 0.0, 3, seed + 55)) if (top and cap) else None,
+                               skirt_top=top and not cap)
+        sm = kb.commit("G%s_%d" % (label, k), mesh, collision="none")
+        kb.put(m, "Cliff_%s_%d" % (label, k), sm, org[0], org[1], 0.0, yaw=yaw, mat=mats[k % len(mats)], solid=False, folder="Cliffs")
+    return lay, off
+
+
+PERIM = [("N", (-(HX + 400.0), HY), 0.0, 2 * HX + 800.0, [drock, grock, ice, snow]),
+         ("S", (HX + 400.0, -HY), 180.0, 2 * HX + 800.0, [grock, drock, ice_deep, snow]),
+         ("E", (HX, HY + 400.0), -90.0, 2 * HY + 800.0, [drock, ice, grock, snow]),
+         ("W", (-HX, -(HY + 400.0)), 90.0, 2 * HY + 800.0, [grock, ice_deep, drock, snow])]
+for i, (nm, org, yaw, wd, mats_) in enumerate(PERIM):
+    cliff_run("Wall" + nm, org, yaw, wd, [-100.0, 140.0, 330.0, 470.0, 610.0], mats_, 50 + i)
+
+# mountains behind the wall: generated craggy peaks (snow and rock), then a pine forest on the plain
+mats_m = {"snow": S("SnowBlue", albedo=(196, 210, 228), tiling=8.0, ns=1.2, tag="GlacierFarSnow"), "rock": S("GlacierRock", tiling=8.0, tag="GlacierFar")}
+MOUNT_SM = [kb.commit("GMount_%d" % k, mm.mountain_mesh(rng.uniform(4200, 6200), rng.uniform(4200, 6600), seed=400 + k, sides=96, rings=26, ridge=0.4, base_z=-300.0)) for k in range(6)]
+HILL_SM = [kb.commit("GHill_%d" % k, mm.mountain_mesh(rng.uniform(1700, 2600), rng.uniform(700, 1500), seed=440 + k, sides=72, rings=18, ridge=0.3, base_z=-300.0)) for k in range(4)]
 for i in range(22):
     ang = math.radians(i * (360.0 / 22) + rng.uniform(-6, 6))
-    d = rng.uniform(8500, 12500)
-    kind, sc, mk = MOUNT[i % 4]
-    m.prop("Mountain_%d" % i, kind, math.cos(ang) * d * 1.25, math.sin(ang) * d, -200, yaw=math.degrees(ang) + 90 + rng.uniform(-30, 30),
-           scale=sc * rng.uniform(0.9, 1.3), material=mats_m[mk], solid=False)
+    d = rng.uniform(9500, 13500)
+    kb.put(m, "Mountain_%d" % i, MOUNT_SM[i % 6], math.cos(ang) * d * 1.2, math.sin(ang) * d, -200.0, yaw=rng.uniform(0, 360),
+           scale=(rng.uniform(0.9, 1.4), rng.uniform(0.9, 1.4), rng.uniform(0.8, 1.2)), mat=mats_m["snow" if i % 3 else "rock"], solid=False, folder="Far")
 for i in range(14):
     ang = math.radians(i * (360.0 / 14) + rng.uniform(-8, 8))
-    d = rng.uniform(5200, 7000)
-    m.prop("Hill_%d" % i, "rock_boulder_l", math.cos(ang) * d * 1.2, math.sin(ang) * d, -200, yaw=rng.uniform(0, 360),
-           scale=rng.uniform(8.0, 14.0), material=mats_m["snow" if i % 2 else "rock"], solid=False)
+    d = rng.uniform(5600, 7600)
+    kb.put(m, "Hill_%d" % i, HILL_SM[i % 4], math.cos(ang) * d * 1.2, math.sin(ang) * d, -200.0, yaw=rng.uniform(0, 360),
+           scale=(rng.uniform(0.9, 1.5), rng.uniform(0.9, 1.5), 1.0), mat=mats_m["snow" if i % 2 else "rock"], solid=False, folder="Far")
 
 # ------------------------------------------------------------------------------------------------ central ridge
 m.box("Ridge", 0, 0, 150, 1800, 1200, 300, mat=grock)
@@ -147,10 +179,9 @@ m.slope("RidgeSlopeW", (-2050, 0, 0), (-900, 0, 300), 900, thickness=60, mat=sno
 m.slope("RidgeSlopeE", (2050, 0, 0), (900, 0, 300), 900, thickness=60, mat=snow)
 # rock outcrops on the long sides and ends of the ridge (no collision, the box is the wall)
 for sy in (-1, 1):
-    for i in range(7):
-        x = -780 + i * 260 + rng.uniform(-30, 30)
-        m.prop("RidgeRock_%d_%d" % (sy, i), "cliff_b", x, sy * 585, -10, yaw=(-90 if sy > 0 else 90) + rng.uniform(-15, 15),
-               scale=rng.uniform(1.1, 1.5), material=grock, solid=False, sink=0.05)
+    # the long faces of the ridge: generated layered rock (the box behind it is the collision), snow on the lip
+    cliff_run("Ridge" + ("N" if sy > 0 else "S"), (900.0, 600.0) if sy > 0 else (-900.0, -600.0), 180.0 if sy > 0 else 0.0, 1800.0,
+              [-20.0, 110.0, 205.0, 302.5], [drock, grock, snow], 70 + sy, depth=640.0, rim_amp=0, cap=False, reach=45.0, vmin=18.0)
     for i in range(4):
         snow_patch("RidgeBank", -600 + i * 400, sy * 680, 8, 480, 200, sz=35)
 for sx in (-1, 1):
@@ -219,8 +250,15 @@ def hut(f, wall_mat, trim, tag):
         f.box("RoofTrim", (x0 + x1) / 2, ym + sy * 322, wh + 30, x1 - x0 + 44, 6, 22, mat=trim, solid=False)
     for sx in (-1, 1):
         f.box("RoofTrim", (x0 + x1) / 2 + sx * 372, ym, wh + 30, 6, y1 - y0 + 44, 22, mat=trim, solid=False)
-    for i, (px, py, w, d) in enumerate([(-2600, -560, 240, 200), (-2300, -820, 300, 160), (-2180, -480, 180, 120), (-2680, -880, 200, 180)]):
-        f.sphere("RoofSnow_%d" % i, px, py, wh + 31, w, d, 14, yaw=i * 30, mat=snow)
+    # snow cover that follows the roof: lumpy blankets with an irregular edge (the outline is where the surface meets the roof),
+    # a drift against the parapet and icicles hanging from the eaves
+    for i, (px, py, w, d, th) in enumerate([(-2520, -720, 560, 430, 15.0), (-2230, -860, 250, 190, 12.0), (-2700, -520, 200, 220, 11.0)]):
+        wx, wy = f.P(px, py)
+        kb.put(m, "RoofSnow_%s_%d" % (tag, i), kb.commit("GRoofSnow_%d" % i, nn.snow_cap(w, d, seed=30 + i, thick=th)), wx, wy, wh + 30.0, yaw=f.Y(rng.uniform(-6, 6)), mat=snow, solid=False)
+    for j, (ex, ey, ln, yw) in enumerate([(x0 - 20.0, y0 - 22.0, 740.0, 0.0), (x0 - 20.0, y1 + 22.0, 740.0, 0.0)]):
+        wx, wy = f.P(ex, ey)
+        kb.put(m, "Icicles_%s_%d" % (tag, j), kb.commit("GIcicles_%d" % j, nn.icicles(ln, 24, seed=7 + j, size=(7.0, 20.0), drop=(14.0, 60.0))), wx, wy, wh + 3.0,
+               yaw=f.Y(yw), mat=ice, solid=False)
     f.box("RoofVent_" + tag, -2650, -700, wh + 90, 120, 120, 120, mat=steel)
     f.box("RoofVentCap", -2650, -700, wh + 156, 150, 150, 10, mat=steel_l, solid=False)
     f.tube("Chimney", (-2250, -520, wh + 30), (-2250, -520, wh + 230), 34, steel_l)

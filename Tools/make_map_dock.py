@@ -18,6 +18,7 @@ import mapkit  # noqa: E402
 import mapkit_a as ka  # noqa: E402
 import props  # noqa: E402,F401
 from matlib import surface, glass, water  # noqa: E402
+import shade_n  # noqa: E402
 
 MAP_PATH = "/Game/Maps/DM-Dock"
 b = mapkit.MapBuilder(MAP_PATH)
@@ -38,7 +39,8 @@ steel = surface("SteelDark")
 steel_paint = surface("SteelDark", albedo=(88, 94, 100), tag=TAG + "Paint")
 steel_light = surface("BrushedMetal", albedo=(130, 133, 138), tag=TAG + "Light")
 black_paint = surface("SteelDark", albedo=(34, 34, 36), tag="FdBlack")
-yellow = surface("ContainerYellow")
+yellow = surface("ContainerYellow", albedo=(196, 156, 52), tag=TAG + "Paint2")
+rail_yel = surface("ContainerYellow", albedo=(168, 136, 66), macro=0.55, macro_m=2.5, rb=0.14, ns=1.2, tag=TAG + "Rail2")
 plate = surface("DiamondPlate", albedo=(128, 126, 124), desat=1.0, macro=0.12, tiling=1.0, tag="FdPlate2")
 plate_dark = surface("DiamondPlateDark", desat=1.0, macro=0.12, tiling=1.0, tag="FdPlateD")
 trim = surface("ConcretePanels", albedo=(160, 156, 148), tiling=1.5, tag="FdTrim")
@@ -271,14 +273,14 @@ def mezzanine(name, origin, yaw):
     for (u0, u1) in ((-1800, -200), (200, 2400)):
         a = (*w.xy(u0, MZ_W - 8), MZ_TOP)
         c = (*w.xy(u1, MZ_W - 8), MZ_TOP)
-        ka.rail(b, n + "_Rail", a, c, yellow, post_every=240)
-        w.box(n + "_Fascia", (u0 + u1) / 2, MZ_W + 2, MZ_TOP - MZ_T - 2, MZ_TOP + 14, u1 - u0, 5, yellow)
-        w.box(n + "_EdgeLine", (u0 + u1) / 2, MZ_W - 12, MZ_TOP, MZ_TOP + 0.8, u1 - u0, 14, yellow)
-    ka.rail(b, n + "_RailEnd", (*w.xy(2392, 8), MZ_TOP), (*w.xy(2392, MZ_W - 8), MZ_TOP), yellow, post_every=225)
+        ka.rail(b, n + "_Rail", a, c, rail_yel, post_every=240)
+        w.box(n + "_Fascia", (u0 + u1) / 2, MZ_W + 2, MZ_TOP - MZ_T - 2, MZ_TOP + 14, u1 - u0, 5, rail_yel)
+        w.box(n + "_EdgeLine", (u0 + u1) / 2, MZ_W - 12, MZ_TOP, MZ_TOP + 0.8, u1 - u0, 14, rail_yel)
+    ka.rail(b, n + "_RailEnd", (*w.xy(2392, 8), MZ_TOP), (*w.xy(2392, MZ_W - 8), MZ_TOP), rail_yel, post_every=225)
     # ramp from the floor to the deck (same line as the blockout)
     p0 = (*w.xy(-2700, MZ_W / 2), 0.0)
     p1 = (*w.xy(-1800, MZ_W / 2), MZ_TOP)
-    ka.ramp(b, n + "_Ramp", p0, p1, 400, plate, steel_paint, yellow)
+    ka.ramp(b, n + "_Ramp", p0, p1, 400, plate, steel_paint, rail_yel)
     return w
 
 
@@ -297,7 +299,7 @@ for sx in (-1, 1):
         y1 = y0 + (BR_L - 20) / 8
         ka.strut(b, "Bridge_Diag", (x, y0, MZ_TOP - MZ_T - 72) if i % 2 == 0 else (x, y0, MZ_TOP - MZ_T - 4),
                  (x, y1, MZ_TOP - MZ_T - 4) if i % 2 == 0 else (x, y1, MZ_TOP - MZ_T - 72), 6, steel_paint)
-    ka.rail(b, "Bridge_Rail", (x, -BR_L / 2 + 10, MZ_TOP), (x, BR_L / 2 - 10, MZ_TOP), yellow, post_every=215)
+    ka.rail(b, "Bridge_Rail", (x, -BR_L / 2 + 10, MZ_TOP), (x, BR_L / 2 - 10, MZ_TOP), rail_yel, post_every=215)
 for i in range(1, 8):
     b.box("Bridge_Joist", 0, -BR_L / 2 + i * BR_L / 8, MZ_TOP - MZ_T - 20, 380, 8, 40, mat=steel_paint, solid=False)
 
@@ -398,9 +400,22 @@ for i, (x, y) in enumerate(LAMPS):
     b.prop("P_lamp_hanging", "lamp_hanging", x, y, CEIL - 120 - 136, solid=False)
     b.box("LampChain", x, y, CEIL - 60, 4, 4, 100, mat=steel, solid=False)
     ka.cyl(b, "LampBulb", x, y, CEIL - 258, CEIL - 252, 34, 34, bulb)
-    b.accent_light("Lamp_%d" % i, (x, y, CEIL - 280), (1.0, 0.86, 0.66), candela=140.0, radius=1100.0)
+    b.accent_light("Lamp_%d" % i, (x, y, CEIL - 280), (1.0, 0.86, 0.66), candela=100.0, radius=1100.0)
 for sx in (-1, 1):                                                 # amber beacons over the hangar doors
     b.accent_light("DoorBeacon", (sx * (HX - 60), 0, 1150), (1.0, 0.6, 0.2), candela=50.0, radius=500.0)
+
+# ------------------------------------------------------------------------------------------------ soft dark hints (the sky light has no occlusion)
+shade_n.blob(b, "UnderMezzS", 300, -1075, 3.4, 4500, 700, strength=0.5)
+shade_n.blob(b, "UnderMezzN", -300, 1075, 3.4, 4500, 700, strength=0.5)
+shade_n.blob(b, "UnderBridge", 0, 0, 3.4, 700, 1900, strength=0.42)
+for sx in (-1, 1):
+    shade_n.blob(b, "TankFoot", sx * 1100, 0, 3.4, 1500, 1500, strength=0.34)
+for i, (x, y, yaw, _m) in enumerate(CONT):
+    shade_n.blob(b, "ContFoot_%d" % i, x, y, 3.4, 820 if yaw == 0 else 420, 420 if yaw == 0 else 820, strength=0.34)
+for sx in (-1, 1):                                                   # dim corners at the ends of the hall (under the hangar door tracks)
+    shade_n.blob(b, "EndShade", sx * (HX - 140), 0, 3.4, 300, HY * 2, strength=0.3)
+for sy in (-1, 1):
+    shade_n.blob(b, "WallShade", 0, sy * (HY - 100), 3.4, HX * 2, 240, strength=0.25)
 
 # ------------------------------------------------------------------------------------------------ the harbour outside
 def far_box(label, x, y, z0, z1, sx, sy, mat, yaw=0.0, shadow=False):

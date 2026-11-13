@@ -20,6 +20,7 @@ import mapkit  # noqa: E402
 import mapkit_a as ka  # noqa: E402
 import props  # noqa: E402,F401  (adds b.prop / b.scatter)
 from matlib import surface  # noqa: E402
+import shade_n  # noqa: E402
 
 MAP_PATH = "/Game/Maps/DM-Foundry"
 HALF = 2400.0          # inner half-size of the arena
@@ -49,7 +50,8 @@ plate_dark = surface("DiamondPlateDark", desat=1.0, macro=0.12, tiling=1.0, tag=
 steel = surface("SteelDark")
 steel_blue = surface("SteelDark", albedo=(88, 94, 102), tag=TAG + "Blue2")
 steel_light = surface("BrushedMetal", albedo=(130, 133, 138), tag=TAG + "Light")
-yellow = surface("ContainerYellow")
+yellow = surface("ContainerYellow", albedo=(196, 156, 52), tag=TAG + "Paint2")
+rail_yel = surface("ContainerYellow", albedo=(168, 136, 66), macro=0.55, macro_m=2.5, rb=0.14, ns=1.2, tag=TAG + "Rail2")
 black_paint = surface("SteelDark", albedo=(34, 34, 36), tag=TAG + "Black")
 white_paint = surface("PlasterWhite")
 pane = surface("ConcreteWorn", albedo=(44, 54, 64), rb=-0.1, tag=TAG + "Pane")
@@ -256,12 +258,12 @@ for side, (cx, cy, yaw) in {"N": (0, HALF, 180), "S": (0, -HALF, 0), "E": (HALF,
     for i, (u0, u1) in enumerate(segs):
         if u1 - u0 > 20:
             w.box("Ring%s_Fascia%d" % (side, i), (u0 + u1) / 2, RING_WIDTH + 2, RING_Z - ring_t - 2, RING_Z + 14,
-                  u1 - u0, 5, yellow)
+                  u1 - u0, 5, rail_yel)
             w.box("Ring%s_EdgeLine%d" % (side, i), (u0 + u1) / 2, RING_WIDTH - 12, RING_Z, RING_Z + 0.8,
-                  u1 - u0, 14, yellow)
+                  u1 - u0, 14, rail_yel)
             a = (*w.xy(u0, RING_WIDTH - 8), RING_Z)
             c = (*w.xy(u1, RING_WIDTH - 8), RING_Z)
-            ka.rail(b, "Ring%s_Rail%d" % (side, i), a, c, yellow, post_every=250)
+            ka.rail(b, "Ring%s_Rail%d" % (side, i), a, c, rail_yel, post_every=250)
 
 
 def ramp(label, x0, y0, x1, y1, z_top, width, thickness=40.0, deck=plate):
@@ -283,7 +285,7 @@ def ramp(label, x0, y0, x1, y1, z_top, width, thickness=40.0, deck=plate):
               solid=False)
         e0 = (x0 + lat[0] * side * (width / 2 - 3), y0 + lat[1] * side * (width / 2 - 3), 0.0)
         e1 = (x1 + lat[0] * side * (width / 2 - 3), y1 + lat[1] * side * (width / 2 - 3), z_top)
-        ka.rail(b, label + "_Rail", e0, e1, yellow, post_every=230)
+        ka.rail(b, label + "_Rail", e0, e1, rail_yel, post_every=230)
         for t in (0.3, 0.65):                                   # trestle legs under the ramp
             lx = e0[0] + (e1[0] - e0[0]) * t
             ly = e0[1] + (e1[1] - e0[1]) * t
@@ -325,7 +327,7 @@ for sgn in (-1, 1):                                               # edge rails w
                 a, c = (sgn * 440, u0, TOWER_Z), (sgn * 440, u1, TOWER_Z)
             else:
                 a, c = (u0, sgn * 440, TOWER_Z), (u1, sgn * 440, TOWER_Z)
-            ka.rail(b, "Tower_Rail", a, c, yellow, post_every=110)
+            ka.rail(b, "Tower_Rail", a, c, rail_yel, post_every=110)
     b.box("Tower_Edge", sgn * 440, 0, TOWER_Z + 0.4, 14, 900, 0.8, mat=yellow, solid=False)
     b.box("Tower_Edge", 0, sgn * 440, TOWER_Z + 0.4, 900, 14, 0.8, mat=yellow, solid=False)
 # a bolted maintenance hatch and a painted circle on the deck
@@ -416,6 +418,23 @@ for i, (x, y) in enumerate(SCRAP):
         b.box("PalletTop", x, y, 152, 300, 300, 5, mat=wood_dark, solid=False)
         b.box("Crate", x - 40, y - 30, 180, 140, 110, 56, yaw=15, mat=wood_dark, solid=False)
         b.box("Crate", x + 70, y + 40, 178, 100, 100, 52, yaw=-20, mat=wood_old, solid=False)
+
+# ------------------------------------------------------------------------------------------------ soft dark hints (no global illumination here)
+# the sky light has no occlusion, so places that should be dim are darkened with soft non-solid gradient quads
+for name, x, y, sx, sy in (("N", 0, ring_c, HALF * 2 + 100, 640), ("S", 0, -ring_c, HALF * 2 + 100, 640), ("E", ring_c, 0, 640, HALF * 2 - 300), ("W", -ring_c, 0, 640, HALF * 2 - 300)):
+    shade_n.blob(b, "UnderCatwalk_" + name, x, y, 3.4, sx, sy, strength=0.5)
+shade_n.blob(b, "UnderTower", 0, 0, 3.4, 1250, 1250, strength=0.5)
+for sx in (-1, 1):
+    for sy in (-1, 1):
+        shade_n.blob(b, "PillarFoot", sx * 1700, sy * 1700, 3.4, 760, 760, strength=0.3)
+for i, (x, y) in enumerate(SCRAP):
+    shade_n.blob(b, "BinFoot_%d" % i, x, y, 3.4, 520, 520, strength=0.34)
+for (rx, ry, sx_, sy_, yw) in ((1000, 1100, 460, 700, 0), (1100, -1000, 700, 460, 0), (-1000, -1100, 460, 700, 0), (-1100, 1000, 700, 460, 0)):
+    shade_n.blob(b, "UnderRamp", rx, ry, 3.4, sx_, sy_, strength=0.35, yaw=yw)
+for sgn in (-1, 1):                                                  # darker corners of the yard wall bases
+    for ax in (0, 1):
+        x, y = (sgn * (HALF - 120), 0) if ax == 0 else (0, sgn * (HALF - 120))
+        shade_n.blob(b, "WallFoot", x, y, 3.2, 300 if ax == 0 else HALF * 2, HALF * 2 if ax == 0 else 300, strength=0.22)
 
 # ------------------------------------------------------------------------------------------------ spawn points
 spawn_pts = []
@@ -557,6 +576,34 @@ for i in range(8):
 far_box("RackBeam", 0, 5200, 700, 760, 7400, 60, steel)
 ka.pipe(b, "RackPipe", (-3500, 5160, 740), (3500, 5160, 740), 90, rust_orange)
 crane = b.prop("P_gantry", "crane_gantry", 4500, 6800, 0, yaw=0, scale=4.0, solid=False)
+
+# more of an industrial skyline: blocks of different heights, brick and steel, one red-white striped stack, a water tower, steam and smoke
+for i in range(16):
+    ang = i / 16.0 * 2 * math.pi + rng.uniform(-0.12, 0.12)
+    d = rng.uniform(9500, 14500)
+    bx, by = math.cos(ang) * d, math.sin(ang) * d
+    w, dd, hh = rng.uniform(1500, 4200), rng.uniform(900, 2600), rng.uniform(700, 3600)
+    mat_ = (brick, corr_galv, corr_dark, concrete_big, brick_top, brick_stack)[i % 6]
+    far_box("SkyBlock_%d" % i, bx, by, -100, hh, w, dd, mat_, yaw=math.degrees(ang) + rng.uniform(-20, 20))
+    far_box("SkyBlockRoof_%d" % i, bx, by, hh, hh + 90, w + 120, dd + 120, plinth_mat, yaw=math.degrees(ang) + rng.uniform(-20, 20))
+    if i % 3 == 0:                                                       # roof plant
+        far_box("SkyBlockPlant_%d" % i, bx + w * 0.2, by, hh + 90, hh + 90 + rng.uniform(300, 700), w * 0.3, dd * 0.4, corr_galv)
+for z0 in range(0, 6000, 1000):
+    far_cyl("StripeStack_%d" % (z0 // 1000), -2600, 10400, z0 - 50 if z0 == 0 else z0, z0 + 1000, 480 - z0 * 0.02, band_white if (z0 // 1000) % 2 else rust_stain)
+far_cyl("StripeStackCap", -2600, 10400, 6000, 6080, 380, steel)
+far_cyl("WaterTowerTank", 6200, 10800, 2600, 3500, 900, corr_galv)
+far_cyl("WaterTowerRoof", 6200, 10800, 3500, 3600, 960, steel)
+for lx, ly in ((-380, -380), (380, -380), (380, 380), (-380, 380)):
+    far_cyl("WaterTowerLeg", 6200 + lx, 10800 + ly, -100, 2600, 70, steel)
+# smoke from the stacks (soft puffs, drifting east) and a big steam plume from the cooling tower
+for si, (sx_, sy_, h_) in enumerate(((3800, 9400, 7800), (-5200, -9000, 6600), (-9600, 5600, 7200), (10200, 4300, 6200))):
+    for q in range(7):
+        f = q / 6.0
+        shade_n.puff(b, "StackSmoke_%d_%d" % (si, q), sx_ + 300 + f * f * 3200 + rng.uniform(-100, 100), sy_ + rng.uniform(-150, 150), h_ + 200 + f * 2300,
+                     520 + f * 1500 + rng.uniform(0, 200), (0.46, 0.44, 0.42), strength=0.5 - 0.25 * f)
+for q in range(9):
+    f = q / 8.0
+    shade_n.puff(b, "CoolSteam_%d" % q, -8200 + 200 + f * f * 2400, -7600 + rng.uniform(-200, 200), 4500 + 300 + f * 3600, 1500 + f * 2600, (1.05, 1.07, 1.1), strength=0.5 - 0.3 * f)
 
 # ------------------------------------------------------------------------------------------------ light + finish
 _over = {k: float(os.environ["IA_" + k.upper()]) for k in ("ev", "sky_intensity", "sun_lux") if os.environ.get("IA_" + k.upper())}
