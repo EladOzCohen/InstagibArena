@@ -58,6 +58,9 @@ float glassM = inside * (1.0 - frameM);
 float h1 = frac(sin(dot(id + float2(Seed, Seed * 1.7), float2(127.1, 311.7))) * 43758.5453);
 float h2 = frac(sin(dot(id + float2(Seed * 2.3, 5.1), float2(269.5, 183.3))) * 24634.6345);
 float litCell = (h1 < Lit) ? 1.0 : 0.0;
+// office style: whole floors lit (LitRows = fraction of floors)
+float hrow = frac(sin(id.y * 12.9898 + Seed * 7.13) * 43758.5453);
+litCell = max(litCell, (hrow < S5.z && h1 < 0.8) ? 1.0 : 0.0);
 float gy = saturate((lp.y - y0) / max(WH, 1.0));
 float3 litC = Vl.rgb * (0.55 + 0.9 * h2);
 """
@@ -67,7 +70,10 @@ float2 uvw = (abs(n.z) > 0.7) ? Pos.xy : float2(u, -Pos.z);
 float2 uvt = uvw * Vw.w;
 float2 dxu = ddx(uvt);
 float2 dyu = ddy(uvt);
-float3 wall = DTex.SampleGrad(DTexSampler, uvt, dxu, dyu).rgb * Vw.rgb;
+float3 texC = DTex.SampleGrad(DTexSampler, uvt, dxu, dyu).rgb;
+float lumW = dot(texC, float3(0.30, 0.59, 0.11));
+texC = lerp(texC, float3(lumW, lumW, lumW), S5.x);             // Desat: tames orange / red patches of the scan
+float3 wall = texC * Vw.rgb;
 float rough = RTex.SampleGrad(RTexSampler, uvt, dxu, dyu).r;
 // large soft variation so that big walls do not look tiled
 float blot = sin(u * 0.0031 + Seed) * sin(Pos.z * 0.0023 + u * 0.0011) * 0.5 + 0.5;
@@ -82,11 +88,12 @@ wall *= 1.0 - 0.55 * dirt - 0.20 * streak * (0.4 + 0.6 * h2) * (0.4 + S3.z);
 float sillM = vert * inCol * ((dyb > 0.0 && dyb < 9.0) ? 1.0 : 0.0);
 float lintM = vert * inCol * ((lp.y - y1 > 0.0 && lp.y - y1 < 12.0) ? 1.0 : 0.0);
 float3 col = wall;
-col = lerp(col, wall * 1.35 + 0.02, sillM);
+col = lerp(col, wall * S5.y + 0.02, sillM);
 col = lerp(col, wall * 0.75, lintM);
 // glass: a darker bottom/lighter top reflection gradient, some windows have curtains
 float3 glassC = Vg.rgb * (0.55 + 0.9 * gy) * (0.75 + 0.5 * h2);
 glassC *= 0.62 + 0.38 * saturate((y1 - lp.y) / 38.0);
+glassC *= 1.0 - S5.w * (1.0 - saturate((min(dxm, dym) - FW) / 14.0));      // reveal: shadow just inside the frame
 float curtain = (h2 > 0.80 && litCell < 0.5) ? 1.0 : 0.0;
 glassC = lerp(glassC, float3(0.34, 0.29, 0.22) * (0.4 + h2), curtain * 0.85);
 glassC = lerp(glassC, litC * 0.25, litCell);
@@ -115,12 +122,18 @@ return normalize(n + pert * k);
 """
 
 
+_master_built = False
+
+
 def build_facade_master(force=False):
     """/Game/Materials/M_IAFacade: wall texture (world aligned) + procedural window grid. Returns the material."""
+    global _master_built
+    force = force or (os.environ.get("IA_FACADE_FORCE") == "1" and not _master_built)
     if eal.does_asset_exist(FACADE_PATH):
         if not force:
             return eal.load_asset(FACADE_PATH)
         eal.delete_asset(FACADE_PATH)
+    _master_built = True
     base = matlib.import_set("ConcreteDirty")
     mat = _new_asset(FACADE_PATH, unreal.Material, unreal.MaterialFactoryNew())
     mat.set_editor_property("tangent_space_normal", False)
@@ -143,6 +156,7 @@ def build_facade_master(force=False):
     minz, nstr, dirt, groundz = sc("WinMinZ", -100000.0, 800), sc("NormalStrength", 0.8, 850), sc("DirtAmount", 0.4, 900), sc("GroundZ", 0.0, 950)
     dirth, glow, fw, gr = sc("DirtHeight", 900.0, 1000), sc("LitGlow", 1.8, 1050), sc("FrameWidth", 7.0, 1100), sc("GlassRough", 0.2, 1150)
     wtile = sc("WallTilingPerCm", 0.01, 1200)
+    desat, sillb, litrows, reveal = sc("Desat", 0.0, 1250), sc("SillBoost", 1.35, 1280), sc("LitRows", 0.0, 1310), sc("Reveal", 0.45, 1340)
     v_wall = vec("WallTint", (1, 1, 1), 1300)
     v_glass = vec("GlassColor", (0.03, 0.04, 0.06), 1350)
     v_frame = vec("FrameColor", (0.05, 0.05, 0.05), 1400)
@@ -152,6 +166,7 @@ def build_facade_master(force=False):
     S2 = _append(mat, _append(mat, _append(mat, sill, lit, -900, 500), seed, -800, 530), gridz, -700, 560)
     S3 = _append(mat, _append(mat, _append(mat, minz, nstr, -900, 600), dirt, -800, 630), groundz, -700, 660)
     S4 = _append(mat, _append(mat, _append(mat, dirth, glow, -900, 700), fw, -800, 730), gr, -700, 760)
+    S5 = _append(mat, _append(mat, _append(mat, desat, sillb, -900, 800), litrows, -800, 830), reveal, -700, 860)
     Vw = _append(mat, v_wall, wtile, -700, 800)
     Vg = _append(mat, v_glass, gr, -700, 860)
     Vf = _append(mat, v_frame, fw, -700, 920)
@@ -159,7 +174,7 @@ def build_facade_master(force=False):
     pos = _node(mat, unreal.MaterialExpressionWorldPosition, -1400, 1500)
     nrm = _node(mat, unreal.MaterialExpressionVertexNormalWS, -1400, 1580)
 
-    common = [("Pos", pos), ("Nrm", nrm), ("S1", S1), ("S2", S2), ("S3", S3), ("S4", S4),
+    common = [("Pos", pos), ("Nrm", nrm), ("S1", S1), ("S2", S2), ("S3", S3), ("S4", S4), ("S5", S5),
               ("Vw", Vw), ("Vg", Vg), ("Vf", Vf), ("Vl", Vl)]
     base_node = _custom(mat, "FacadeBase", HLSL_FACADE_BASE, [("DTex", p_diff), ("RTex", p_rough)] + common,
                         unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, 0)
@@ -187,13 +202,14 @@ _fcache = {}
 def facade(tag, wall="BrickRed", albedo=None, tiling=None, grid_z=0.0, ground_z=0.0, cell=(300.0, 330.0),
            win=(170.0, 190.0), sill=100.0, lit=0.0, glow=1.8, lit_rgb=(1.0, 0.70, 0.40), glass_rgb=(0.030, 0.040, 0.060),
            frame_rgb=(0.045, 0.045, 0.05), frame_w=7.0, min_z=-100000.0, dirt=0.45, dirt_h=900.0, seed=1.0, nstr=0.8,
-           glass_rough=0.2, tint=None):
+           glass_rough=0.2, tint=None, desat=0.0, sill_boost=1.35, lit_rows=0.0, reveal=0.45):
     """An instance of M_IAFacade named MI_F_<tag>. Wall texture from matlib.SURFACES[wall] (aimed at `albedo`)."""
     asset = "MI_F_" + tag
     if asset in _fcache:
         return _fcache[asset]
     master = build_facade_master()
-    spec = matlib.SURFACES[wall]
+    spec = dict(matlib.SURFACES[wall])
+    spec["desat"] = max(spec["desat"], desat)
     use_albedo = albedo if albedo is not None else spec["albedo"]
     wt = matlib._tint_for(spec, use_albedo)
     if tint is not None:
@@ -210,7 +226,8 @@ def facade(tag, wall="BrickRed", albedo=None, tiling=None, grid_z=0.0, ground_z=
     lib.set_material_instance_texture_parameter_value(mic, "RoughnessTex", sets["R"])
     scal = dict(CellW=cell[0], CellH=cell[1], WinW=win[0], WinH=win[1], Sill=sill, LitFraction=lit, Seed=seed,
                 GridZ=grid_z, WinMinZ=min_z, NormalStrength=nstr, DirtAmount=dirt, GroundZ=ground_z, DirtHeight=dirt_h,
-                LitGlow=glow, FrameWidth=frame_w, GlassRough=glass_rough, WallTilingPerCm=0.01 / tile_m)
+                LitGlow=glow, FrameWidth=frame_w, GlassRough=glass_rough, WallTilingPerCm=0.01 / tile_m,
+                Desat=spec["desat"], SillBoost=sill_boost, LitRows=lit_rows, Reveal=reveal)
     for k, v in scal.items():
         lib.set_material_instance_scalar_parameter_value(mic, k, float(v))
     for k, c in (("WallTint", wt), ("GlassColor", glass_rgb), ("FrameColor", frame_rgb), ("LitColor", lit_rgb)):
