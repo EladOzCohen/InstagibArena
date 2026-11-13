@@ -7,7 +7,7 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
 
 <a href="https://github.com/EladOzCohen/InstagibArena/releases/latest/download/InstagibArena_Setup.exe"><img src="docs/images/download.png" width="440" alt="Download for Windows"></a>
 
-**Free · Windows 10 or 11 · about 316 MB · no account needed**
+**Free · Windows 10 or 11 · about 523 MB · no account needed**
 
 [Step-by-step guide with pictures](https://eladozcohen.github.io/InstagibArena/) · [עברית](#עברית) · [All versions](../../releases) · [Report a problem](../../issues/new)
 
@@ -130,4 +130,5 @@ You can change every key in *Settings* > *Controls*.
 
 - Game code, tools and generated audio: MIT, see [LICENSE](LICENSE). More in [NOTICE.md](NOTICE.md).
 - Built with Unreal Engine 5.8 by Epic Games. The Mannequin characters and animations are Epic's content and are not stored in this repository.
+- Textures and 3D props (rocks, trees, barrels and more) are free CC0 assets from [Poly Haven](https://polyhaven.com/) and [ambientCG](https://ambientcg.com/), each one listed in [NOTICE.md](NOTICE.md).
 - Sounds and music are generated from scratch by the tools in this repository, not sampled from anything.
