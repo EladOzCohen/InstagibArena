@@ -54,9 +54,22 @@ void AIAImpactEffect::Init(const FVector& Normal, const FLinearColor& Color, flo
 	SparkMaterial->SetScalarParameterValue(TEXT("Glow"), 9.f);
 	SparkMaterial->SetScalarParameterValue(TEXT("Roughness"), 0.4f);
 
-	FlashMaterial = UMaterialInstanceDynamic::Create(Base, this);
-	FlashMaterial->SetVectorParameterValue(TEXT("Color"), FMath::Lerp(Color, FLinearColor::White, 0.55f));
-	FlashMaterial->SetScalarParameterValue(TEXT("Glow"), 14.f);
+	// The flash is a soft additive ball (bright in the middle, fading to its rim) instead of a hard white sphere.
+	if (UMaterialInterface* Shell = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/FX/M_IAGlowShell.M_IAGlowShell")))
+	{
+		FlashMaterial = UMaterialInstanceDynamic::Create(Shell, this);
+		FlashMaterial->SetVectorParameterValue(TEXT("Color"), FMath::Lerp(Color, FLinearColor::White, 0.35f));
+		FlashMaterial->SetScalarParameterValue(TEXT("Exponent"), 2.4f);
+		FlashMaterial->SetScalarParameterValue(TEXT("HideCaps"), 0.f);
+		FlashGlow = 4.5f;
+	}
+	else
+	{
+		FlashMaterial = UMaterialInstanceDynamic::Create(Base, this);
+		FlashMaterial->SetVectorParameterValue(TEXT("Color"), FMath::Lerp(Color, FLinearColor::White, 0.55f));
+		FlashGlow = 14.f;
+	}
+	FlashMaterial->SetScalarParameterValue(TEXT("Glow"), FlashGlow);
 	Flash->SetMaterial(0, FlashMaterial);
 
 	Light->SetLightColor(Color);
@@ -112,7 +125,7 @@ void AIAImpactEffect::Tick(float DeltaSeconds)
 	{
 		const float Size = (8.f + 30.f * FMath::Sqrt(FlashT)) * FMath::Pow(Scale, 0.8f);
 		Flash->SetWorldScale3D(FVector(Size / 100.f));
-		FlashMaterial->SetScalarParameterValue(TEXT("Glow"), 14.f * (1.f - FlashT));
+		FlashMaterial->SetScalarParameterValue(TEXT("Glow"), FlashGlow * (1.f - FlashT));
 	}
 	else
 	{

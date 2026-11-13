@@ -26,8 +26,9 @@ AIAJumpPad::AIAJumpPad()
 	USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
 
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneFinder(TEXT("/Engine/BasicShapes/Plane.Plane"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeFinder(TEXT("/Engine/BasicShapes/Cone.Cone"));
 
 	// The pad has no blocking collision: the floor below stays the walkable surface, and the pad is only a trigger.
 	auto MakeMesh = [&](const TCHAR* Name, UStaticMesh* Mesh, const FVector& Location, const FVector& Scale)
@@ -42,9 +43,21 @@ AIAJumpPad::AIAJumpPad()
 		return Comp;
 	};
 
-	Base = MakeMesh(TEXT("Base"), CylinderFinder.Object, FVector(0.f, 0.f, 4.f), FVector(1.9f, 1.9f, 0.08f));
-	GlowDisc = MakeMesh(TEXT("GlowDisc"), CylinderFinder.Object, FVector(0.f, 0.f, 9.f), FVector(1.5f, 1.5f, 0.02f));
-	Beam = MakeMesh(TEXT("Beam"), ConeFinder.Object, FVector(0.f, 0.f, 70.f), FVector(1.1f, 1.1f, 1.2f));
+	// Sizes in cm: a 190 cm steel slab 5 cm thick, a 178 cm painted deck on top, a 7 cm wide rim 3.5 cm above the slab.
+	Base = MakeMesh(TEXT("Base"), CubeFinder.Object, FVector(0.f, 0.f, 2.5f), FVector(1.9f, 1.9f, 0.05f));
+	Deck = MakeMesh(TEXT("Deck"), PlaneFinder.Object, FVector(0.f, 0.f, 5.15f), FVector(1.78f, 1.78f, 1.f));
+	const float RimZ = 5.f + 1.75f;
+	const TCHAR* RimNames[4] = { TEXT("RimN"), TEXT("RimS"), TEXT("RimE"), TEXT("RimW") };
+	const FVector RimLoc[4] = { FVector(0.f, 91.5f, RimZ), FVector(0.f, -91.5f, RimZ), FVector(91.5f, 0.f, RimZ), FVector(-91.5f, 0.f, RimZ) };
+	const FVector RimScale[4] = { FVector(1.9f, 0.07f, 0.035f), FVector(1.9f, 0.07f, 0.035f), FVector(0.07f, 1.76f, 0.035f), FVector(0.07f, 1.76f, 0.035f) };
+	for (int32 I = 0; I < 4; ++I)
+	{
+		Rim.Add(MakeMesh(RimNames[I], CubeFinder.Object, RimLoc[I], RimScale[I]));
+	}
+
+	// The light column: 150 cm wide, 260 cm tall, no shadow, never blocks anything.
+	Column = MakeMesh(TEXT("Column"), CylinderFinder.Object, FVector(0.f, 0.f, 8.5f + 130.f), FVector(1.5f, 1.5f, 2.6f));
+	Column->SetCullDistance(6000.f);
 
 	Trigger = CreateDefaultSubobject<UBoxComponent>(TEXT("Trigger"));
 	Trigger->SetupAttachment(Root);
@@ -58,9 +71,9 @@ AIAJumpPad::AIAJumpPad()
 
 	Light = CreateDefaultSubobject<UPointLightComponent>(TEXT("Light"));
 	Light->SetupAttachment(Root);
-	Light->SetRelativeLocation(FVector(0.f, 0.f, 60.f));
-	Light->SetAttenuationRadius(450.f);
-	Light->SetIntensity(40.f);
+	Light->SetRelativeLocation(FVector(0.f, 0.f, 70.f));
+	Light->SetAttenuationRadius(420.f);
+	Light->SetIntensity(18.f);
 	Light->SetCastShadows(false);
 }
 
@@ -101,24 +114,38 @@ void AIAJumpPad::BeginPlay()
 		return;
 	}
 
-	if (UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Characters/M_IABody.M_IABody")))
-	{
-		UMaterialInstanceDynamic* BaseMaterial = UMaterialInstanceDynamic::Create(Material, this);
-		BaseMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.05f, 0.06f, 0.08f));
-		BaseMaterial->SetScalarParameterValue(TEXT("Metallic"), 0.6f);
-		Base->SetMaterial(0, BaseMaterial);
-
-		GlowMaterial = UMaterialInstanceDynamic::Create(Material, this);
-		GlowMaterial->SetVectorParameterValue(TEXT("Color"), PadColor);
-		GlowMaterial->SetScalarParameterValue(TEXT("Glow"), 4.f);
-		GlowDisc->SetMaterial(0, GlowMaterial);
-
-		BeamMaterial = UMaterialInstanceDynamic::Create(Material, this);
-		BeamMaterial->SetVectorParameterValue(TEXT("Color"), PadColor);
-		BeamMaterial->SetScalarParameterValue(TEXT("Glow"), 1.5f);
-		Beam->SetMaterial(0, BeamMaterial);
-	}
 	Phase = FMath::FRand() * 6.28f;
+
+	UMaterialInterface* PadMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/FX/M_IAPad.M_IAPad"));
+	UMaterialInterface* ColumnMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/FX/M_IAPadColumn.M_IAPadColumn"));
+	if (PadMaterial)
+	{
+		DeckMaterial = UMaterialInstanceDynamic::Create(PadMaterial, this);
+		DeckMaterial->SetVectorParameterValue(TEXT("PadColor"), PadColor);
+		DeckMaterial->SetScalarParameterValue(TEXT("Rim"), 0.f);
+		DeckMaterial->SetScalarParameterValue(TEXT("Phase"), Phase);
+		Deck->SetMaterial(0, DeckMaterial);
+
+		UMaterialInstanceDynamic* RimMaterial = UMaterialInstanceDynamic::Create(PadMaterial, this);
+		RimMaterial->SetVectorParameterValue(TEXT("PadColor"), PadColor);
+		RimMaterial->SetScalarParameterValue(TEXT("Rim"), 1.f);
+		Base->SetMaterial(0, RimMaterial);
+		for (UStaticMeshComponent* Bar : Rim)
+		{
+			Bar->SetMaterial(0, RimMaterial);
+		}
+	}
+	if (ColumnMat)
+	{
+		ColumnMaterial = UMaterialInstanceDynamic::Create(ColumnMat, this);
+		ColumnMaterial->SetVectorParameterValue(TEXT("PadColor"), PadColor);
+		ColumnMaterial->SetScalarParameterValue(TEXT("Phase"), Phase);
+		Column->SetMaterial(0, ColumnMaterial);
+	}
+	else
+	{
+		Column->SetVisibility(false);
+	}
 }
 
 void AIAJumpPad::Tick(float DeltaSeconds)
@@ -139,26 +166,30 @@ void AIAJumpPad::Tick(float DeltaSeconds)
 			GetNetMode() == NM_Client ? TEXT("client") : TEXT("server"));
 	}
 #endif
-	if (!GlowMaterial)
+	if (!DeckMaterial && !ColumnMaterial)
 	{
 		return;
 	}
 
-	Phase += DeltaSeconds * 3.2f;
+	// The materials animate themselves from the time node; the code only breathes the light and reports the launch flash.
+	Phase += DeltaSeconds * 2.4f;
 	const double Now = GetWorld()->GetTimeSeconds();
 	const float Pulse = 0.5f + 0.5f * FMath::Sin(Phase);
-	const float Flash = Now < FlashUntil ? static_cast<float>((FlashUntil - Now) / 0.35) : 0.f;
+	const float Flash = Now < FlashUntil ? static_cast<float>((FlashUntil - Now) / 0.4) : 0.f;
 
-	GlowMaterial->SetScalarParameterValue(TEXT("Glow"), 2.5f + 4.f * Pulse + 14.f * Flash);
-	if (BeamMaterial)
+	if (Flash > 0.f || bFlashShown)
 	{
-		BeamMaterial->SetScalarParameterValue(TEXT("Glow"), 0.6f + 2.f * Pulse + 6.f * Flash);
+		if (DeckMaterial)
+		{
+			DeckMaterial->SetScalarParameterValue(TEXT("Flash"), Flash);
+		}
+		if (ColumnMaterial)
+		{
+			ColumnMaterial->SetScalarParameterValue(TEXT("Flash"), Flash);
+		}
+		bFlashShown = Flash > 0.f;
 	}
-	Light->SetIntensity(30.f + 25.f * Pulse + 120.f * Flash);
-
-	// The cone breathes upwards like a pointer.
-	Beam->SetRelativeLocation(FVector(0.f, 0.f, 60.f + 10.f * Pulse));
-	Beam->SetRelativeScale3D(FVector(1.0f - 0.2f * Pulse, 1.0f - 0.2f * Pulse, 1.1f + 0.3f * Pulse));
+	Light->SetIntensity(14.f + 8.f * Pulse + 90.f * Flash);
 }
 
 void AIAJumpPad::OnPadOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
@@ -179,7 +210,7 @@ void AIAJumpPad::OnPadOverlap(UPrimitiveComponent* OverlappedComponent, AActor* 
 	Last = Now;
 
 	// Cosmetics on every machine.
-	FlashUntil = Now + 0.35;
+	FlashUntil = Now + 0.4;
 	if (UIAAudioSubsystem* Audio = UIAAudioSubsystem::Get(this))
 	{
 		Audio->PlayAt(EIASound::JumpPad, GetActorLocation(), 1.f, 0.05f);

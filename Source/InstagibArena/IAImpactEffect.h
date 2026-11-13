@@ -51,4 +51,5 @@ private:
 	float Age = 0.f;
 	float Life = 0.7f;
 	float Scale = 1.f;
+	float FlashGlow = 14.f;
 };

@@ -21,6 +21,7 @@ import mapkit  # noqa: E402
 from mapkit import MapBuilder  # noqa: E402
 import props  # noqa: E402,F401  (adds b.prop / b.scatter)
 import mapkit_b as kb  # noqa: E402
+import mapkit_fx  # noqa: E402,F401  (adds m.flame)
 import mesh_b as mb  # noqa: E402
 import mesh_arch_b as ma  # noqa: E402
 import mesh_misc_b as mm  # noqa: E402
@@ -219,8 +220,7 @@ brazier_sm = kb.commit("TBrazier", mm.brazier_mesh())
 altar_flames = [(0.0, 0.0, 680.0)] + [(sx * 205.0, sy * 205.0, 600.0) for sx in (-1, 1) for sy in (-1, 1)]
 for k, (bx, by, bz) in enumerate(altar_flames):
     kb.put(m, "Brazier_%d" % k, brazier_sm, bx, by, bz, mat=bronze_m, solid=False)
-    m.cone("Flame_%d" % k, bx, by, bz + 62, bz + 112, 26, mat=flame_m, solid=False)
-    m.accent_light("BrazierLight_%d" % k, (bx, by, bz + 110), (1.0, 0.55, 0.22), candela=35.0 if k else 55.0, radius=520.0)
+    m.flame("Flame_%d" % k, bx, by, bz + 60, scale=1.15 if k else 1.5, light=35.0 if k else 55.0, radius=520.0)
 obel = kb.commit("TObelisk", mm.obelisk_mesh(160.0, 44.0))
 for sx in (-1, 1):
     kb.put(m, "AltarPost_%d" % sx, obel, sx * 180.0, 0.0, 600.0, mat=dark_m)
