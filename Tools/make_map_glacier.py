@@ -33,7 +33,7 @@ m = MapBuilder("/Game/Maps/DM-Glacier")
 rng = random.Random(88)
 S = surface
 
-m.look("arctic", ev=1.0, sky_intensity=4.2, sky_rgb=(0.96, 0.98, 1.0), ground_rgb=(0.62, 0.64, 0.68), sun_lux=12.0, fog_density=0.0020)
+m.look("arctic", ev=1.0, ambient_gain=0.28125, sky_intensity=4.2, sky_rgb=(0.96, 0.98, 1.0), ground_rgb=(0.62, 0.64, 0.68), sun_lux=12.0, fog_density=0.0020)
 
 # ------------------------------------------------------------------------------------------------ materials
 snow = S("Snow", albedo=(212, 218, 230), tiling=7.0, ns=1.0, macro=0.2, tag="Glacier3")

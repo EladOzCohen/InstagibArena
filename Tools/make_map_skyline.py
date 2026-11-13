@@ -560,5 +560,5 @@ starts += [(0, 2300, 450, 270), (0, -2300, 450, 90), (2500, 0, 800, 180), (-2500
 m.starts(starts)
 
 # ------------------------------------------------------------------------------------------------ light: low sun
-m.look("dusk", sun_pitch=-22.0, sun_yaw=225.0, sun_lux=6.5, sun_rgb=(1.0, 0.76, 0.52), sky_intensity=9.0, ev=0.5, saturation=0.9, fog_max_opacity=0.4)
+m.look("dusk", sun_pitch=-22.0, sun_yaw=225.0, sun_lux=6.5, sun_rgb=(1.0, 0.76, 0.52), sky_intensity=9.0, ev=0.5, ambient_gain=0.1266, saturation=0.9, fog_max_opacity=0.4)
 m.finish(kill_z=-800)

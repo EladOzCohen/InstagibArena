@@ -474,5 +474,5 @@ for k in range(10):
     d = rng.uniform(8500, 12000)
     m.prop("FarCliff_%d" % k, "cliff_red_a", math.cos(ang) * d * 1.2, math.sin(ang) * d * 0.9, -300.0, yaw=math.degrees(ang) + 90.0, scale=rng.uniform(9.0, 14.0), solid=False)
 
-m.look("desert", sun_yaw=215.0, sun_pitch=-38.0, ev=0.7, sky_intensity=6.0)
+m.look("desert", sun_yaw=215.0, sun_pitch=-38.0, ev=0.7, ambient_gain=0.1477, sky_intensity=6.0)
 m.finish(kill_z=-700)

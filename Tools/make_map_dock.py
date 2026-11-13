@@ -498,7 +498,7 @@ far_box("WarehouseW", -7600, 0, -4, 1600, 3000, 5000, brick_low, shadow=True)
 
 # ------------------------------------------------------------------------------------------------ light + finish
 _over = {k: float(os.environ["IA_" + k.upper()]) for k in ("ev", "sky_intensity", "sun_lux") if os.environ.get("IA_" + k.upper())}
-_look = dict(sun_yaw=35.0, sun_pitch=-52.0, sun_lux=9.0, sky_intensity=2.6, ev=0.5, sky_rgb=(1.0, 0.97, 0.92),
+_look = dict(sun_yaw=35.0, sun_pitch=-52.0, sun_lux=9.0, sky_intensity=2.6, ev=0.5, ambient_gain=0.197, sky_rgb=(1.0, 0.97, 0.92),
              saturation=0.93, fog_density=0.0008)
 _look.update(_over)
 b.look("day_clear", **_look)

@@ -630,5 +630,5 @@ unreal.log("NEON starts seed=%d count=%d" % (seed, len(chosen)))
 m.check_starts()
 
 # ------------------------------------------------------------------------------------------------ light: night
-m.look("night_city")
+m.look("night_city", ambient_gain=0.1266, ev=-0.2)
 m.finish(kill_z=-1200)

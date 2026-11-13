@@ -607,7 +607,7 @@ for q in range(9):
 
 # ------------------------------------------------------------------------------------------------ light + finish
 _over = {k: float(os.environ["IA_" + k.upper()]) for k in ("ev", "sky_intensity", "sun_lux") if os.environ.get("IA_" + k.upper())}
-_look = dict(sun_yaw=35.0, ev=0.6, sky_rgb=(1.0, 0.97, 0.90), saturation=0.93)
+_look = dict(sun_yaw=35.0, ev=0.6, ambient_gain=0.21, sky_rgb=(1.0, 0.97, 0.90), saturation=0.93)
 _look.update(_over)
 b.look("day_clear", **_look)
 b.finish()

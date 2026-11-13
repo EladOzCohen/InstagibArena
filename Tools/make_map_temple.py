@@ -444,7 +444,7 @@ for i, (hx, hy) in enumerate(heap_spots):
                mat=lime_dirty_m if i % 2 else wall2_m, solid=False)
 
 # ---------------------------------------------------------------- light: strong sun into a pit, cool sky, warm braziers
-m.look("day_clear", sun_yaw=205.0, sun_pitch=-52.0, sun_lux=10.0, sky_intensity=5.0, ev=1.0, sun_rgb=(1.0, 0.9, 0.74), sky_rgb=(0.97, 0.95, 0.98))
+m.look("day_clear", sun_yaw=205.0, sun_pitch=-52.0, sun_lux=10.0, sky_intensity=5.0, ev=1.0, ambient_gain=0.146, sun_rgb=(1.0, 0.9, 0.74), sky_rgb=(0.97, 0.95, 0.98))
 
 # warm the shade: the blue sky light tints the stone cyan in the shadows; bounce from the sand is warm
 lt.tint_sky(m, color=(1.0, 0.90, 0.76))
