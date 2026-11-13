@@ -5,13 +5,22 @@
 #include "CoreMinimal.h"
 
 /** Everything the player chooses before a match. Remembered between sessions. */
+/** The seven bot skill levels (index 0 = gentlest, 6 = hardest). */
+namespace IABots
+{
+	constexpr int32 SkillCount = 7;
+	constexpr int32 DefaultSkill = 3;
+	INSTAGIBARENA_API FText SkillName(int32 Index);
+	INSTAGIBARENA_API FText SkillBlurb(int32 Index);
+}
+
 struct INSTAGIBARENA_API FIAMatchSetup
 {
 	bool bTeamGame = false;
 	int32 MapIndex = 0;
 	int32 CharacterIndex = 0;
 	int32 BotCount = 4;
-	int32 BotSkill = 1;
+	int32 BotSkill = 3;   // IABots::DefaultSkill
 	int32 ScoreLimit = 25;
 	int32 TimeLimit = 10;
 
@@ -23,7 +32,7 @@ struct INSTAGIBARENA_API FIAMatchSetup
 namespace IASettings
 {
 	/** Shown in the main menu. Keep in step with the installer's AppVersion. */
-	inline const TCHAR* const GameVersion = TEXT("1.3.0");
+	inline const TCHAR* const GameVersion = TEXT("1.4.0");
 
 	INSTAGIBARENA_API float GetMouseSensitivity();            // 0.1 to 3, default 1
 	INSTAGIBARENA_API void SetMouseSensitivity(float Value);

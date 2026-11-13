@@ -1,7 +1,7 @@
 Instagib Arena
 
 A fast first-person arena shooter in the spirit of Unreal Tournament 2004:
-one weapon, one hit, 15 characters, 4 maps, bots at three skill levels,
+one weapon, one hit, 15 characters, 4 maps, bots at seven skill levels,
 free for all and team deathmatch, and online play with friends.
 
 This setup will:

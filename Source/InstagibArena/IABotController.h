@@ -8,13 +8,17 @@
 
 class AIAPlayerCharacter;
 
-/** Skill levels offered to the player: 0 = beginner, 1 = intermediate, 2 = expert. */
+/** Skill levels offered to the player, from the gentlest to the hardest (seven steps, see IABots in IASettings.h). */
 UENUM(BlueprintType)
 enum class EIABotSkill : uint8
 {
-	Beginner = 0,
-	Intermediate = 1,
-	Expert = 2
+	Rookie = 0,
+	Beginner = 1,
+	Casual = 2,
+	Intermediate = 3,
+	Advanced = 4,
+	Expert = 5,
+	Master = 6
 };
 
 /** Tuning values that make up one skill level. */

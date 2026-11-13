@@ -43,6 +43,34 @@ namespace
 
 // ---------------------------------------------------------------- last match
 
+FText IABots::SkillName(int32 Index)
+{
+	switch (Index)
+	{
+	case 0: return INVTEXT("Rookie");
+	case 1: return INVTEXT("Beginner");
+	case 2: return INVTEXT("Casual");
+	case 3: return INVTEXT("Intermediate");
+	case 4: return INVTEXT("Advanced");
+	case 5: return INVTEXT("Expert");
+	default: return INVTEXT("Master");
+	}
+}
+
+FText IABots::SkillBlurb(int32 Index)
+{
+	switch (Index)
+	{
+	case 0: return INVTEXT("Very slow and forgiving. Bots miss a lot and hardly move. Best for your very first matches.");
+	case 1: return INVTEXT("Slow bots with poor aim. Time to learn the maps and the controls.");
+	case 2: return INVTEXT("Bots react slowly and miss often. A friendly match.");
+	case 3: return INVTEXT("A fair fight. Bots aim decently and dodge now and then.");
+	case 4: return INVTEXT("Quick, accurate bots that dodge and jump. You have to move.");
+	case 5: return INVTEXT("Fast reactions, sharp aim, lots of dodging. Hard.");
+	default: return INVTEXT("Near perfect aim and instant reactions. For professionals only.");
+	}
+}
+
 void FIAMatchSetup::Load()
 {
 	bool bTeam = bTeamGame;
@@ -51,6 +79,14 @@ void FIAMatchSetup::Load()
 	GConfig->GetInt(SetupSection, TEXT("Character"), CharacterIndex, GGameUserSettingsIni);
 	GConfig->GetInt(SetupSection, TEXT("Bots"), BotCount, GGameUserSettingsIni);
 	GConfig->GetInt(SetupSection, TEXT("BotSkill"), BotSkill, GGameUserSettingsIni);
+	// Before 1.4 there were three levels (0..2). Move a saved choice to the closest level of the new scale.
+	int32 SkillScale = 0;
+	GConfig->GetInt(SetupSection, TEXT("BotSkillScale"), SkillScale, GGameUserSettingsIni);
+	if (SkillScale < 7)
+	{
+		static const int32 OldToNew[3] = { 2, 4, 5 };
+		BotSkill = OldToNew[FMath::Clamp(BotSkill, 0, 2)];
+	}
 	GConfig->GetInt(SetupSection, TEXT("ScoreLimit"), ScoreLimit, GGameUserSettingsIni);
 	GConfig->GetInt(SetupSection, TEXT("TimeLimit"), TimeLimit, GGameUserSettingsIni);
 
@@ -59,7 +95,7 @@ void FIAMatchSetup::Load()
 	MapIndex = FMath::Clamp(MapIndex, 0, IAMaps::Count - 1);
 	CharacterIndex = FMath::Clamp(CharacterIndex, 0, IACharacters::LookCount - 1);
 	BotCount = (BotCount <= 0) ? 0 : FMath::Clamp(BotCount, 2, 10);
-	BotSkill = FMath::Clamp(BotSkill, 0, 2);
+	BotSkill = FMath::Clamp(BotSkill, 0, IABots::SkillCount - 1);
 	ScoreLimit = FMath::Clamp(ScoreLimit, 0, 100);
 	TimeLimit = FMath::Clamp(TimeLimit, 0, 30);
 }
@@ -71,6 +107,7 @@ void FIAMatchSetup::Save() const
 	GConfig->SetInt(SetupSection, TEXT("Character"), CharacterIndex, GGameUserSettingsIni);
 	GConfig->SetInt(SetupSection, TEXT("Bots"), BotCount, GGameUserSettingsIni);
 	GConfig->SetInt(SetupSection, TEXT("BotSkill"), BotSkill, GGameUserSettingsIni);
+	GConfig->SetInt(SetupSection, TEXT("BotSkillScale"), 7, GGameUserSettingsIni);
 	GConfig->SetInt(SetupSection, TEXT("ScoreLimit"), ScoreLimit, GGameUserSettingsIni);
 	GConfig->SetInt(SetupSection, TEXT("TimeLimit"), TimeLimit, GGameUserSettingsIni);
 	GConfig->Flush(false, GGameUserSettingsIni);

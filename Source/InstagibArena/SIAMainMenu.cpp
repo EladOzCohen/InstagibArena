@@ -453,19 +453,12 @@ TSharedRef<SWidget> SIAMainMenu::BuildSetupRows()
 		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f)
 		[
 			Row(INVTEXT("Bot skill"),
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 6.f, 0.f)
-				[
-					Chip(Owner, INVTEXT("Beginner"), [this]() { Setup.BotSkill = 0; }, [this]() { return Setup.BotSkill == 0; }, 100.f, 15)
-				]
-				+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 6.f, 0.f)
-				[
-					Chip(Owner, INVTEXT("Intermediate"), [this]() { Setup.BotSkill = 1; }, [this]() { return Setup.BotSkill == 1; }, 100.f, 15)
-				]
-				+ SHorizontalBox::Slot().AutoWidth()
-				[
-					Chip(Owner, INVTEXT("Expert"), [this]() { Setup.BotSkill = 2; }, [this]() { return Setup.BotSkill == 2; }, 100.f, 15)
-				])
+				Stepper(Owner,
+					[this]() { return IABots::SkillName(Setup.BotSkill); },
+					[this]() { Setup.BotSkill = FMath::Max(0, Setup.BotSkill - 1); },
+					[this]() { Setup.BotSkill = FMath::Min(IABots::SkillCount - 1, Setup.BotSkill + 1); },
+					190.f),
+				170.f, INVTEXT("Seven levels, from Rookie (very forgiving) to Master (for professionals)."))
 		]
 
 		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f)

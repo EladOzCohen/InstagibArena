@@ -82,7 +82,7 @@ namespace IALoadingScreen
 			TEXT("Listen. Footsteps and landings give away where enemies are."),
 			TEXT("Use height. Ledges and catwalks give you a long view."),
 			TEXT("In Team Deathmatch, check the colour before you shoot."),
-			TEXT("New here? Start the bots on Beginner to learn the maps."),
+			TEXT("New here? Start the bots on Rookie to learn the maps."),
 			TEXT("Pick a crosshair you can see on every map: Settings, Gameplay."),
 			TEXT("Find a mouse sensitivity you can control. The best aim is a calm one."),
 			TEXT("Esc opens the pause menu. In a multiplayer game the match keeps running."),

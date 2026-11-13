@@ -50,7 +50,7 @@ void AIAGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 
 	const int32 RequestedBots = UGameplayStatics::GetIntOption(Options, TEXT("Bots"), 4);
 	BotCount = RequestedBots <= 0 ? 0 : FMath::Clamp(RequestedBots, 2, 10);
-	BotSkill = FMath::Clamp(UGameplayStatics::GetIntOption(Options, TEXT("BotSkill"), 1), 0, 2);
+	BotSkill = FMath::Clamp(UGameplayStatics::GetIntOption(Options, TEXT("BotSkill"), 3), 0, 6);
 
 #if !UE_BUILD_SHIPPING
 	// Test helpers: shorter or longer countdown and results screen.

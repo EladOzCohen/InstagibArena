@@ -18,7 +18,7 @@ class AIAPlayerState;
  *     ScoreLimit kills needed to win, 0 = none
  *     TimeLimit  minutes, 0 = none
  *     Bots       2..10, 0 = no bots, 4 if not given
- *     BotSkill   0 = beginner, 1 = intermediate, 2 = expert
+ *     BotSkill   0 rookie, 1 beginner, 2 casual, 3 intermediate (default), 4 advanced, 5 expert, 6 master
  * If neither limit is given the score limit defaults to 25.
  *
  * A match goes through three phases (AIAGameState::Phase), all decided here on the server:
@@ -107,7 +107,7 @@ protected:
 	int32 ScoreLimit = 25;
 	int32 TimeLimitMinutes = 0;
 	int32 BotCount = 0;
-	int32 BotSkill = 1;
+	int32 BotSkill = 3;
 
 	FTimerHandle ClockTimer;
 	FTimerHandle WarmupTimer;

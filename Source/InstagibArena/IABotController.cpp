@@ -13,15 +13,24 @@
 
 FIABotSkillParams FIABotSkillParams::ForSkill(EIABotSkill Skill)
 {
+	// Reaction, aim error, turn rate, fire tolerance, dodges/s, jumps/s, sight range, memory, field of view.
 	switch (Skill)
 	{
+	case EIABotSkill::Rookie:        // almost harmless: slow, misses a lot, hardly moves
+		return { 1.40f, 24.0f, 40.f, 14.0f, 0.00f, 0.00f, 2500.f, 1.5f, 90.f };
 	case EIABotSkill::Beginner:
-		return { 0.65f, 9.0f, 100.f, 6.0f, 0.05f, 0.05f, 4500.f, 3.f, 110.f };
-	case EIABotSkill::Expert:
+		return { 1.00f, 16.0f, 65.f, 10.0f, 0.02f, 0.02f, 3500.f, 2.f, 100.f };
+	case EIABotSkill::Casual:
+		return { 0.75f, 11.0f, 90.f, 7.0f, 0.04f, 0.04f, 4500.f, 3.f, 110.f };
+	case EIABotSkill::Advanced:      // the old "intermediate"
+		return { 0.30f, 4.0f, 240.f, 3.5f, 0.20f, 0.15f, 8000.f, 6.f, 130.f };
+	case EIABotSkill::Expert:        // the old "expert"
 		return { 0.12f, 1.2f, 600.f, 1.5f, 0.50f, 0.30f, 14000.f, 10.f, 160.f };
+	case EIABotSkill::Master:        // for professionals: near perfect aim, instant reactions
+		return { 0.06f, 0.4f, 900.f, 0.8f, 0.70f, 0.40f, 20000.f, 14.f, 170.f };
 	case EIABotSkill::Intermediate:
 	default:
-		return { 0.30f, 4.0f, 240.f, 3.5f, 0.20f, 0.15f, 8000.f, 6.f, 130.f };
+		return { 0.48f, 7.0f, 150.f, 5.0f, 0.10f, 0.09f, 6000.f, 4.5f, 120.f };
 	}
 }
 

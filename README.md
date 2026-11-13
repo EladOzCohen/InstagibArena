@@ -44,7 +44,7 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
 
 ![A match in Neon Street](docs/images/neon.png)
 
-- **8 maps:** Foundry (industrial yard), Sunken Temple, Orbital Dock, Skyline (rooftops, falling kills), **Neon Street** (night city duel),
+- **8 maps:** Foundry (industrial yard), Sunken Temple, Harbour Dock, Skyline (rooftops, falling kills), **Neon Street** (night city duel),
   **Forge** (lava hall), **Glacier** (ice outpost) and **Canyon** (huge, with rope bridges). **Jump pads** launch you to the high ground.
 - **Instagib rifle:** hitscan, one hit kills. Glowing beams, spark bursts, a hit marker and kill messages.
 - **Fast, fluid movement:** double jump, dodge (double-tap a direction), wall dodge, crouch and a slow walk. A smooth camera
@@ -54,7 +54,7 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
 - **A complete match:** 5 second warm-up with a 3-2-1 countdown, live play, a results screen (rank, kills, deaths, accuracy,
   best streak) and a quick rematch. Medals for first blood, multi-kills and killing sprees, a kill feed, and a short protection after you respawn.
 - **Free for all** and **team deathmatch** (red vs blue), with a score limit, a time limit, or both.
-- **Bots** (2 to 10) at three skill levels: beginner, intermediate and expert.
+- **Bots** (2 to 10) at seven skill levels, from Rookie (very forgiving, for first-timers) to Master (for professionals).
 - **15 characters** with their own looks, picked in a menu with a live 3D preview.
 - **Online multiplayer** with friends: one hosts, the others join with an address.
 - **Sound and music:** footsteps, weapons, hit feedback and three music tracks, with volume settings.
