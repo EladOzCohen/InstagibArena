@@ -21,46 +21,59 @@ def local_box(b, label, ox, oy, oz, sx, sy, sz, base, yaw=0.0, mat=None, solid=T
                 roll=roll, mat=mat, solid=solid)
 
 
+_car_cache = {}
+
+
+def car_paint(tag, rgb, **kw):
+    """Glossy car paint in the sRGB colour rgb (0..255)."""
+    from matlib import surface
+    return surface("PlasterWhite", albedo=rgb, tag="CarPaintP" + tag, rs=0.32, rb=-0.35, ns=0.0, macro=0.03, metal=0.15, **kw)
+
+
+def car_glass_mat():
+    from matlib import surface
+    return surface("PlasterWhite", albedo=(16, 20, 28), tag="CarGlassP2", rs=0.2, rb=-0.4, ns=0.0, macro=0.0, metal=0.0)
+
+
+def car_rubber_mat():
+    from matlib import surface
+    return surface("StoneDark", albedo=(20, 20, 22), tag="CarRubberMat", rs=0.95, ns=0.25, macro=0.0)
+
+
+def _car_assets(kind):
+    """The six generated meshes of a car kind (paint, dark, steel, glass, head, tail) and its size info."""
+    if kind not in _car_cache:
+        import mapkit_b
+        import mesh_car
+        parts = mesh_car.build(kind)
+        sms = {k: mapkit_b.commit("Car_%s_%s" % (kind, k), parts[k], collision="none")
+               for k in ("paint", "dark", "steel", "glass", "head", "tail")}
+        _car_cache[kind] = (sms, parts["info"])
+    return _car_cache[kind]
+
+
 def car(b, label, x, y, z, yaw, paint, glass, dark, kind="sedan", solid=True, lights=None, tail=None):
-    """A parked car out of boxes: body, cabin with sloped glass, roof, bumpers, wheels. x, y, z = centre on the ground.
-    The long axis is local +x (yaw 0). paint/glass/dark are materials; lights/tail optional emissive materials."""
-    L, W = (450.0, 186.0) if kind == "sedan" else ((380.0, 178.0) if kind == "hatch" else (480.0, 200.0))
-    base = (x, y, z, yaw)
-    low = 52.0 if kind != "van" else 70.0
-    local_box(b, label + "_body", 0, 0, 14 + low / 2, L, W, low, base, mat=paint, solid=solid)
-    local_box(b, label + "_hood", L * 0.28, 0, 14 + low + 3, L * 0.34, W * 0.94, 6, base, mat=paint, solid=False)
-    local_box(b, label + "_trunk", -L * 0.36, 0, 14 + low + 3, L * 0.22, W * 0.92, 6, base, mat=paint, solid=False)
-    ch = 56.0 if kind != "van" else 78.0
-    cl = L * (0.40 if kind == "sedan" else 0.46 if kind == "hatch" else 0.78)
-    cxo = -L * (0.04 if kind == "sedan" else 0.10 if kind == "hatch" else 0.0)
-    z0 = 14 + low
-    local_box(b, label + "_cabin", cxo, 0, z0 + ch / 2, cl, W * 0.88, ch, base, mat=glass, solid=solid)
-    local_box(b, label + "_roof", cxo, 0, z0 + ch + 3, cl * 0.9, W * 0.9, 6, base, mat=paint, solid=False)
-    if kind != "van":
-        for px in (-cl * 0.1, cl * 0.22):
-            local_box(b, label + "_pillar", cxo + px, 0, z0 + ch / 2, 8, W * 0.9, ch, base, mat=paint, solid=False)
-        for sgn, nm in ((1, "_screen"), (-1, "_rear")):
-            xa = cxo + sgn * cl / 2
-            xb = xa + sgn * 42.0
-            p0 = rot2(xb, 0, yaw)
-            p1 = rot2(xa, 0, yaw)
-            bar(b, label + nm, (x + p0[0], y + p0[1], z + z0 + 2), (x + p1[0], y + p1[1], z + z0 + ch + 2), 4.0,
-                mat=glass, solid=False, depth=W * 0.86)
-    for sgn in (1, -1):
-        local_box(b, label + "_bump", sgn * (L / 2 + 2), 0, 28, 10, W * 0.98, 22, base, mat=dark, solid=False)
-    if lights is not None:
-        for sy in (-1, 1):
-            local_box(b, label + "_head", L / 2 + 1, sy * W * 0.34, 14 + low - 12, 4, 30, 12, base, mat=lights,
-                      solid=False)
-    if tail is not None:
-        for sy in (-1, 1):
-            local_box(b, label + "_tail", -L / 2 - 1, sy * W * 0.36, 14 + low - 10, 4, 34, 10, base, mat=tail,
-                      solid=False)
-    for sx_ in (-0.32, 0.31):
-        for sy in (-1, 1):
-            dx, dy = rot2(sx_ * L, sy * (W / 2 - 6), yaw)
-            rbox(b, label + "_wheel", x + dx, y + dy, z + 33, 66, 66, 24, yaw=yaw, roll=90.0, mat=dark, solid=False,
-                 mesh=b.cylinder)
+    """A parked car: six generated meshes (paint, glass, tyres + trim, hubs, head and tail lamps; see Tools/mesh_car.py).
+    x, y, z = centre on the ground, the long axis is local +x (yaw 0). kind: sedan, hatch or van. paint/glass/dark are
+    materials, lights/tail optional emissive materials. solid=True adds two hidden box colliders (body and cabin)."""
+    import mapkit_b
+    from matlib import surface
+    sms, info = _car_assets(kind)
+    hub = surface("BrushedMetal", albedo=(104, 106, 110), tag="CarHub2", metal=0.4, rb=0.15, ns=0.3)
+    head_m = lights or surface("PlasterWhite", albedo=(196, 196, 186), tag="CarLensP", rs=0.3, ns=0.0, macro=0.0)
+    tail_m = tail or surface("PlasterWhite", albedo=(120, 20, 20), tag="CarTailLensP", rs=0.4, ns=0.0, macro=0.0)
+    for part, mat in (("paint", paint), ("dark", dark), ("steel", hub), ("glass", glass), ("head", head_m), ("tail", tail_m)):
+        mapkit_b.put(b, "%s_%s" % (label, part), sms[part], x, y, z, yaw=yaw, mat=mat, solid=False)
+    if solid:
+        base = (x, y, z, yaw)
+        bt = info["body_top"]
+        a = local_box(b, label + "_body", 0, 0, (18.0 + bt - 3.0) / 2, info["length"] - 14.0, info["width"] - 14.0, bt - 21.0, base,
+                      mat=None, solid=True)
+        a.set_actor_hidden_in_game(True)
+        cx = (info["cab_x0"] + info["cab_x1"]) / 2.0
+        a = local_box(b, label + "_cabin", cx, 0, (bt + info["cab_top"] - 8.0) / 2, info["cab_x1"] - info["cab_x0"], info["cab_w"],
+                      info["cab_top"] - 8.0 - bt, base, mat=None, solid=True)
+        a.set_actor_hidden_in_game(True)
 
 
 def chiller(b, label, x, y, z, sx, sy, sz, yaw, body, dark, metal, solid=True):
