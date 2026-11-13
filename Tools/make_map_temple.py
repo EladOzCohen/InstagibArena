@@ -25,6 +25,9 @@ import mapkit_fx  # noqa: E402,F401  (adds m.flame)
 import mesh_b as mb  # noqa: E402
 import mesh_arch_b as ma  # noqa: E402
 import mesh_misc_b as mm  # noqa: E402
+import mesh_nat_n as nn  # noqa: E402
+import shade_n  # noqa: E402
+import looktweak_n as lt  # noqa: E402
 from matlib import surface, water  # noqa: E402
 
 m = MapBuilder("/Game/Maps/DM-Temple")
@@ -308,26 +311,40 @@ for sx in (-1, 1):
 # ---------------------------------------------------------------- the pit: layered cliffs all round, craggy mountains behind
 PIT = 3500.0
 PIT_H = 3000.0
+PIT_ZS = [0.0, 420.0, 900.0, 1350.0, 1900.0, 2450.0, PIT_H]
+PIT_CLIFF = []
 for ci, (name, org, yaw) in enumerate([("N", (-4600.0, PIT), 0.0), ("S", (4600.0, -PIT), 180.0), ("E", (PIT, 4600.0), -90.0), ("W", (-PIT, -4600.0), 90.0)]):
-    st = ma.Strata(40 + ci, PIT_H + 200.0)
     seed = 70 + ci
+    rim = (lambda u, seed=seed: 650.0 * (0.5 * mb.fbm(u / 1800.0 + seed, 0.3, 0.0, 2, seed + 20) + 0.45 * mb.fbm(u / 450.0 + seed, 1.7, 0.0, 2, seed + 21)
+                                         + 0.3 * (mb.ridged(u / 650.0 + seed, 0.5, 0.0, 2, seed + 22) - 0.5)) - 400.0)
+    lay = nn.Layers(PIT_ZS, 40 + ci, wob=55.0, wob_len=600.0, rim=rim, rim_from=1100.0)
 
-    def off(u, z, st=st, seed=seed):
+    def off(u, z, lay=lay, seed=seed):
         lean = -z * 0.17
         big = 300.0 * mb.fbm(u / 1300.0 + seed * 0.37, z / 1700.0, 0.0, 3, seed)
         mid = 70.0 * mb.fbm(u / 260.0, z / 240.0, 0.0, 3, seed + 5)
         cr = -90.0 * mb.ridged(u / 420.0, z / 4000.0, 0.0, 2, seed + 9)
-        return lean + st.profile(z, 120.0) + big + mid + cr
+        fine = 36.0 * nn.plateau(u, z, 190.0, 110.0, seed + 11) + 40.0 * mb.fbm(u / 100.0, z / 70.0, 0.0, 2, seed + 13) - 60.0 * mb.ridged(u / 170.0, z / 2400.0, 0.0, 2, seed + 15)
+        return lean + lay.profile(u, z, 130.0) + big + mid + cr + fine
 
-    def rim(u, seed=seed):
-        return -600.0 + 900.0 * mb.fbm(u / 1500.0 + 3.1, 0.5, 0.0, 3, seed + 20) - 250.0 * mb.ridged(u / 300.0, 0.0, 0.0, 2, seed + 21)
-
-    zs = [0.0, 420.0, 900.0, 1350.0, 1900.0, 2450.0, PIT_H]
-    for k in range(len(zs) - 1):
-        top = k == len(zs) - 2
-        sm = kb.commit("TCliff_%s_%d" % (name, k), ma.cliff_strip(9200.0, zs[k], zs[k + 1], off, 1500.0, cell=100.0,
-                                                                  top_fn=rim if top else None, skirt_top=top), collision="none")
+    for k in range(len(PIT_ZS) - 1):
+        top = k == len(PIT_ZS) - 2
+        mesh = nn.cliff_strip2(9200.0, lambda u, k=k, lay=lay: lay.boundary(k, u), lambda u, k=k, lay=lay: lay.boundary(k + 1, u), off, 1500.0, cell=100.0 if k > 1 else 120.0,
+                               cap=top, cap_fn=(lambda u, y, seed=seed: 260.0 * mb.fbm(u / 700.0 + seed, y / 420.0, 0.0, 3, seed + 55) + 100.0 * mb.ridged(u / 260.0, y / 200.0, 0.0, 2, seed + 57)) if top else None)
+        sm = kb.commit("TCliff2_%s_%d" % (name, k), mesh, collision="none")
         kb.put(m, "Cliff_%s_%d" % (name, k), sm, org[0], org[1], 0.0, yaw=yaw, mat=cliff_ms[(k + ci) % 4], solid=False)
+    PIT_CLIFF.append((org, yaw, lay))
+# needles and hoodoos on the cliff rim, so the skyline is not a ruler
+PIN_SM = [kb.commit("TPin_%d" % k, nn.pinnacle_mesh(rng.uniform(700.0, 1400.0), rng.uniform(100.0, 180.0), seed=330 + k, mush=(0.0, 0.4, 0.0, 0.0, 0.5, 0.0)[k])) for k in range(6)]
+for ci, (org, yaw, lay) in enumerate(PIT_CLIFF):
+    a_ = math.radians(yaw)
+    for i in range(9):
+        u = (i + rng.uniform(0.1, 0.9)) * 9200.0 / 9.0
+        yl = rng.uniform(80.0, 900.0)
+        wx, wy = org[0] + u * math.cos(a_) - yl * math.sin(a_), org[1] + u * math.sin(a_) + yl * math.cos(a_)
+        sc_ = rng.uniform(1.0, 2.0)
+        kb.put(m, "Pinnacle_%d_%d" % (ci, i), PIN_SM[(i + ci) % 6], wx, wy, lay.boundary(len(PIT_ZS) - 1, u) - 260.0, yaw=rng.uniform(0, 360),
+               scale=(sc_, sc_, rng.uniform(0.8, 1.6)), mat=cliff_ms[(i + ci) % 4], solid=False)
 
 for i in range(9):
     ang = i / 9.0 * 2 * math.pi + rng.uniform(-0.15, 0.15)
@@ -354,18 +371,83 @@ m.scatter(["rock_moss_big_a", "rock_moss_big_b", "rock_moss_big_d", "rock_moss_b
 m.scatter(["rock_moss_big_a", "rock_moss_big_b", "rock_moss_big_d", "rock_moss_big_c"], ("poly", [(-1000, -1000), (-2150, -1000), (-2150, -2150), (-1000, -2150)]), 3, seed=42,
           scale=(0.9, 1.3), min_gap=300, avoid=avoid + [(-1650, -1650, 560)], label="CornerRocks2", max_slope=40)
 plants = ["fern_a", "fern_b", "fern_a", "plant_anthurium_a", "plant_anthurium_b", "plant_calathea_a", "plant_calathea_b", "shrub_a"]
+PLANT_ACTORS = []
 for k, region in enumerate([("rect", -2280, 2040, 2280, 2290), ("rect", -2280, -2290, 2280, -2040), ("rect", 2040, -2280, 2290, 2280), ("rect", -2290, -2280, -2040, 2280)]):
-    m.scatter(plants, region, 26, seed=50 + k, scale=(1.3, 2.4), min_gap=40, avoid=avoid, label="WallPlants%d" % k, solid=False)
-m.scatter(plants, ("ring", 0, 0, 1000, 1500), 36, seed=61, scale=(1.2, 2.0), min_gap=60, avoid=avoid, label="PlazaPlants", solid=False, z_range=(-20, 30))
-m.scatter(["shrub_a", "shrub_b", "fern_a"], ("rect", -2250, -2250, 2250, 2250), 40, seed=62, scale=(1.2, 2.2), min_gap=80, avoid=avoid + [(0, 0, 1250)],
-          label="CourtPlants", solid=False, z_range=(-20, 30))
+    PLANT_ACTORS += m.scatter(plants, region, 26, seed=50 + k, scale=(1.3, 2.4), min_gap=40, avoid=avoid, label="WallPlants%d" % k, solid=False)
+PLANT_ACTORS += m.scatter(plants, ("ring", 0, 0, 1000, 1500), 36, seed=61, scale=(1.2, 2.0), min_gap=60, avoid=avoid, label="PlazaPlants", solid=False, z_range=(-20, 30))
+PLANT_ACTORS += m.scatter(["shrub_a", "shrub_b", "fern_a"], ("rect", -2250, -2250, 2250, 2250), 40, seed=62, scale=(1.2, 2.2), min_gap=80, avoid=avoid + [(0, 0, 1250)],
+                          label="CourtPlants", solid=False, z_range=(-20, 30))
+GROWTH_ACTORS = []
 for name, (prof, org, yaw) in wall_profiles.items():
-    for k in range(11):
+    for k in range(9):                                            # tufts of 2-4 plants, not single pasted ones
         u = rng.uniform(150, LEN - 150)
-        px, py = L(org, yaw, u, 50.0)
-        m.prop("WallGrowth_%s_%d" % (name, k), rng.choice(("shrub_a", "shrub_b", "shrub_a", "fern_a")), px, py, top_at(prof, u) - 15.0,
-               yaw=rng.uniform(0, 360), scale=rng.uniform(1.8, 3.2), solid=False)
+        for q in range(rng.randint(2, 4)):
+            uu = u + rng.uniform(-80, 80)
+            px, py = L(org, yaw, uu, 50.0 + rng.uniform(-28, 28))
+            GROWTH_ACTORS.append(m.prop("WallGrowth_%s_%d_%d" % (name, k, q), rng.choice(("shrub_a", "shrub_b", "shrub_a", "fern_a")), px, py, top_at(prof, uu) - 18.0,
+                                        yaw=rng.uniform(0, 360), scale=rng.uniform(1.2, 3.0), solid=False))
+
+# ---------------------------------------------------------------- age: moss, damp, fallen blocks; plants stand in earth
+MOSS = (0.030, 0.050, 0.014)
+EARTH = (0.040, 0.028, 0.016)
+fern_dry = kb.prop_variant("fern_a", (1.3, 1.1, 0.6), "TFernDry")
+shrub_dark = kb.prop_variant("shrub_a", (0.75, 0.9, 0.6), "TShrubDark")
+for i, a_ in enumerate(PLANT_ACTORS + GROWTH_ACTORS):
+    if i % 4 == 1:
+        kb.retint([a_], fern_dry)
+    elif i % 4 == 3:
+        kb.retint([a_], shrub_dark)
+for i, a_ in enumerate(PLANT_ACTORS):                           # a patch of earth / moss under plants that stand on the paving or the sand
+    loc = a_.get_actor_location()
+    if loc.z < 30.0:
+        shade_n.stain(m, "PlantEarth_%d" % i, loc.x, loc.y, loc.z + 1.2, rng.uniform(140, 230), rng.uniform(110, 190), EARTH if i % 3 else MOSS, strength=0.55, yaw=rng.uniform(0, 180))
+for name, (prof, org, yaw) in wall_profiles.items():
+    fy = yaw - 90.0
+    for k in range(14):
+        u = rng.uniform(100, LEN - 100)
+        x, y = L(org, yaw, u, -3.5)
+        kind = k % 3
+        if kind == 0:                                           # damp rising from the foot of the wall
+            h = rng.uniform(260, 520)
+            shade_n.wall_stain(m, "Damp_%s_%d" % (name, k), x, y, h / 2.0, rng.uniform(280, 640), h, fy, black=True, strength=0.30)
+        elif kind == 1:                                         # moss low on the stones
+            h = rng.uniform(110, 240)
+            shade_n.wall_stain(m, "Moss_%s_%d" % (name, k), x, y, h / 2.0 + 8.0, rng.uniform(200, 440), h, fy, rgb=MOSS, strength=0.62)
+        else:                                                   # a streak of green below a ledge
+            z0 = rng.uniform(450, 1050)
+            shade_n.wall_stain(m, "MossStreak_%s_%d" % (name, k), x, y, z0, rng.uniform(70, 150), rng.uniform(260, 460), fy, rgb=MOSS, strength=0.5)
+    for k in range(9):                                          # moss and earth along the foot of the wall
+        u = rng.uniform(100, LEN - 100)
+        x, y = L(org, yaw, u, -70.0 - rng.uniform(0, 40))
+        shade_n.stain(m, "FootMoss_%s_%d" % (name, k), x, y, -1.0, rng.uniform(220, 420), rng.uniform(110, 190), MOSS if k % 2 else EARTH, strength=0.6, yaw=yaw)
+prev_ = 0.0
+for i, (size, top, run) in enumerate(tiers):                    # damp and moss on the big ziggurat faces
+    half = size / 2.0
+    fh = top - prev_
+    for yaw_out in (0, 90, 180, 270):
+        ox, oy = math.cos(math.radians(yaw_out)), math.sin(math.radians(yaw_out))
+        for q in range(3):
+            lu = rng.choice((-1, 1)) * rng.uniform(260, half - 120)
+            wx = ox * (half + 3.0) - oy * lu
+            wy = oy * (half + 3.0) + ox * lu
+            if q == 2:
+                shade_n.wall_stain(m, "TierMoss_%d_%d_%d" % (i, yaw_out, q), wx, wy, prev_ + fh * 0.3, rng.uniform(160, 340), fh * 0.55, yaw_out, rgb=MOSS, strength=0.6)
+            else:
+                shade_n.wall_stain(m, "TierDamp_%d_%d_%d" % (i, yaw_out, q), wx, wy, prev_ + fh * 0.4, rng.uniform(260, 560), fh * 0.8, yaw_out, black=True, strength=0.28)
+    prev_ = top
+HEAP_SM = [kb.commit("THeap_%d" % k, nn.block_heap(500 + k, count=6 + k % 3, spread=150.0)) for k in range(4)]
+heap_spots = [L(wall_profiles["N"][1], 0.0, 1975.0, -130.0), L(wall_profiles["W"][1], 90.0, 1975.0, -130.0), (-1000, 1340), (1250, -1280), (-1380, -520), (1380, 700),
+              (-300, -1450), (500, 1440), (1950, -1200), (-1880, 300), (-950, -1950), (1250, 1950)]
+for i, (hx, hy) in enumerate(heap_spots):
+    if all(math.hypot(hx - ax, hy - ay) > ar + 100 for ax, ay, ar in avoid):
+        kb.put(m, "FallenBlocks_%d" % i, HEAP_SM[i % 4], hx, hy, 0.0 if abs(hx) < 1500 and abs(hy) < 1500 else -4.0, yaw=rng.uniform(0, 360), scale=rng.uniform(0.9, 1.3),
+               mat=lime_dirty_m if i % 2 else wall2_m, solid=False)
 
 # ---------------------------------------------------------------- light: strong sun into a pit, cool sky, warm braziers
 m.look("day_clear", sun_yaw=205.0, sun_pitch=-52.0, sun_lux=10.0, sky_intensity=5.0, ev=1.0, sun_rgb=(1.0, 0.9, 0.74), sky_rgb=(0.97, 0.95, 0.98))
+
+# warm the shade: the blue sky light tints the stone cyan in the shadows; bounce from the sand is warm
+lt.tint_sky(m, color=(1.0, 0.90, 0.76))
+lt.tint_ground(m, (0.52, 0.40, 0.26))
+lt.grade(m, tint=(1.0, 0.975, 0.93))
 m.finish(kill_z=-2000)

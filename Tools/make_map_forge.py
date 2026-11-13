@@ -24,6 +24,11 @@ import props  # noqa: E402,F401  (adds prop / scatter to MapBuilder)
 from mapkit import MapBuilder  # noqa: E402
 from matlib import surface, glass  # noqa: E402
 from mapkit_d import Frame, hcolumn, tube, beam, sphere, ibeam, truss, lava_instance  # noqa: E402
+import mapkit_b as kb  # noqa: E402
+import mesh_b as mb  # noqa: E402
+import mesh_misc_b as mm  # noqa: E402
+import mesh_nat_n as nn  # noqa: E402
+import shade_n  # noqa: E402
 
 m = MapBuilder("/Game/Maps/DM-Forge")
 rng = random.Random(61)
@@ -35,6 +40,18 @@ m.look("volcanic", sun_lux=5.0, sun_pitch=-32.0, sun_yaw=55.0, sun_rgb=(1.0, 0.7
        fog_max_opacity=0.75)
 
 # ------------------------------------------------------------------------------------------------ materials
+# the stock red barrel is a saturated toy red: an oxide-red, scuffed variant of its own material
+barrel_m = kb.prop_variant("barrel_red", (0.55, 1.5, 1.5), "ForgeBarrel")
+_orig_prop = m.prop
+
+
+def _prop_muted(label, name, *a, **kw):
+    if name == "barrel_red" and "material" not in kw:
+        kw["material"] = barrel_m
+    return _orig_prop(label, name, *a, **kw)
+
+
+m.prop = _prop_muted
 floor_m = S("ConcreteDark", tiling=3.0, tag="ForgeFloor")
 floor_b = S("StoneSlabs", albedo=(82, 80, 76), tag="ForgeSlab")
 floor_c = S("AsphaltCracked", albedo=(60, 58, 56), tag="ForgeCrack")
@@ -50,7 +67,7 @@ corr = S("CorrugatedDark")
 basalt = S("BasaltDark")
 stone = S("StoneDark")
 slag = S("StoneRubble", albedo=(52, 48, 46), tag="ForgeSlag")
-yellow = S("ContainerYellow", albedo=(196, 150, 36), tag="Forge")
+yellow = S("ContainerYellow", albedo=(184, 150, 72), macro=0.45, macro_m=3.0, tag="Forge2")
 blk = S("Asphalt", albedo=(40, 40, 42), tag="Forge")
 wood = S("WoodPlanksDark", albedo=(88, 64, 46), tag="Forge")
 wood_o = S("WoodPlanksOld", albedo=(96, 86, 76), tag="Forge")
@@ -60,6 +77,7 @@ ember = m.glow("MI_ForgeSlit", (1.0, 0.42, 0.1), 0.9)
 bulb = m.glow("MI_ForgeBulb", (1.0, 0.8, 0.5), 2.5)
 
 WARM = (1.0, 0.74, 0.44)
+COOL = (0.74, 0.84, 1.0)
 ORANGE = (1.0, 0.40, 0.12)
 RED = (1.0, 0.22, 0.06)
 
@@ -366,12 +384,13 @@ for k in range(4):
     for x in (-1300.0, 1300.0):
         wx, wy = f.P(x, 2350)
         m.prop("HangLamp", "lamp_hanging", wx, wy, 970, scale=1.4, solid=False)
-        f.light("HangLampLight", x, 2350, 950, WARM, 90.0, 1300.0)
+        f.light("HangLampLight", x, 2350, 950, COOL, 80.0, 1300.0)
         f.box("HangLampBulb", x, 2350, 985, 26, 26, 14, mat=bulb, solid=False)
 for i, (x, y) in enumerate([(-1500, -1500), (1500, -1500), (-1500, 1500), (1500, 1500), (-1500, 0), (1500, 0), (650, -1500),
                             (-650, 1500), (650, 1500), (-650, -1500)]):
     m.prop("HallLamp_%d" % i, "lamp_hanging", x, y, 970, scale=1.4, solid=False)
-    m.accent_light("HallLampLight_%d" % i, (x, y, 950), WARM, 110.0, 1500.0)
+    # a mix of cold work lights (steel-grey hall) and warm sodium lamps near the furnaces
+    m.accent_light("HallLampLight_%d" % i, (x, y, 950), COOL if i % 2 == 0 else WARM, 95.0 if i % 2 == 0 else 105.0, 1500.0)
     m.box("HallLampBulb", x, y, 985, 26, 26, 14, mat=bulb, solid=False)
 
 # scattered clutter: barrels, tyres, jerrycans, propane bottles
@@ -382,30 +401,86 @@ for i, (x, y, kind, sc) in enumerate([(-2050, -1500, "barrel_red", 1.0), (-2090,
     clutter(kind, x, y, 0, yaw=rng.uniform(0, 360), scale=sc, label="Clutter_%d" % i)
 
 # ------------------------------------------------------------------------------------------------ the world outside the windows
-ASH = S("StoneRubble", albedo=(58, 54, 52), tiling=8.0, tag="ForgeAsh")
+# Dark volcanic country: a black cone with glowing lava streaks, a plume of ash that is lit orange from below, dark craggy ridges
+# (generated meshes, not scaled scans) and a few red glows. Seen through the windows from the gantry and the floor.
+ASH = S("StoneRubble", albedo=(40, 37, 36), tiling=8.0, tag="ForgeAsh2")
+BASALT_FAR = S("BasaltDark", albedo=(46, 42, 42), tiling=30.0, ns=1.2, tag="ForgeFarBasalt")
 for i, (cx, cy, sx, sy) in enumerate([(0, 12000, 30000, 18200), (0, -12000, 30000, 18200), (12000, 0, 18200, 6000), (-12000, 0, 18200, 6000)]):
     m.box("OutGround_%d" % i, cx, cy, -400, sx, sy, 600, mat=ASH, solid=False)
-# distant mountains and the volcano
-VOLCANO = (4500.0, 17000.0)
-m.cone("Volcano", VOLCANO[0], VOLCANO[1], -400, 7200, 22000, mat=basalt, solid=False)
-m.column("VolcanoCrater", VOLCANO[0], VOLCANO[1], 7130, 7230, 1300, mat=lava_m, solid=False)
-m.accent_light("VolcanoGlow", (VOLCANO[0], VOLCANO[1] - 900, 7400), ORANGE, 12000.0, 12000.0, source_radius=300.0)
+VOLCANO = (2400.0, 15500.0)
+VR, VZ0, VZ1 = 4200.0, -400.0, 5000.0                                    # base radius, base z, crater rim z (low enough to show in the windows)
+m.cone("Volcano", VOLCANO[0], VOLCANO[1], VZ0, VZ1, VR * 2, mat=BASALT_FAR, solid=False)
+for i in range(10):                                                      # foothills and spurs around the cone (craggy, dark)
+    a = i / 10.0 * 2 * math.pi + 0.3
+    sm = kb.commit("FSpur_%d" % (i % 5), mm.mountain_mesh(rng.uniform(1300, 2400), rng.uniform(1000, 2600), seed=520 + i % 5, sides=40, rings=12, base_z=-300.0))
+    kb.put(m, "Spur_%d" % i, sm, VOLCANO[0] + math.cos(a) * rng.uniform(3600, 5200), VOLCANO[1] + math.sin(a) * rng.uniform(3600, 5200), -300.0, yaw=rng.uniform(0, 360),
+           mat=BASALT_FAR, solid=False, folder="Far")
+m.column("VolcanoCrater", VOLCANO[0], VOLCANO[1], VZ1 - 60, VZ1 + 40, 700, mat=lava_m, solid=False)
+
+
+def cone_pt(t, ang, lift=120.0):
+    r = VR * (1.0 - t)
+    return (VOLCANO[0] + math.cos(ang) * (r + lift), VOLCANO[1] + math.sin(ang) * (r + lift), VZ0 + (VZ1 - VZ0) * t)
+
+
+for k in range(9):                                                       # lava streaks running down the flank (towards the hall: south side)
+    a0 = math.radians(258.0 + rng.uniform(-60, 60))
+    t = 0.97
+    prev = cone_pt(t, a0)
+    for seg in range(rng.randint(6, 10)):
+        t2 = max(0.12, t - rng.uniform(0.05, 0.11))
+        a0 += rng.uniform(-0.06, 0.06)
+        cur = cone_pt(t2, a0)
+        beam(m, "LavaStreak_%d_%d" % (k, seg), prev, cur, rng.uniform(900, 1700) * (1.0 - 0.45 * (1.0 - t2)), 240, mat=lava_m)
+        prev, t = cur, t2
+        if t <= 0.13:
+            break
+# the plume: dark ash, lit from below by the crater glow (puffs get darker and grayer higher up, drift east)
+for i in range(16):
+    f = i / 15.0
+    col = (0.36, 0.13, 0.05) if i < 3 else ((0.16, 0.075, 0.05) if i < 6 else ((0.075, 0.062, 0.06) if i < 11 else (0.045, 0.042, 0.045)))
+    shade_n.puff(m, "Plume_%d" % i, VOLCANO[0] + 200 + f * f * 4200 + rng.uniform(-200, 200), VOLCANO[1] + rng.uniform(-400, 400), VZ1 + 200 + f * 4200,
+                 900 + f * 2600 + rng.uniform(0, 400), col, strength=0.62 if i > 2 else 0.5)
+m.accent_light("VolcanoGlow", (VOLCANO[0], VOLCANO[1] - 900, VZ1 + 500), ORANGE, 9000.0, 9000.0, source_radius=300.0)
+# distant ridges and crags: generated craggy peaks in black basalt with a faint red rim glow from the volcano
+RIDGE_SM = [kb.commit("FRidge_%d" % k, mm.mountain_mesh(rng.uniform(3200, 5200), rng.uniform(1800, 3800), seed=560 + k, sides=44, rings=13, ridge=0.6, base_z=-300.0)) for k in range(6)]
+for i in range(14):
+    ang = math.radians(i * (360.0 / 14) + 12.0 + rng.uniform(-6, 6))
+    d = rng.uniform(10500, 14500)
+    kb.put(m, "Ridge_%d" % i, RIDGE_SM[i % 6], math.cos(ang) * d, math.sin(ang) * d, -420.0, yaw=rng.uniform(0, 360), scale=(rng.uniform(0.9, 1.4), rng.uniform(0.9, 1.4), rng.uniform(0.8, 1.3)),
+           mat=BASALT_FAR, solid=False, folder="Far")
+CRAG_SM = [kb.commit("FCrag_%d" % k, mm.mountain_mesh(rng.uniform(700, 1300), rng.uniform(500, 1400), seed=600 + k, sides=32, rings=10, ridge=0.6, base_z=-200.0)) for k in range(4)]
 for i in range(12):
-    ang = math.radians(i * 30 + 12)
-    d = rng.uniform(10500, 13500)
-    px, py = math.cos(ang) * d, math.sin(ang) * d
-    kind = ["rock_red_c_l", "cliff_red_a", "rock_red_b_l"][i % 3]
-    scale = {"rock_red_c_l": 14.0, "cliff_red_a": 9.0, "rock_red_b_l": 13.0}[kind]
-    m.prop("Ridge_%d" % i, kind, px, py, -420, yaw=math.degrees(ang) + 90 + rng.uniform(-40, 40), scale=scale, material=basalt,
-           solid=False)
-for i in range(10):
-    ang = math.radians(i * 36 + 5)
+    ang = math.radians(i * 30 + 5 + rng.uniform(-8, 8))
     d = rng.uniform(5200, 7600)
-    px, py = math.cos(ang) * d, math.sin(ang) * d
-    m.prop("Crag_%d" % i, ["rock_red_c_l", "rock_red_b_l", "rock_red_a_l"][i % 3], px, py, -420, yaw=rng.uniform(0, 360),
-           scale=rng.uniform(4.0, 6.0), material=basalt, solid=False)
+    kb.put(m, "Crag_%d" % i, CRAG_SM[i % 4], math.cos(ang) * d, math.sin(ang) * d, -420.0, yaw=rng.uniform(0, 360), mat=BASALT_FAR, solid=False, folder="Far")
+# a few small ground fissures glowing in the dark plain (thin emissive lines, far away)
+for i in range(5):
+    x0, y0 = rng.uniform(-7000, 7000), rng.choice((-1, 1)) * rng.uniform(6500, 9500)
+    ang = rng.uniform(0, 180)
+    for j in range(5):
+        a = math.radians(ang + rng.uniform(-25, 25))
+        m.box("Fissure_%d_%d" % (i, j), x0 + math.cos(math.radians(ang)) * j * 500, y0 + math.sin(math.radians(ang)) * j * 500, -90, rng.uniform(380, 600), 55, 6,
+              yaw=ang + rng.uniform(-20, 20), mat=lava_m, solid=False)
+
+# ------------------------------------------------------------------------------------------------ cool daylight from the skylights, soft contact shade
+# the skylight bays let in a little cold daylight (the rest of the hall is lit by warm lamps and the lava)
+for sx_ in (-1, 1):
+    for yy in (-1400.0, 0.0, 1400.0):
+        m.accent_light("SkylightPool", (sx_ * 650.0, yy, 1380.0), (0.70, 0.82, 1.0), 120.0, 1900.0)
+# dark soft hints where light cannot reach: under the gantry ring and at the foot of the pit walls (no global illumination here)
+for k in range(4):
+    f = Frame(m, k)
+    wx, wy = f.P(0, 2330)
+    shade_n.blob(m, "UnderGantry_%d" % k, wx, wy, 2.5, 5000 if k % 2 == 0 else 4400, 520, strength=0.5, yaw=f.Y(0))
+for k, (cx, cy, sx_, sy_) in enumerate([(0, 1010, 2000, 220), (0, -1010, 2000, 220), (1010, 0, 220, 2000), (-1010, 0, 220, 2000)]):
+    shade_n.blob(m, "PitEdgeShade_%d" % k, cx, cy, 3.0, sx_, sy_, strength=0.3)
 
 # ------------------------------------------------------------------------------------------------ spawns
 m.face_center_starts(STARTS)
 m.check_starts()
+
+# the hall fog is neutral dark smoke, not an orange wall; slightly less saturated picture overall
+m.fog(rgb=(0.075, 0.068, 0.07))
+m.post(saturation=0.92)
 m.finish(kill_z=-150)
