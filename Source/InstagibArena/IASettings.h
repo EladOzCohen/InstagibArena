@@ -97,4 +97,8 @@ namespace IASettings
 
 	/** Applies the saved settings that Unreal does not apply by itself (motion blur, sound when unfocused). Called once at start. */
 	INSTAGIBARENA_API void ApplyStartupSettings();
+
+	/** Sets r.AntiAliasingMethod from the Quality setting (Low and Medium: TAA, High and Epic: TSR). The engine does not let
+	 *  Scalability.ini set that variable, so the game does it: on start and whenever the quality changes. */
+	INSTAGIBARENA_API void ApplyAntiAliasingForQuality();
 }
