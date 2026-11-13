@@ -30,6 +30,8 @@ Sky brightness is the brightness the sky has ON SCREEN (linear, mean of the uppe
 of `ev`: the dome multiplies by 1.2 * 2^ev, so a map that changes `ev` to light its floor does not change its sky.
 """
 
+import os
+
 import unreal
 
 # ---------------------------------------------------------------------------------------------------------
@@ -221,6 +223,7 @@ def _spawn_dome(builder, hdri, yaw, brightness, tint):
     _set(comp, "static_mesh", mesh)
     comp.set_material(0, mic)
     try:
+        comp.set_collision_profile_name("NoCollision")          # the profile is what survives saving (like mapkit._place)
         comp.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
     except Exception as exc:                       # noqa: BLE001
         unreal.log_warning("LOOK dome collision: %s" % exc)
@@ -278,7 +281,7 @@ def apply_look(builder, name="day_clear", **over):
             cfg["sky_rgb"] = cfg["sky_rgb_hdri"]
         # on-screen brightness -> scene value of the dome (fixed exposure: scale = 1 / (1.2 * 2^EV))
         scene = float(cfg["sky_brightness"]) * 1.2 * (2.0 ** ev)
-        cfg["sky_intensity"] = float(cfg["sky_intensity"]) * float(cfg["ambient_gain"])
+        cfg["sky_intensity"] = float(cfg["sky_intensity"]) * float(cfg["ambient_gain"]) * float(os.environ.get("IA_AMBIENT", "1"))
         if cfg["fog_rgb"] is None:
             # the fog is the colour of the horizon of the picture (a little less saturated, a little darker)
             h = hd["horizon"]

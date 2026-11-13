@@ -38,6 +38,13 @@ void UIANavGrid::Build(UWorld& World)
 	FBox Bounds(ForceInit);
 	for (TActorIterator<AStaticMeshActor> It(&World); It; ++It)
 	{
+		// Only geometry that can be stood on or shot against counts. The sky dome, far scenery and other pieces
+		// without collision would otherwise stretch the grid over a huge empty area.
+		const UStaticMeshComponent* Mesh = It->GetStaticMeshComponent();
+		if (!It->GetActorEnableCollision() || !Mesh || Mesh->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+		{
+			continue;
+		}
 		Bounds += It->GetComponentsBoundingBox();
 	}
 	if (!Bounds.IsValid)
