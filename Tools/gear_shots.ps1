@@ -29,7 +29,9 @@ $x = $s[0]; $y = $s[1]; $z = $s[2]
 # the characters face -X (yaw 180) and stand in a row along Y, 130 cm apart; the camera is in front of them
 $cam = switch ($View) {
     "front" { "{0},{1},{2},0,0" -f ($x - 420), $y, ($z + 20) }
+    "mid"   { "{0},{1},{2},0,0" -f ($x - 300), $y, ($z + 25) }
     "back"  { "{0},{1},{2},0,180" -f ($x + 420), $y, ($z + 20) }
+    "backmid" { "{0},{1},{2},0,180" -f ($x + 300), $y, ($z + 25) }
     "side"  { "{0},{1},{2},0,90" -f $x, ($y - 460), ($z + 20) }
     "q34"   { "{0},{1},{2},0,25" -f ($x - 380), ($y - 160), ($z + 30) }
     "close" { "{0},{1},{2},0,0" -f ($x - 230), $y, ($z + 15) }

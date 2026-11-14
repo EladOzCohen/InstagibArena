@@ -820,6 +820,10 @@ void AIAPlayerCharacter::UpdateLook()
 	{
 		return; // nothing to show yet, the placeholder stays
 	}
+	else if (ForcedTeam >= 0)
+	{
+		Team = (uint8)ForcedTeam;
+	}
 
 	const int32 Key = Index * 1000 + Team;
 	if (Key == AppliedLookKey)

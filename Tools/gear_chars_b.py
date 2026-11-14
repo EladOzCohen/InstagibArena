@@ -23,7 +23,7 @@ def elbow_pad(B, role=R_PLATE, size=1.0):
     P0, P1 = B.bone("upperarm_l"), B.bone("lowerarm_l")
     f = mc.frame_z(P1, B.bone("hand_l"))
     m = GM()
-    m.ellipsoid(f.pt((-3.4, 3.0, 0.5)), 4.2 * size, 3.6 * size, 5.0 * size, role, nu=10, nv=6, cut=(0.0, 0.7), f=mc.IDENT)
+    m.ellipsoid(f.pt((-3.6, 1.2, 1.5)), 4.4 * size, 4.4 * size, 5.2 * size, role, nu=10, nv=6, cut=(0.0, 0.7), f=mc.IDENT)
     return m
 
 
@@ -58,13 +58,15 @@ def marlowe(B):
             k.add("spine_05", pouch((x - 0.8, sgn * (3.2 + 6.0 * j), 125.0), (3.0, 5.0, 7.0), R_CLOTH, R_TRIM))
     # rucksack with a bedroll
     bx = back_x(B, 132.0)
-    k.add("spine_05", gp.box_at((bx - 6.0, 0.0, 132.0), (13.0, 24.0, 30.0), R_CLOTH, ch=2.0, taper=0.9))
-    k.add("spine_05", gp.box_at((bx - 8.5, 0.0, 124.0), (8.0, 20.0, 10.0), R_PLATE, ch=1.2))
+    k.add("spine_05", gp.box_at((bx - 7.0, 0.0, 131.0), (15.0, 26.0, 34.0), R_CLOTH, ch=2.2, taper=0.92))
+    k.add("spine_05", gp.box_at((bx - 8.0, 0.0, 149.0), (15.5, 26.5, 5.0), R_PLATE, ch=1.4))
+    k.add("spine_05", gp.box_at((bx - 10.0, 0.0, 123.0), (8.0, 20.0, 11.0), R_PLATE, ch=1.2))
+    k.add("spine_05", gp.cyl((bx - 6.0, -17.5, 122.0), (bx - 6.0, -17.5, 136.0), 3.6, R_TRIM, sides=10))
     k.add("spine_05", gp.cyl((bx - 6.0, -13.5, 150.0), (bx - 6.0, 13.5, 150.0), 5.2, R_ACCENT, sides=12))
     for s in (-1, 1):
         k.add("spine_05", gp.box_at((bx - 5.0, s * 14.0, 128.0), (7.0, 4.5, 14.0), R_TRIM, ch=0.9))
         k.add("spine_05", gp.cyl((bx - 6.0, s * 5.0, 143.0), (bx - 6.0, s * 5.0, 156.0), 1.2, R_ACCENT, sides=6)) if False else None
-    k.pair("upperarm", gp.pauldron(B, big=0.7, layers=1, dome=False, lame_role=R_PLATE, thick=0.9) if False else elbow_free(B))
+    k.pair("upperarm", gp.pauldron(B, big=0.78, layers=1, lame_role=R_PLATE, top_role=R_PLATE, thick=0.9, alpha=50))
     k.pair("lowerarm", gp.merge(elbow_pad(B), gp.ring_at(B.bone("lowerarm_l"), B.bone("hand_l"), 20.5, 4.6, 3.0, R_CLOTH, thick=1.0)))
     k.add("pelvis", belt(B, role=R_CLOTH, buckle=R_ACCENT, buckle_w=5.0))
     cx = B.torso(98)[0]
@@ -83,7 +85,7 @@ def elbow_free(B):
 def nyx(B):
     k = Kit(B)
     zc = B.head_c[2]
-    hd, H = gp.hood(B, role=R_CLOTH, margin=2.8, open_deg=50.0, back=0.4, rim=R_ACCENT)
+    hd, H = gp.hood(B, role=R_CLOTH, margin=2.5, open_deg=50.0, back=0.45, rim=R_ACCENT, z_bot=zc - 8.5, jaw=0.86)
     k.add("head", hd)
     fx = B.head_c[0] + B.head_rx - 0.2
     for s in (-1, 1):
@@ -92,8 +94,8 @@ def nyx(B):
     # mantle over the shoulders
     cx = B.torso(150)[0] - 1.2
     m = GM()
-    m.lathe([(21.5, 140.5), (17.0, 146.0), (12.0, 150.0), (8.2, 152.6)], R_CLOTH, sides=26, f=fr((cx, 0, 0)), sy=1.28, caps=(False, False))
-    m.lathe([(22.4, 138.6), (21.5, 140.5)], R_ACCENT, sides=26, f=fr((cx, 0, 0)), sy=1.28, caps=(False, False))
+    m.lathe([(21.5, 140.5), (17.0, 146.0), (12.0, 150.0), (8.2, 152.6)], R_CLOTH, sides=26, f=fr((cx, 0, 0)), sy=1.28, caps=(False, False), double=True)
+    m.lathe([(22.4, 138.6), (21.5, 140.5)], R_ACCENT, sides=26, f=fr((cx, 0, 0)), sy=1.28, caps=(False, False), double=True)
     k.add("spine_05", m)
     # cape with a torn hem and a team coloured stripe
     bx = back_x(B, 146.0, 1.8)
@@ -151,15 +153,15 @@ def oddjob(B):
 def ruff(cx):
     m = GM()
     # flared collar: bottom to top so that the outside faces out and up
-    m.lathe([(15.5, 144.0), (8.0, 148.5)], R_LIGHT, sides=44, f=fr((cx, 0, 0)), sy=1.15, caps=(False, False), rfn=lambda th, t: 1.0 + 0.12 * (1.0 - t) * COS(16 * th))
-    m.lathe([(13.0, 142.5), (15.5, 144.0)], R_ACCENT, sides=44, f=fr((cx, 0, 0)), sy=1.15, caps=(False, False), rfn=lambda th, t: 1.0 + 0.1 * COS(16 * th))
+    m.lathe([(15.5, 144.0), (8.0, 148.5)], R_LIGHT, sides=44, f=fr((cx, 0, 0)), sy=1.15, caps=(False, False), rfn=lambda th, t: 1.0 + 0.12 * (1.0 - t) * COS(16 * th), double=True)
+    m.lathe([(13.0, 142.5), (15.5, 144.0)], R_ACCENT, sides=44, f=fr((cx, 0, 0)), sy=1.15, caps=(False, False), rfn=lambda th, t: 1.0 + 0.1 * COS(16 * th), double=True)
     return m
 
 
 # ------------------------------------------------------------------------------------------------ 8 Sable
 def sable(B):
     k = Kit(B)
-    H = gp.Helm(B, 2.0, z_bot=B.head_c[2] - 10.5, jaw=0.98)
+    H = gp.Helm(B, 1.8, z_bot=B.head_c[2] - 9.5, jaw=0.78)
     zc = B.head_c[2]
     k.add("head", H.shell(R_CLOTH, sides=16, caps=(False, True)))
     # eye slit and headband with trailing tails

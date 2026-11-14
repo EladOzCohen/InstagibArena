@@ -47,7 +47,7 @@ public:
 	float DevAimPitch = -1000.f;
 
 	/** Shows a roster look without any player state. Used by the developer showroom. */
-	void SetForcedLook(int32 CharacterIndex) { ForcedLook = CharacterIndex; }
+	void SetForcedLook(int32 CharacterIndex, int32 Team = -1) { ForcedLook = CharacterIndex; ForcedTeam = Team; }
 
 	/** True for the pawn a human on this machine is controlling (not bots, not other players). */
 	bool IsLocalHuman() const { return IsLocallyControlled() && Cast<APlayerController>(GetController()) != nullptr; }
@@ -183,6 +183,7 @@ private:
 	TArray<TObjectPtr<UStaticMeshComponent>> Accessories;
 
 	int32 ForcedLook = -1;
+	int32 ForcedTeam = -1;   // developer showroom: shows the team colours too
 	int32 AppliedLookKey = INT32_MIN;
 	FLinearColor GetBodyColor() const;
 

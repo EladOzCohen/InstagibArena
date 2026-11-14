@@ -370,7 +370,7 @@ def pleat_band(P0, P1, s, r, h, role, pleats=12, depth=0.16, sides=36, sy=1.0, f
     """A frilled cuff around the axis P0 -> P1 (wrists, ankles)."""
     f = mc.frame_z(P0, P1)
     m = GM()
-    m.lathe([(r, s), (r + flare, s + h)], role, sides=sides, f=f, sy=sy, caps=(False, False), rfn=lambda th, t: 1.0 + depth * COS(pleats * th))
+    m.lathe([(r, s), (r + flare, s + h)], role, sides=sides, f=f, sy=sy, caps=(False, False), rfn=lambda th, t: 1.0 + depth * COS(pleats * th), double=True)
     return m
 
 
@@ -380,9 +380,9 @@ def diamond(B, z0, z1, span, off_, thick, role, **kw):
                        nu=kw.get("nu", 9), nv=kw.get("nv", 7), w=kw.get("w", 0.12), lo=kw.get("lo", 0.4))
 
 
-def hood(B, role=R_CLOTH, margin=2.8, open_deg=52.0, back=0.35, z_bot=None, rim=None):
+def hood(B, role=R_CLOTH, margin=2.8, open_deg=52.0, back=0.35, z_bot=None, rim=None, jaw=1.02):
     """A cloth hood: a shell around the head open at the face, longer and pointed at the back."""
-    H = Helm(B, margin, z_bot=(B.head_c[2] - 11.0) if z_bot is None else z_bot, jaw=1.02, cx_shift=-1.2)
+    H = Helm(B, margin, z_bot=(B.head_c[2] - 11.0) if z_bot is None else z_bot, jaw=jaw, cx_shift=-1.2)
     m = GM()
     m.append(H.shell(role, sides=14, arc=(open_deg, 360.0 - open_deg), rfn=lambda th, t: 1.0 + back * max(0.0, -COS(th)) ** 2 * (t ** 1.2)))
     if rim is not None:
@@ -397,7 +397,8 @@ def hood(B, role=R_CLOTH, margin=2.8, open_deg=52.0, back=0.35, z_bot=None, rim=
 def pleated_ring(c, r0, r1, z0, z1, role, pleats=14, depth=0.14, sides=40, sy=1.0):
     """A ruff / frilled skirt: a flared lathe with sinusoidal pleats."""
     m = GM()
-    m.lathe([(r0, z0), (r1, z1)], role, sides=sides, f=fr(c), sy=sy, caps=(False, False), rfn=lambda th, t: 1.0 + depth * (0.4 + 0.6 * t) * COS(pleats * th))
+    m.lathe([(r1, z1), (r0, z0)] if z1 < z0 else [(r0, z0), (r1, z1)], role, sides=sides, f=fr(c), sy=sy, caps=(False, False),
+            rfn=lambda th, t: 1.0 + depth * (0.4 + 0.6 * t) * COS(pleats * th), double=True)
     return m
 
 

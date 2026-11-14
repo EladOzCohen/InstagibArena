@@ -68,6 +68,8 @@
 	{ TEXT("lowerarm_r"), TEXT("/Game/Characters/Gear/SM_Marlowe_lowerarm_r.SM_Marlowe_lowerarm_r") },
 	{ TEXT("pelvis"), TEXT("/Game/Characters/Gear/SM_Marlowe_pelvis.SM_Marlowe_pelvis") },
 	{ TEXT("spine_05"), TEXT("/Game/Characters/Gear/SM_Marlowe_spine_05.SM_Marlowe_spine_05") },
+	{ TEXT("upperarm_l"), TEXT("/Game/Characters/Gear/SM_Marlowe_upperarm_l.SM_Marlowe_upperarm_l") },
+	{ TEXT("upperarm_r"), TEXT("/Game/Characters/Gear/SM_Marlowe_upperarm_r.SM_Marlowe_upperarm_r") },
 },
 { // 6 Nyx
 	{ TEXT("calf_l"), TEXT("/Game/Characters/Gear/SM_Nyx_calf_l.SM_Nyx_calf_l") },

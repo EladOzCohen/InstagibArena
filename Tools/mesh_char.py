@@ -286,11 +286,13 @@ class GM:
 
     # ---- solids of revolution about the local z axis of the frame f
     def lathe(self, profile, role, sides=18, f=IDENT, sy=1.0, creases=(), caps=(True, True), smooth=True, ao=1.0, rot=0.0, arc=None,
-              rfn=None, flip=False):
+              rfn=None, flip=False, double=False):
         """Solid of revolution about the local z axis of f. profile = [(radius, z), ...] travelled so that the OUTSIDE is on the
         right in the (r right, z up) plane (a plain bottom -> top outline is right; a closed band goes inner-bottom, outer-bottom,
         outer-top, inner-top, inner-bottom). sy stretches y. creases = profile indices where the shading breaks. arc=(a0, a1) degrees
         builds an open slice. rfn(theta, t) -> radius multiplier (t = 0..1 along the profile): pleats, lumps, wavy rims."""
+        if double:       # thin cones (collars, skirts, cuffs) must be visible from both sides
+            self.lathe(profile, role, sides, f, sy, creases, caps, smooth, ao, rot, arc, rfn, not flip, False)
         n_prof = len(profile)
         runs, start = [], 0
         for k in sorted(creases):

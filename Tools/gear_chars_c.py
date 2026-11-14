@@ -70,7 +70,7 @@ def aurelia(B):
     k.pair("lowerarm", gp.bracer(B, flare=1.1, accent=R_ACCENT, thick=0.9, s0=2, s1=24, arc=(0, 360)))
     # belt and the strips of the skirt
     k.add("pelvis", belt(B, role=R_PLATE, buckle=R_ACCENT, buckle_w=6.0, thick=1.3))
-    k.add("pelvis", ring_strips(B, 97.0, 18, 20.0, R_TEAM, flare=0.28, bands=[(0.0, 1.0, R_PLATE, 0.9, 1.0)]))
+    k.add("pelvis", ring_strips(B, 97.0, 16, 20.0, R_TEAM, flare=0.28, nv=3, bands=[(0.0, 1.0, R_PLATE, 0.88, 1.0)]))
     k.pair("calf", gp.greave(B, accent=R_ACCENT, thick=1.1, s1=36.0, arc=(-98, 98)))
     return k
 
@@ -145,19 +145,22 @@ def mosscap(B):
     cap.lathe([(R * 0.99, zr - 1.5), (R * 0.2, zr - 4.5), (R * 0.2, zr - 0.6), (R * 0.97, zr - 1.5)][:2] + [(R * 0.2, zr - 2.8)], R_LIGHT, sides=26, f=fr((cx, 0.0, 0.0)), caps=(False, False),
               rfn=wav, flip=True) if False else None
     cap.lathe([(R * 0.2, zr - 3.6), (R * 0.99, zr - 1.4)], R_LIGHT, sides=26, f=fr((cx, 0.0, 0.0)), caps=(False, False), rfn=wav, flip=True)
-    for i, (r_, a_, s_) in enumerate(((0.45, 20, 4.0), (0.62, 80, 3.2), (0.5, 150, 4.2), (0.7, 200, 3.0), (0.4, 260, 3.4), (0.72, 320, 3.8), (0.12, 40, 3.2))):
+    def dome_z(rr):
+        for (r0, z0), (r1, z1) in zip(prof[:-1], prof[1:]):
+            if r1 <= rr <= r0:
+                return z0 + (z1 - z0) * (r0 - rr) / (r0 - r1)
+        return zr + 18.0
+    for i, (r_, a_, s_) in enumerate(((0.45, 20, 4.2), (0.62, 80, 3.4), (0.5, 150, 4.4), (0.72, 200, 3.2), (0.4, 260, 3.6), (0.7, 320, 4.0), (0.12, 40, 3.4))):
         rr_ = R * r_
         th = rad(a_)
-        # height of the dome at that radius
-        z = zr + (18.0 - 18.0 * (rr_ / R) ** 1.55) + 0.3
-        cap.ellipsoid((cx + rr_ * COS(th), rr_ * SIN(th), z), s_, s_, 1.1, R_LIGHT, nu=8, nv=4, cut=(0.0, 0.5))
+        cap.ellipsoid((cx + rr_ * COS(th), rr_ * SIN(th), dome_z(rr_) - 0.3), s_, s_, 1.6, R_LIGHT, nu=8, nv=4, cut=(0.0, 0.5))
     k.add("head", cap)
     # shelf fungi on the back
     bx = back_x(B, 134.0)
-    for (y, z, r_) in ((-6.0, 142.0, 11.0), (7.0, 131.0, 12.5), (-4.0, 120.0, 9.5)):
+    for (y, z, r_) in ((-6.0, 142.0, 12.5), (7.0, 130.0, 14.0), (-4.0, 118.0, 11.0)):
         sh = GM()
-        sh.lathe([(r_, 0.0), (r_ * 0.9, 2.4), (r_ * 0.45, 3.6), (0.0, 3.9)], R_TEAM, sides=10, f=fr((bx + 2.0, y, z), pitch=0), caps=(False, False), arc=(100.0, 260.0))
-        sh.lathe([(0.0, -0.4), (r_ * 0.95, 0.0)], R_LIGHT, sides=10, f=fr((bx + 2.0, y, z)), caps=(False, False), arc=(100.0, 260.0), flip=True)
+        sh.lathe([(r_, 0.0), (r_ * 0.92, 3.4), (r_ * 0.5, 5.6), (0.0, 6.2)], R_TEAM, sides=10, f=fr((bx + 1.0, y, z), pitch=0), caps=(False, False), arc=(90.0, 270.0))
+        sh.lathe([(0.0, -0.6), (r_ * 0.97, 0.0)], R_LIGHT, sides=10, f=fr((bx + 1.0, y, z)), caps=(False, False), arc=(90.0, 270.0), flip=True)
         k.add("spine_05", sh)
     # moss pads on the shoulders, leaves on chest and hips
     J = B.bone("upperarm_l")

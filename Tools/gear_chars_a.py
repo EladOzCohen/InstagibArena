@@ -38,6 +38,8 @@ def bulwark(B):
     z0, z1, span = 118.0, 150.0, 68.0
     k.add("spine_05", gp.cuirass(B, off_=1.9, thick=2.1, span=span, bulge=2.6, vneck=7, z0=z0, z1=z1))
     k.add("spine_05", gp.torso_plate(B, 132.5, 137.0, -52, 52, 1.9 + 1.9, 1.0, R_TEAM, bulge=gp.pec_bulge(2.6, z0, z1, span), nu=11, nv=2, w=0.3))
+    for j, z in enumerate((103.0, 109.0, 115.0)):
+        k.add("pelvis" if j == 0 else "spine_05", gp.torso_plate(B, z, z + 5.2, -34 + j * 3, 34 - j * 3, 1.4, 1.3, R_PLATE, nu=7, nv=2, w=0.3))
     bx = back_x(B, 132)
     k.add("spine_05", gp.box_at((bx - 5.0, 0, 132), (11, 25, 29), R_PLATE, ch=1.4))
     for s in (-1, 1):
@@ -67,7 +69,7 @@ def vesper(B):
     k.add("head", gp.horn(p0, (H.cx - 7.0, 9.8, zc + 24.0), (H.cx - 17.0, 11.5, zc + 41.0), 0.75, R_ACCENT, n=8, sides=5, taper=0.25))
     k.add("head", gp.ball((H.cx - 17.0, 11.5, zc + 41.0), 1.1, R_GLOW, nu=6, nv=4))
     z0, z1, span = 120.0, 148.0, 48.0
-    k.add("spine_05", gp.cuirass(B, off_=1.1, thick=1.2, span=span, bulge=1.1, vneck=13.0, z0=z0, z1=z1, panel=False, back=True))
+    k.add("spine_05", gp.cuirass(B, role=R_TRIM, trim=R_ACCENT, off_=1.1, thick=1.2, span=span, bulge=1.1, vneck=13.0, z0=z0, z1=z1, panel=True, back=True))
     k.add("spine_05", gp.torso_plate(B, 123.0, 143.0, -4.5, 4.5, 1.1 + 1.0, 0.8, R_TEAM, bulge=gp.pec_bulge(1.1, z0, z1, span), nu=3, nv=5, w=0.3))
     k.add("spine_05", gp.collar_ring(B, z=149.5, r=6.8, h=3.0, thick=1.0))
     bx = back_x(B, 136)
@@ -95,35 +97,34 @@ def vesper(B):
 # ------------------------------------------------------------------------------------------------ 2 Khet
 def khet(B):
     k = Kit(B)
-    H = gp.Helm(B, 2.2, z_bot=B.head_c[2] - 3.0, jaw=1.0, cx_shift=-1.2)
     zc = B.head_c[2]
-    # striped nemes: the dome in 8 wedges of alternating colours, the sides below the brow only at the back
+    H = gp.Helm(B, 2.3, z_bot=zc - 7.5, jaw=0.97, cx_shift=-1.2)
+    # striped nemes: gold and team coloured wedges; the front sector (the face) only covers the forehead
     roles = [R_ACCENT, R_TEAM]
-    zb = zc + 5.5
-    for i in range(8):
-        a0, a1 = i * 45.0, (i + 1) * 45.0
-        k.add("head", H.shell(roles[i % 2], sides=3, z_bot=zb, arc=(a0, a1)))
-    # lower cloth of the headdress: back and sides (open at the face)
-    lo = GM()
-    lo.lathe([(H.r(zc - 3.0), zc - 3.0), (H.r(zc + 1.0), zc + 1.0), (H.r(zb), zb)], R_PLATE, sides=14, f=fr((H.cx, 0, 0)), sy=H.sy,
-             caps=(False, False), arc=(72.0, 288.0))
-    k.add("head", lo)
-    k.add("head", band_head(H, zc + 5.7, 1.8, R_ACCENT))
-    k.add("head", gp.horn((H.front(zc + 8) + 0.2, 0, zc + 7.5), (H.front(zc + 8) + 3.0, 0, zc + 11.5), (H.front(zc + 8) + 1.0, 0, zc + 15.5), 1.3, R_ACCENT, n=6, sides=6))
-    k.add("head", gp.box_at((H.front(zc - 9) - 0.5, 0, zc - 11.5), (3.0, 3.4, 8.0), R_ACCENT, ch=0.7, pitch=-8, taper=0.6))
-    # lappets hanging in front of the shoulders
+    zb = zc + 6.0
+    for i in range(3):
+        k.add("head", H.shell(roles[i % 2], sides=3, z_bot=zb, arc=(-62.0 + i * 41.3, -62.0 + (i + 1) * 41.3), caps=(False, False)))
+    for i in range(6):
+        k.add("head", H.shell(roles[i % 2], sides=3, z_bot=zc - 7.5, arc=(62.0 + i * 39.3, 62.0 + (i + 1) * 39.3)))
+    k.add("head", band_head(H, zb - 0.2, 1.8, R_ACCENT, off=0.3))
+    k.add("head", gp.horn((H.front(zc + 9) + 0.2, 0, zc + 8.5), (H.front(zc + 9) + 3.5, 0, zc + 12.5), (H.front(zc + 9) + 1.0, 0, zc + 17.0), 1.4, R_ACCENT, n=6, sides=6))
+    k.add("head", gp.box_at((H.front(zc - 9) - 0.2, 0, zc - 12.0), (3.0, 3.6, 9.0), R_ACCENT, ch=0.7, pitch=-8, taper=0.6))
+    # the nemes tail down the back and the two lappets in front of the shoulders, banded in gold and team colour
+    bands = [(0.0, 1.0, R_TEAM, 0.18, 0.3), (0.0, 1.0, R_TEAM, 0.46, 0.58), (0.0, 1.0, R_TEAM, 0.74, 0.86)]
+    k.add("head", gp.hang((H.cx - H.rx * 0.88, -4.2, zc - 4.0), (H.cx - H.rx * 0.88, 4.2, zc - 4.0), (-0.14, 0.0, -1.0), 30.0, R_ACCENT, out=(-1, 0, 0), taper=0.85, bulge=1.0,
+                          nu=3, nv=7, thick=0.7, stripes=bands, inside=(H.cx, 0, zc - 10.0)))
     for sgn in (-1, 1):
-        for j, role in enumerate((R_ACCENT, R_TEAM, R_ACCENT)):
-            a = (H.cx + 3.5 + j * 0.2, sgn * (H.side(zc) + 0.8 + j * 1.9), zc - 2.0)
-            b = (H.cx + 3.5 + j * 0.2, sgn * (H.side(zc) + 2.6 + j * 1.9), zc - 2.0)
-            k.add("head", gp.hang(a, b, (0.18, sgn * 0.12, -1.0), 24.0 - j * 0.0, role, out=(1, 0, 0), taper=0.9, nu=2, nv=5, thick=0.6))
-    # broad collar: bands of gold, team colour and teal
-    bands = [(7.5, 11.0, R_ACCENT), (11.0, 14.0, R_TEAM), (14.0, 17.0, R_ACCENT), (17.0, 19.6, R_PLATE), (19.6, 22.0, R_ACCENT)]
-    for (r0, r1, role) in bands:
-        z0_ = 152.0 - (r0 - 7.5) * 0.45
-        z1_ = 152.0 - (r1 - 7.5) * 0.45 - 0.6
+        a = (H.cx + 2.0, sgn * (H.side(zc - 3.0) + 0.6), zc - 3.0)
+        b = (H.cx + 2.0, sgn * (H.side(zc - 3.0) + 6.0), zc - 3.0)
+        k.add("head", gp.hang(a, b, (0.24, sgn * 0.16, -1.0), 24.0, R_ACCENT, out=(1, 0, 0), taper=0.9, bulge=0.6, nu=3, nv=7, thick=0.7, stripes=bands,
+                              inside=(H.cx - 4.0, 0, zc - 12.0)))
+    # broad collar: bands of gold, team colour and teal, draped over the chest and shoulders (profile runs from the low outer edge up to the neck)
+    cbands = [(7.5, 11.0, R_ACCENT), (11.0, 14.0, R_TEAM), (14.0, 17.0, R_ACCENT), (17.0, 19.6, R_PLATE), (19.6, 22.0, R_ACCENT)]
+    for (r0, r1, role) in cbands:
+        z0_ = 153.0 - (r0 - 7.5) * 0.62
+        z1_ = 153.0 - (r1 - 7.5) * 0.62 - 0.4
         m = GM()
-        m.lathe([(r0 + 0.0, z0_), (r1, z1_)], role, sides=26, f=fr((B.torso(150)[0] - 1.2, 0, 0)), sy=1.3, caps=(False, False))
+        m.lathe([(r1, z1_), (r0, z0_)], role, sides=26, f=fr((B.torso(150)[0] - 1.2, 0, 0)), sy=1.3, caps=(False, False), double=True)
         k.add("spine_05", m)
     k.pair("upperarm", ring_pair(B, "upperarm_l", "lowerarm_l", 9.0, 7.4, 3.2, R_ACCENT, 2))
     k.pair("lowerarm", gp.bracer(B, flare=1.12, role=R_ACCENT, trim_role=R_TEAM, thick=1.0, s0=2, s1=24, arc=(0, 360), rings=True))
@@ -235,13 +236,13 @@ def cinder(B):
     k.add("head", gp.cyl((H.cx - 1.5, 0, zc - 11.0), (H.cx - 1.5, 0, zc - 2.0), 4.6, R_TRIM, sides=10))
     # chest block with a round reactor housing
     xf = front_x(B, 133.0, 0.5)
-    k.add("spine_05", gp.box_at((xf + 3.0, 0, 134.5), (10.0, 31.0, 25.0), R_PLATE, ch=2.0))
-    g2 = fr((xf + 8.1, 0, 135.0), pitch=-90)
+    k.add("spine_05", gp.box_at((xf + 1.0, 0, 134.5), (10.0, 31.0, 25.0), R_PLATE, ch=2.0))
+    g2 = fr((xf + 6.1, 0, 135.0), pitch=-90)
     c = GM()
     c.lathe([(0.0, 0.0), (7.0, 0.0), (7.0, 1.8), (5.6, 2.4), (5.2, 2.4)], R_TRIM, sides=16, f=g2, creases=(2,), caps=(False, False))
     c.lathe([(0.0, 2.3), (4.6, 2.3), (3.6, 3.0), (0.0, 3.3)], R_GLOW, sides=16, f=g2, caps=(False, False))
     k.add("spine_05", c)
-    k.add("spine_05", gp.box_at((xf + 3.0, 0, 120.5), (8.5, 28.0, 4.0), R_ACCENT, ch=1.0))
+    k.add("spine_05", gp.box_at((xf + 1.0, 0, 120.5), (8.5, 28.0, 4.0), R_ACCENT, ch=1.0))
     k.add("spine_05", gp.box_at((back_x(B, 132, 0) - 4.0, 0, 134.0), (8.0, 28.0, 26.0), R_PLATE, ch=1.8))
     for s in (-1, 1):
         x = back_x(B, 130, 8.5)
