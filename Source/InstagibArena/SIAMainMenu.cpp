@@ -39,6 +39,7 @@ void SIAMainMenu::Construct(const FArguments& InArgs)
 {
 	Owner = InArgs._OwnerController;
 	OnCharacterChanged = InArgs._OnCharacterChanged;
+	OnPageChanged = InArgs._OnPageChanged;
 
 	Setup.Load();
 	JoinAddress = IASettings::GetJoinAddress();
@@ -63,6 +64,31 @@ void SIAMainMenu::Construct(const FArguments& InArgs)
 		.DPIScale_Lambda([]() { return IASettings::GetUiScale(); })
 		[
 			SNew(SOverlay)
+			// Darkens the top and bottom edge of the picture a little, so that the eye stays in the middle.
+			+ SOverlay::Slot()
+			[
+				Gradient(Orient_Vertical, {
+					TPair<float, FLinearColor>(0.00f, FLinearColor(0.f, 0.f, 0.f, 0.42f)),
+					TPair<float, FLinearColor>(0.22f, FLinearColor(0.f, 0.f, 0.f, 0.f)),
+					TPair<float, FLinearColor>(0.80f, FLinearColor(0.f, 0.f, 0.f, 0.f)),
+					TPair<float, FLinearColor>(1.00f, FLinearColor(0.f, 0.f, 0.f, 0.38f)) })
+			]
+			// The panel fades out into the picture instead of ending in a hard edge.
+			+ SOverlay::Slot().HAlign(HAlign_Left)
+			[
+				SNew(SBox)
+				.Padding_Lambda([this]() { return FMargin(PageWidth() - 1.f, 0.f, 0.f, 0.f); })
+				[
+					SNew(SBox)
+					.WidthOverride(240.f)
+					[
+						Gradient(Orient_Horizontal, {
+							TPair<float, FLinearColor>(0.00f, PanelColor),
+							TPair<float, FLinearColor>(0.35f, FLinearColor(PanelColor.R, PanelColor.G, PanelColor.B, PanelColor.A * 0.45f)),
+							TPair<float, FLinearColor>(1.00f, FLinearColor(PanelColor.R, PanelColor.G, PanelColor.B, 0.f)) })
+					]
+				]
+			]
 			+ SOverlay::Slot().HAlign(HAlign_Left)
 			[
 				SNew(SBox)
@@ -80,10 +106,19 @@ void SIAMainMenu::Construct(const FArguments& InArgs)
 						]
 						+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 10.f, 0.f, 0.f)
 						[
+							SNew(SBox).HeightOverride(1.f)
+							[
+								SNew(SBorder)
+								.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+								.BorderBackgroundColor(FLinearColor(1.f, 1.f, 1.f, 0.07f))
+							]
+						]
+						+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 8.f, 0.f, 0.f)
+						[
 							SNew(STextBlock)
 							.Text(FText::FromString(FString::Printf(TEXT("v%s    github.com/EladOzCohen/InstagibArena"), IASettings::GameVersion)))
 							.Font(Font(12))
-							.ColorAndOpacity(TextDim)
+							.ColorAndOpacity(FLinearColor(TextDim.R, TextDim.G, TextDim.B, 0.85f))
 						]
 					]
 				]
@@ -95,6 +130,10 @@ void SIAMainMenu::Construct(const FArguments& InArgs)
 
 	PageHost->SetContent(BuildPage(Page));
 
+	if (OnPageChanged)
+	{
+		OnPageChanged(static_cast<int32>(Page));
+	}
 	if (OnCharacterChanged)
 	{
 		OnCharacterChanged(Setup.CharacterIndex);
@@ -149,6 +188,10 @@ void SIAMainMenu::GoTo(EPage NewPage)
 	Page = NewPage;
 	PageTime = 0.f;
 	PageHost->SetContent(BuildPage(NewPage));
+	if (OnPageChanged)
+	{
+		OnPageChanged(static_cast<int32>(NewPage));
+	}
 	// The first Tick after this puts the keyboard focus on the first button of the new screen.
 	FSlateApplication::Get().SetKeyboardFocus(SharedThis(this), EFocusCause::SetDirectly);
 }
@@ -160,6 +203,10 @@ void SIAMainMenu::ShowPageForTest(int32 PageIndex, int32 Tab)
 	SettingsTab = FMath::Clamp(Tab, 0, 3);
 	PageTime = 1.f;
 	PageHost->SetContent(BuildPage(Page));
+	if (OnPageChanged)
+	{
+		OnPageChanged(static_cast<int32>(Page));
+	}
 }
 
 void SIAMainMenu::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -292,17 +339,61 @@ TSharedRef<SWidget> SIAMainMenu::BuildMainPage()
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight()
 			[
-				SNew(STextBlock)
-				.Text(INVTEXT("INSTAGIB ARENA"))
-				.Font(Font(46, true))
-				.ColorAndOpacity(Accent)
+				// The logo: white and orange, spaced out, with a soft shadow so that it reads over any picture.
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(INVTEXT("INSTAGIB"))
+					.Font(SpacedFont(46, true, 60))
+					.ShadowOffset(FVector2D(0.f, 3.f))
+					.ShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.55f))
+					.ColorAndOpacity(FLinearColor(0.96f, 0.97f, 1.f))
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(16.f, 0.f, 0.f, 0.f)
+				[
+					SNew(STextBlock)
+					.Text(INVTEXT("ARENA"))
+					.Font(SpacedFont(46, true, 60))
+					.ShadowOffset(FVector2D(0.f, 3.f))
+					.ShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.55f))
+					.ColorAndOpacity(Accent)
+				]
 			]
-			+ SVerticalBox::Slot().AutoHeight().Padding(4.f, 0.f, 0.f, 22.f)
+			+ SVerticalBox::Slot().AutoHeight().Padding(4.f, 8.f, 0.f, 0.f)
+			[
+				// A bright bar that thins out into a faint line.
+				SNew(SBox).HeightOverride(4.f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(SBox).WidthOverride(72.f)
+						[
+							SNew(SBorder)
+							.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+							.BorderBackgroundColor(Accent)
+						]
+					]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+					[
+						SNew(SBox).WidthOverride(300.f).HeightOverride(2.f)
+						[
+							Gradient(Orient_Horizontal, {
+								TPair<float, FLinearColor>(0.f, FLinearColor(1.f, 0.42f, 0.f, 0.7f)),
+								TPair<float, FLinearColor>(1.f, FLinearColor(1.f, 0.42f, 0.f, 0.f)) })
+						]
+					]
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(4.f, 10.f, 0.f, 22.f)
 			[
 				SNew(STextBlock)
 				.Text(INVTEXT("One shot. One kill."))
-				.Font(Font(18))
-				.ColorAndOpacity(TextDim)
+				.Font(SpacedFont(18, false, 70))
+				.ShadowOffset(FVector2D(0.f, 1.f))
+				.ShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.6f))
+				.ColorAndOpacity(FLinearColor(0.74f, 0.76f, 0.82f))
 			]
 			+ SVerticalBox::Slot().AutoHeight()
 			[
@@ -646,7 +737,8 @@ TSharedRef<SWidget> SIAMainMenu::BuildCharacterPage()
 	TSharedRef<SUniformGridPanel> Grid = SNew(SUniformGridPanel).SlotPadding(FMargin(3.f));
 	for (int32 Index = 0; Index < IACharacters::LookCount; ++Index)
 	{
-		Grid->AddSlot(Index % 5, Index / 5)
+		// Four per row: with five the longer names (Razorclaw, Gearhead, Brimstone) were cut off.
+		Grid->AddSlot(Index % 4, Index / 4)
 		[
 			Chip(Owner, FText::FromString(IACharacters::GetLook(Index).Name), [this, Index]() { SelectCharacter(Index); },
 				[this, Index]() { return Setup.CharacterIndex == Index; }, 0.f, 14)

@@ -11,6 +11,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -39,6 +40,32 @@ void AIAMenuPlayerController::BeginPlay()
 		break;
 	}
 
+	// The view comes from a copy of the level's camera that can move (the placed camera is static): a slow drift on
+	// the main screens and a move to a close-up on the Character screen.
+	if (MenuCamera)
+	{
+		BaseCameraLocation = MenuCamera->GetActorLocation();
+		BaseCameraRotation = MenuCamera->GetActorRotation();
+		BaseCameraFov = MenuCamera->GetCameraComponent() ? MenuCamera->GetCameraComponent()->FieldOfView : 90.f;
+
+		FActorSpawnParameters CameraParams;
+		CameraParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		MenuCameraActor = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), BaseCameraLocation, BaseCameraRotation, CameraParams);
+		if (MenuCameraActor)
+		{
+			if (USceneComponent* Root = MenuCameraActor->GetRootComponent())
+			{
+				Root->SetMobility(EComponentMobility::Movable);
+			}
+			if (UCameraComponent* Component = MenuCameraActor->GetCameraComponent())
+			{
+				Component->SetFieldOfView(BaseCameraFov);
+				Component->bConstrainAspectRatio = false;
+			}
+			SetViewTarget(MenuCameraActor);
+		}
+	}
+
 	UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
 	if (!Viewport)
 	{
@@ -62,7 +89,8 @@ void AIAMenuPlayerController::BeginPlay()
 	Menu = SNew(SIAMainMenu)
 		.OwnerController(this)
 		.InitialError(InitialError)
-		.OnCharacterChanged([this](int32 CharacterIndex) { ShowPreviewCharacter(CharacterIndex); });
+		.OnCharacterChanged([this](int32 CharacterIndex) { ShowPreviewCharacter(CharacterIndex); })
+		.OnPageChanged([this](int32 PageIndex) { OnMenuPageChanged(PageIndex); });
 	Viewport->AddViewportWidgetContent(Menu.ToSharedRef(), 10);
 
 #if !UE_BUILD_SHIPPING
@@ -147,6 +175,65 @@ void AIAMenuPlayerController::Tick(float DeltaSeconds)
 		const float Time = GetWorld()->GetTimeSeconds();
 		Preview->SetActorLocationAndRotation(PreviewLocation, FRotator(0.f, PreviewBaseYaw + FMath::Sin(Time * 0.7f) * 32.f, 0.f));
 	}
+
+	UpdateMenuCamera(DeltaSeconds);
+}
+
+void AIAMenuPlayerController::OnMenuPageChanged(int32 PageIndex)
+{
+	// The Character screen (3) gets the close-up. The drift stays quiet for a moment while the camera moves.
+	CloseUpTarget = (PageIndex == 3) ? 1.f : 0.f;
+	DriftHold = 0.4f;
+}
+
+void AIAMenuPlayerController::UpdateMenuCamera(float DeltaSeconds)
+{
+	ACameraActor* Camera = MenuCameraActor;
+	if (!Camera)
+	{
+		return;
+	}
+	const float Dt = FMath::Clamp(DeltaSeconds, 0.f, 0.1f);
+
+	CloseUp = FMath::FInterpConstantTo(CloseUp, CloseUpTarget, Dt, 1.f / 0.9f);
+	DriftHold = FMath::Max(0.f, DriftHold - Dt);
+	const bool bMoving = !FMath::IsNearlyEqual(CloseUp, CloseUpTarget) || DriftHold > 0.f;
+	DriftWeight = FMath::FInterpTo(DriftWeight, bMoving ? 0.f : 1.f, Dt, bMoving ? 4.f : 0.6f);
+	DriftTime += Dt;
+	const float Ease = CloseUp * CloseUp * (3.f - 2.f * CloseUp);
+
+	// The close-up: nearer to the character, a narrower lens, the character a little right of the middle (clear of the panel).
+	const FVector FromPreview = BaseCameraLocation - PreviewLocation;
+	FVector CloseLocation = PreviewLocation + FVector(FromPreview.X, FromPreview.Y, 0.f) * 0.92f;
+	CloseLocation.Z = PreviewLocation.Z + 34.f;
+	const float CloseFov = 66.f;
+	const FVector ToPreview = PreviewLocation - CloseLocation;
+	const float Flat = FMath::Max(1.f, FVector2D(ToPreview.X, ToPreview.Y).Size());
+	const float CharacterAngle = FMath::RadiansToDegrees(FMath::Atan2(ToPreview.Y, ToPreview.X));
+	const float AngleFromCentre = FMath::RadiansToDegrees(FMath::Atan(0.40f * FMath::Tan(FMath::DegreesToRadians(CloseFov * 0.5f))));
+	const float CloseYaw = CharacterAngle - AngleFromCentre;
+	const float ClosePitch = FMath::RadiansToDegrees(FMath::Atan2(PreviewLocation.Z + 4.f - CloseLocation.Z, Flat));
+
+	FVector Location = FMath::Lerp(BaseCameraLocation, CloseLocation, Ease);
+	FRotator Rotation(
+		BaseCameraRotation.Pitch + FMath::FindDeltaAngleDegrees(BaseCameraRotation.Pitch, ClosePitch) * Ease,
+		BaseCameraRotation.Yaw + FMath::FindDeltaAngleDegrees(BaseCameraRotation.Yaw, CloseYaw) * Ease,
+		0.f);
+	const float Fov = FMath::Lerp(BaseCameraFov, CloseFov, Ease);
+
+	// The drift: a few degrees of yaw, a breath of pitch, a little sideways and up-down movement. Calm on purpose.
+	const float Weight = DriftWeight * (1.f - 0.7f * Ease);
+	const float T = DriftTime;
+	Rotation.Yaw += (1.5f * FMath::Sin(T * 0.21f) + 0.5f * FMath::Sin(T * 0.53f + 1.3f)) * Weight;
+	Rotation.Pitch += 0.35f * FMath::Sin(T * 0.29f + 0.7f) * Weight;
+	const FVector Right = FRotationMatrix(Rotation).GetScaledAxis(EAxis::Y);
+	Location += Right * (10.f * FMath::Sin(T * 0.17f + 2.f) * Weight) + FVector(0.f, 0.f, 2.5f * FMath::Sin(T * 0.37f) * Weight);
+
+	Camera->SetActorLocationAndRotation(Location, Rotation);
+	if (UCameraComponent* Component = Camera->GetCameraComponent())
+	{
+		Component->SetFieldOfView(Fov);
+	}
 }
 
 void AIAMenuPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -164,6 +251,11 @@ void AIAMenuPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		Preview->Destroy();
 		Preview = nullptr;
+	}
+	if (MenuCameraActor)
+	{
+		MenuCameraActor->Destroy();
+		MenuCameraActor = nullptr;
 	}
 
 	Super::EndPlay(EndPlayReason);

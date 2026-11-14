@@ -199,36 +199,67 @@ namespace IALoadingScreen
 					.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 					.BorderBackgroundColor(FLinearColor(0.08f, 0.09f, 0.12f))
 					.Padding(FMargin(0.f))
+					.HAlign(HAlign_Left)
 					[
+						// A bar that fills quickly at first and then slows down, so that it always looks like something is happening.
 						SNew(SBox)
-						.Padding_Lambda([Start]()
+						.WidthOverride_Lambda([Start]()
 						{
-							const double Phase = FMath::Fmod((FPlatformTime::Seconds() - Start) * 0.7, 1.0);
-							return FMargin(static_cast<float>(Phase * 1920.0 - 360.0), 0.f, 0.f, 0.f);
+							const double Seconds = FPlatformTime::Seconds() - Start;
+							const double Progress = 0.94 * (1.0 - FMath::Exp(-Seconds / 3.0));
+							return FOptionalSize(static_cast<float>(Progress * 1920.0));
 						})
-						.HAlign(HAlign_Left)
 						[
-							SNew(SBox).WidthOverride(360.f)
-							[
-								SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(Orange)
-							]
+							IAMenu::Gradient(Orient_Horizontal, {
+								TPair<float, FLinearColor>(0.f, FLinearColor(1.f, 0.30f, 0.f, 0.85f)),
+								TPair<float, FLinearColor>(0.85f, FLinearColor(1.f, 0.46f, 0.f, 1.f)),
+								TPair<float, FLinearColor>(1.f, FLinearColor(1.f, 0.78f, 0.45f, 1.f)) })
 						]
 					]
 				]
 			];
 
-		// The picture is laid out for 1920x1080 and scaled to fit the screen. The dark background covers any extra width.
+		// The picture is laid out for 1920x1080 and scaled to fit the screen. Behind it the map's picture again, dark, fills the
+		// whole screen (also any extra width), with the edges shaded.
 		return SNew(SBorder)
 			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 			.BorderBackgroundColor(FLinearColor(0.012f, 0.014f, 0.022f))
 			.Padding(FMargin(0.f))
 			[
-				SNew(SScaleBox)
-				.Stretch(EStretch::ScaleToFit)
+				SNew(SOverlay)
+				+ SOverlay::Slot()
 				[
-					SNew(SBox).WidthOverride(1920.f).HeightOverride(1080.f)
+					SNew(SScaleBox)
+					.Stretch(EStretch::ScaleToFill)
+					.Visibility(Thumbnail ? EVisibility::HitTestInvisible : EVisibility::Collapsed)
 					[
-						Content
+						SNew(SImage).Image(Thumbnail).ColorAndOpacity(FLinearColor(0.26f, 0.26f, 0.30f, 1.f))
+					]
+				]
+				+ SOverlay::Slot()
+				[
+					IAMenu::Gradient(Orient_Horizontal, {
+						TPair<float, FLinearColor>(0.f, FLinearColor(0.f, 0.f, 0.f, 0.55f)),
+						TPair<float, FLinearColor>(0.55f, FLinearColor(0.f, 0.f, 0.f, 0.15f)),
+						TPair<float, FLinearColor>(1.f, FLinearColor(0.f, 0.f, 0.f, 0.6f)) })
+				]
+				+ SOverlay::Slot()
+				[
+					IAMenu::Gradient(Orient_Vertical, {
+						TPair<float, FLinearColor>(0.f, FLinearColor(0.f, 0.f, 0.f, 0.5f)),
+						TPair<float, FLinearColor>(0.3f, FLinearColor(0.f, 0.f, 0.f, 0.f)),
+						TPair<float, FLinearColor>(0.7f, FLinearColor(0.f, 0.f, 0.f, 0.f)),
+						TPair<float, FLinearColor>(1.f, FLinearColor(0.f, 0.f, 0.f, 0.7f)) })
+				]
+				+ SOverlay::Slot()
+				[
+					SNew(SScaleBox)
+					.Stretch(EStretch::ScaleToFit)
+					[
+						SNew(SBox).WidthOverride(1920.f).HeightOverride(1080.f)
+						[
+							Content
+						]
 					]
 				]
 			];
