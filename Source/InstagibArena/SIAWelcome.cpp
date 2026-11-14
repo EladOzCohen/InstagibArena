@@ -38,11 +38,25 @@ void SIAWelcome::Construct(const FArguments& InArgs)
 	[
 		SNew(SBorder)
 		.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-		.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.74f))
+		.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.62f))
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
-			Panel
+			// An orange bar on top of the card, like the title bars of the menu screens.
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				SNew(SBox).HeightOverride(4.f)
+				[
+					SNew(SBorder)
+					.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+					.BorderBackgroundColor(Accent)
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				Panel
+			]
 		]
 	];
 }

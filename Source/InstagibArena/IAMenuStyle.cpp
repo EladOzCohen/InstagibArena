@@ -4,6 +4,7 @@
 #include "IAAudioSubsystem.h"
 #include "InstagibArena.h"
 #include "Brushes/SlateNoResource.h"
+#include "Rendering/DrawElements.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
 #include "Styling/CoreStyle.h"
@@ -36,7 +37,7 @@ namespace IAMenu
 {
 	const FLinearColor Accent(1.0f, 0.42f, 0.0f, 1.0f);
 	const FLinearColor TextDim(0.62f, 0.64f, 0.70f, 1.0f);
-	const FLinearColor PanelColor(0.012f, 0.014f, 0.022f, 0.86f);
+	const FLinearColor PanelColor(0.012f, 0.014f, 0.022f, 0.92f);
 
 	namespace
 	{
@@ -70,6 +71,70 @@ namespace IAMenu
 	FSlateFontInfo Font(int32 Size, bool bBold)
 	{
 		return FCoreStyle::GetDefaultFontStyle(bBold ? TEXT("Bold") : TEXT("Regular"), Size);
+	}
+
+	FSlateFontInfo SpacedFont(int32 Size, bool bBold, int32 LetterSpacing)
+	{
+		FSlateFontInfo Info = Font(Size, bBold);
+		Info.LetterSpacing = LetterSpacing;
+		return Info;
+	}
+
+	namespace
+	{
+		using FGradientStops = TArray<TPair<float, FLinearColor>>;
+
+		/** A rectangle painted with a Slate gradient. */
+		class SIAGradient : public SLeafWidget
+		{
+		public:
+			SLATE_BEGIN_ARGS(SIAGradient) : _Orientation(Orient_Horizontal) {}
+				SLATE_ARGUMENT(EOrientation, Orientation)
+				SLATE_ARGUMENT(FGradientStops, Stops)
+			SLATE_END_ARGS()
+
+			void Construct(const FArguments& InArgs)
+			{
+				Orientation = InArgs._Orientation;
+				Stops = InArgs._Stops;
+				SetVisibility(EVisibility::HitTestInvisible);
+			}
+
+			virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D::ZeroVector; }
+
+			virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect,
+				FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
+			{
+				if (Stops.Num() < 2)
+				{
+					return LayerId;
+				}
+				const FVector2f Size = AllottedGeometry.GetLocalSize();
+				const float Opacity = InWidgetStyle.GetColorAndOpacityTint().A;
+				TArray<FSlateGradientStop> Out;
+				for (const TPair<float, FLinearColor>& Stop : Stops)
+				{
+					const float Along = Stop.Key * (Orientation == Orient_Horizontal ? Size.X : Size.Y);
+					FLinearColor Color = Stop.Value;
+					Color.A *= Opacity;
+					Out.Emplace(Orientation == Orient_Horizontal ? FVector2f(Along, 0.f) : FVector2f(0.f, Along), Color);
+				}
+				// Slate names the gradient types after the lines of constant colour: Orient_Vertical runs from left to right
+				// (stops at X positions), Orient_Horizontal from top to bottom (stops at Y positions).
+				FSlateDrawElement::MakeGradient(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Out,
+					Orientation == Orient_Horizontal ? Orient_Vertical : Orient_Horizontal);
+				return LayerId;
+			}
+
+		private:
+			EOrientation Orientation = Orient_Horizontal;
+			FGradientStops Stops;
+		};
+	}
+
+	TSharedRef<SWidget> Gradient(EOrientation Orientation, const TArray<TPair<float, FLinearColor>>& Stops)
+	{
+		return SNew(SIAGradient).Orientation(Orientation).Stops(Stops);
 	}
 
 	void Click(const TWeakObjectPtr<APlayerController>& Owner)
@@ -793,7 +858,12 @@ namespace IAMenu
 					.BorderImage(WhiteBrush())
 					.BorderBackgroundColor_Lambda([Holder]() -> FSlateColor
 					{
-						return IsActive(Holder) ? FLinearColor(1.f, 0.42f, 0.f, 0.30f) : FLinearColor(0.f, 0.f, 0.f, 0.f);
+						const TSharedPtr<SButton> Pinned = Holder->Pin();
+						if (Pinned.IsValid() && Pinned->IsPressed())
+						{
+							return FLinearColor(1.f, 0.42f, 0.f, 0.52f);
+						}
+						return IsActive(Holder) ? FLinearColor(1.f, 0.42f, 0.f, 0.26f) : FLinearColor(0.f, 0.f, 0.f, 0.f);
 					})
 					.Padding(FMargin(0.f))
 					[
@@ -811,26 +881,36 @@ namespace IAMenu
 								})
 							]
 						]
-						+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center).Padding(FMargin(18.f, 8.f))
+						+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 						[
-							SNew(SVerticalBox)
-							+ SVerticalBox::Slot().AutoHeight()
+							// The text steps a little to the right on the entry that is hovered or focused.
+							SNew(SBox)
+							.Padding_Lambda([Holder]() { return FMargin(IsActive(Holder) ? 26.f : 18.f, 8.f, 12.f, 8.f); })
 							[
-								SNew(STextBlock)
-								.Text(Label)
-								.Font(Font(26, true))
-								.ColorAndOpacity_Lambda([Holder]() -> FSlateColor
-								{
-									return IsActive(Holder) ? FLinearColor::White : FLinearColor(0.82f, 0.84f, 0.90f);
-								})
-							]
-							+ SVerticalBox::Slot().AutoHeight()
-							[
-								SNew(STextBlock)
-								.Text(Hint)
-								.Visibility(Hint.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible)
-								.Font(Font(13))
-								.ColorAndOpacity(TextDim)
+								SNew(SVerticalBox)
+								+ SVerticalBox::Slot().AutoHeight()
+								[
+									SNew(STextBlock)
+									.Text(Label)
+									.Font(Font(26, true))
+									.ShadowOffset(FVector2D(0.f, 1.f))
+									.ShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.55f))
+									.ColorAndOpacity_Lambda([Holder]() -> FSlateColor
+									{
+										return IsActive(Holder) ? FLinearColor::White : FLinearColor(0.84f, 0.86f, 0.92f);
+									})
+								]
+								+ SVerticalBox::Slot().AutoHeight()
+								[
+									SNew(STextBlock)
+									.Text(Hint)
+									.Visibility(Hint.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible)
+									.Font(Font(13))
+									.ColorAndOpacity_Lambda([Holder]() -> FSlateColor
+									{
+										return IsActive(Holder) ? FLinearColor(0.80f, 0.82f, 0.88f) : TextDim;
+									})
+								]
 							]
 						]
 					]
@@ -888,11 +968,13 @@ namespace IAMenu
 					.BorderImage(WhiteBrush())
 					.BorderBackgroundColor_Lambda([Holder, IsSelected]() -> FSlateColor
 					{
+						const TSharedPtr<SButton> Pinned = Holder->Pin();
+						const bool bPressed = Pinned.IsValid() && Pinned->IsPressed();
 						if (IsSelected && IsSelected())
 						{
-							return IsActive(Holder) ? FLinearColor(1.f, 0.55f, 0.12f) : Accent;
+							return bPressed ? FLinearColor(0.82f, 0.34f, 0.f) : (IsActive(Holder) ? FLinearColor(1.f, 0.55f, 0.12f) : Accent);
 						}
-						return IsActive(Holder) ? FLinearColor(0.36f, 0.37f, 0.43f) : FLinearColor(0.19f, 0.20f, 0.25f);
+						return bPressed ? FLinearColor(0.14f, 0.15f, 0.19f) : (IsActive(Holder) ? FLinearColor(0.36f, 0.37f, 0.43f) : FLinearColor(0.19f, 0.20f, 0.25f));
 					})
 					.Padding(FMargin(16.f, 8.f))
 					.HAlign(HAlign_Center)
@@ -966,16 +1048,33 @@ namespace IAMenu
 			[
 				SNew(STextBlock)
 				.Text(Title)
-				.Font(Font(34, true))
+				.Font(SpacedFont(34, true, 40))
+				.ShadowOffset(FVector2D(0.f, 2.f))
+				.ShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.5f))
 				.ColorAndOpacity(Accent)
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 8.f, 0.f, 18.f)
 			[
-				SNew(SBox).HeightOverride(2.f)
+				// A short bright bar that thins out into a long faint line.
+				SNew(SBox).HeightOverride(3.f)
 				[
-					SNew(SBorder)
-					.BorderImage(WhiteBrush())
-					.BorderBackgroundColor(FLinearColor(1.f, 0.42f, 0.f, 0.55f))
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(SBox).WidthOverride(64.f)
+						[
+							SNew(SBorder)
+							.BorderImage(WhiteBrush())
+							.BorderBackgroundColor(Accent)
+						]
+					]
+					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+					[
+						SNew(SBox).HeightOverride(2.f)
+						[
+							Gradient(Orient_Horizontal, { TPair<float, FLinearColor>(0.f, FLinearColor(1.f, 0.42f, 0.f, 0.6f)), TPair<float, FLinearColor>(1.f, FLinearColor(1.f, 0.42f, 0.f, 0.f)) })
+						]
+					]
 				]
 			];
 	}

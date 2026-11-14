@@ -21,6 +21,16 @@ namespace IAMenu
 
 	FSlateFontInfo Font(int32 Size, bool bBold = false);
 
+	/** The same font with extra space between the letters (1/1000 em), for titles and the logo. */
+	FSlateFontInfo SpacedFont(int32 Size, bool bBold, int32 LetterSpacing);
+
+	/**
+	 * A colour gradient drawn by Slate itself (no texture). Orient_Horizontal fades from left to right, Orient_Vertical from top to bottom.
+	 * Stops are (position 0..1 along that direction, colour with alpha).
+	 * Fills the slot it is put in and ignores the mouse. Safe on the loading screen thread (it only paints).
+	 */
+	TSharedRef<SWidget> Gradient(EOrientation Orientation, const TArray<TPair<float, FLinearColor>>& Stops);
+
 	/** Plays the click sound for the local player. */
 	void Click(const TWeakObjectPtr<APlayerController>& Owner);
 

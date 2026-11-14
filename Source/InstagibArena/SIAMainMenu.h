@@ -35,6 +35,8 @@ public:
 		SLATE_ARGUMENT(TWeakObjectPtr<APlayerController>, OwnerController)
 		/** Called whenever the selected character changes, so that the 3D preview can follow. */
 		SLATE_ARGUMENT(TFunction<void(int32)>, OnCharacterChanged)
+		/** Called with the screen number (0 main ... 6 how to play) whenever a screen opens, so that the camera can follow. */
+		SLATE_ARGUMENT(TFunction<void(int32)>, OnPageChanged)
 		/** A message to show on the Join screen when the menu opens (for example "connection lost"). */
 		SLATE_ARGUMENT(FString, InitialError)
 	SLATE_END_ARGS()
@@ -99,6 +101,7 @@ private:
 
 	TWeakObjectPtr<APlayerController> Owner;
 	TFunction<void(int32)> OnCharacterChanged;
+	TFunction<void(int32)> OnPageChanged;
 
 	EPage Page = EPage::Main;
 	FIAMatchSetup Setup;
