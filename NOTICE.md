@@ -66,6 +66,10 @@ Surface textures of the world material library (`Tools/matlib.py`, imported into
 Poly Haven "Scuba Suede" (https://polyhaven.com/a/scuba_suede) by colormass (photography) and Rico Cilliers (processing), licence CC0 1.0 (public domain),
 1k maps downloaded by `Tools/make_character_assets.py` into `~/AssetCache/textures/CharSuit` and imported into the project.
 
+**Rifle** (`Content/Characters/Weapon`, built by `Tools/make_weapon_assets.py` from the procedural model in `Tools/mesh_weapon.py`, which is original work of this project):
+the fine brushed-metal normal and roughness detail on the rifle (`T_Weapon_Metal_N`, `T_Weapon_Metal_R`) is the ambientCG "Metal012" set (https://ambientcg.com/a/Metal012) by ambientCG (Lennart Demes),
+licence CC0 1.0, the same download as the BrushedMetal surface above; the rubber grips reuse the Scuba Suede cloth maps credited above. No model of the rifle was downloaded.
+
 ### Sky panoramas (Poly Haven, CC0)
 
 The photographic skies behind the maps (`/Game/Sky/T_Sky_<look>`, shown by the sky dome `M_IASky`) are HDR panoramas from [Poly Haven](https://polyhaven.com), released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain, no attribution required; credited here anyway). `Tools/fetch_hdri.py` downloads them (2k) into a cache outside the repository and prepares them (brightness normalised, sun disc limited, ground below the horizon replaced by a smooth fade); `Tools/import_skies.py` imports them as cube maps.

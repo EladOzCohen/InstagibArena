@@ -31,6 +31,8 @@
  *   -IAShowroomWalk  the showroom characters walk on the spot in different directions with different view pitch
  *   -IAShowroomJump / -IAShowroomCrouch   one of them jumps / crouches
  *   -IARifleOffset=x,y,z,pitch,yaw,roll[,scale]   rifle in the hand (bone space of hand_r), without a rebuild
+ *   -IAFPRifle=x,y,z,scale   the first-person rifle in front of the camera, without a rebuild
+ *   -IAWallTest=40   move the local player so that the camera is 40 cm from the wall it looks at (rifle wall pull test)
  */
 UCLASS()
 class INSTAGIBARENA_API UIADevSubsystem : public UGameInstanceSubsystem
@@ -58,6 +60,7 @@ private:
 	FTSTicker::FDelegateHandle WalkHandle;
 	FTSTicker::FDelegateHandle AutoFireHandle;
 	FTSTicker::FDelegateHandle FireHandle;
+	FTSTicker::FDelegateHandle WallTestHandle;
 	FTSTicker::FDelegateHandle ShowroomHandle;
 	FTSTicker::FDelegateHandle CameraHandle;
 	FTSTicker::FDelegateHandle ShotHandle;

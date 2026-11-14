@@ -35,7 +35,8 @@ for name, frames in clips:
         x_axis = math.inverse_transform_direction(r, forward)
         z_axis = math.inverse_transform_direction(r, unreal.Vector(0, 0, 1))
         rot = math.make_rot_from_xz(x_axis, z_axis)
-        grip = unreal.Vector(4.0 * 0.85, 0.0, -8.0 * 0.85)  # the grip of the rifle model, scaled like the rifle
+        RS = 1.05  # TPRifleScale
+        grip = unreal.Vector(4.0 * RS, 0.0, -9.5 * RS)  # the grip of the rifle model (SM_IARifle_TP), scaled like the rifle
         rotated = math.transform_direction(unreal.Transform(unreal.Vector(0, 0, 0), rot, unreal.Vector(1, 1, 1)), grip)
         unreal.log("RIFLE %s frame %d  hand_r=(%.1f,%.1f,%.1f) hand_l=(%.1f,%.1f,%.1f) dist=%.1f  rot(P,Y,R)=(%.1f,%.1f,%.1f)  offset=(%.1f,%.1f,%.1f)" % (
             name, f, r.translation.x, r.translation.y, r.translation.z, l.translation.x, l.translation.y, l.translation.z,

@@ -125,7 +125,7 @@ private:
 	void ApplyLook(int32 CharacterIndex, uint8 Team);
 	void UpdateMovementAudio(float DeltaSeconds);
 
-	// ---- the rifle, built from basic shapes
+	// ---- the rifle (SM_IARifle_FP / SM_IARifle_TP from Tools/make_weapon_assets.py; basic shapes when they are missing)
 	void BuildWeapon(bool bFirstPerson, USkeletalMesh* MeshAsset);
 	void DestroyWeapon(bool bFirstPerson);
 	void UpdateWeaponView(float DeltaSeconds);
@@ -150,6 +150,20 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> FPMuzzleFlash;
+
+	/** The glowing core of the rifle the others see (pulses with every shot). */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> TPCoreMaterial;
+
+	// First-person rifle feel: where it rests in front of the camera, and the smoothed sway / wall pull.
+	FVector FPBaseOffset = FVector(30.f, 12.5f, -10.f);
+	float FPRifleScale = 0.5f;
+	float WeaponClock = 0.f;
+	float WeaponWallPull = 0.f;
+	float WeaponSwayPitch = 0.f;
+	float WeaponSwayYaw = 0.f;
+	FRotator WeaponLastView = FRotator::ZeroRotator;
+	bool bWeaponHaveView = false;
 
 	// ---- first-person camera feel (only runs for the human playing on this machine)
 	void UpdateCamera(float DeltaSeconds);

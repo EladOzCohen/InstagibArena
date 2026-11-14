@@ -589,6 +589,10 @@ void AIAPlayerCharacter::MulticastShotEffect_Implementation(FVector Start, FVect
 	// The visible trail starts at the barrel of the rifle that is on screen.
 	if (GetNetMode() != NM_DedicatedServer && GetWorld())
 	{
+		if (!IsLocalHuman())
+		{
+			Recoil = 1.f; // the core of the rifle in this player's hands flares
+		}
 		if (AIABeam* Beam = GetWorld()->SpawnActor<AIABeam>(GetMuzzleLocation(Start), FRotator::ZeroRotator))
 		{
 			Beam->Init(GetMuzzleLocation(Start), End, GetBodyColor());
@@ -1072,12 +1076,18 @@ namespace
 		{ EIAShape::Sphere,   FVector(55, 0, 0.5f), FRotator::ZeroRotator, FVector(3, 3, 3),         3 },
 	};
 
-	const FVector RifleMuzzle(56.f, 0.f, 0.5f);
+	/** The tip of the emitter in rifle space (SM_IARifle_FP / SM_IARifle_TP: Tools/mesh_weapon.py MUZZLE). The beam starts here. */
+	const FVector RifleMuzzle(64.4f, 0.f, 0.5f);
 
 	// How the rifle sits in the right hand of the third-person character (bone space of hand_r).
-	const FVector TPRifleHandOffset(2.f, -3.5f, 6.3f);
-	const FRotator TPRifleHandRotation(-2.f, 155.f, 20.f);
-	constexpr float TPRifleScale = 0.85f;
+	// Fitted to the rifle animations with Tools/probe_rifle.py: the pistol grip of the model is at about x 4, z -9.5,
+	// and the fore grip lands in the left hand.
+	const FVector TPRifleHandOffset(2.2f, -4.6f, 9.5f);
+	const FRotator TPRifleHandRotation(-2.f, 156.f, 20.f);
+	constexpr float TPRifleScale = 1.05f;
+
+	/** Slots of the rifle meshes, in the order of the material slots. */
+	enum ERifleSlot { SlotBody, SlotTrim, SlotRubber, SlotAccent, SlotCore, SlotGlass, RifleSlotCount };
 }
 
 void AIAPlayerCharacter::DestroyWeapon(bool bFirstPerson)
@@ -1102,6 +1112,10 @@ void AIAPlayerCharacter::DestroyWeapon(bool bFirstPerson)
 	{
 		FPMuzzleFlash = nullptr;
 		FPCoreMaterial = nullptr;
+	}
+	else
+	{
+		TPCoreMaterial = nullptr;
 	}
 }
 
@@ -1133,15 +1147,29 @@ void AIAPlayerCharacter::BuildWeapon(bool bFirstPerson, USkeletalMesh* MeshAsset
 	BodyMat->SetScalarParameterValue(TEXT("Detail"), 0.f);
 	AccentMat->SetScalarParameterValue(TEXT("Detail"), 0.f);
 	UMaterialInstanceDynamic* CoreMat = MakeMaterial(CurrentAccent, 0.3f, 0.f, 4.f);
-	UMaterialInstanceDynamic* FlashMat = MakeMaterial(CurrentAccent, 0.3f, 0.f, 12.f);
+	UMaterialInstanceDynamic* FlashMat = MakeMaterial(CurrentAccent, 0.3f, 0.f, 8.f);
 
 	USceneComponent* Root = NewObject<USceneComponent>(this);
 	if (bFirstPerson)
 	{
 		// Bottom right of the screen, a bit smaller than life so that it does not fill the view.
+#if !UE_BUILD_SHIPPING
+		// Developer tuning without a rebuild:  -IAFPRifle=x,y,z,scale
+		FString FPTuning;
+		TArray<FString> FPNumbers;
+		if (FParse::Value(FCommandLine::Get(), TEXT("IAFPRifle="), FPTuning, /*bShouldStopOnSeparator*/ false))
+		{
+			FPTuning.ParseIntoArray(FPNumbers, TEXT(","));
+			if (FPNumbers.Num() >= 4)
+			{
+				FPBaseOffset = FVector(FCString::Atof(*FPNumbers[0]), FCString::Atof(*FPNumbers[1]), FCString::Atof(*FPNumbers[2]));
+				FPRifleScale = FCString::Atof(*FPNumbers[3]);
+			}
+		}
+#endif
 		Root->SetupAttachment(FirstPersonCamera);
-		Root->SetRelativeLocationAndRotation(FVector(26.f, 12.f, -12.f), FRotator::ZeroRotator);
-		Root->SetRelativeScale3D(FVector(0.5f));
+		Root->SetRelativeLocationAndRotation(FPBaseOffset, FRotator::ZeroRotator);
+		Root->SetRelativeScale3D(FVector(FPRifleScale));
 		Root->RegisterComponent();
 		FPWeaponRoot = Root;
 	}
@@ -1188,6 +1216,75 @@ void AIAPlayerCharacter::BuildWeapon(bool bFirstPerson, USkeletalMesh* MeshAsset
 	}
 
 	TArray<TObjectPtr<UStaticMeshComponent>>& Parts = bFirstPerson ? FPWeaponParts : TPWeaponParts;
+
+	// The modelled rifle: one static mesh with six material slots (gunmetal, dark steel, rubber, painted accent, glowing core, glass).
+	UStaticMesh* RifleMesh = LoadObject<UStaticMesh>(nullptr, bFirstPerson
+		? TEXT("/Game/Characters/Weapon/SM_IARifle_FP.SM_IARifle_FP")
+		: TEXT("/Game/Characters/Weapon/SM_IARifle_TP.SM_IARifle_TP"));
+	if (RifleMesh && RifleMesh->GetStaticMaterials().Num() >= RifleSlotCount)
+	{
+		UStaticMeshComponent* Comp = NewObject<UStaticMeshComponent>(this);
+		Comp->SetStaticMesh(RifleMesh);
+		Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Comp->SetCastShadow(false);
+		if (bFirstPerson)
+		{
+			Comp->SetOnlyOwnerSee(true);
+		}
+		else
+		{
+			Comp->SetOwnerNoSee(true);
+		}
+		for (int32 Slot = 0; Slot < RifleSlotCount; ++Slot)
+		{
+			UMaterialInterface* Source = RifleMesh->GetMaterial(Slot);
+			UMaterialInstanceDynamic* Material = Source ? UMaterialInstanceDynamic::Create(Source, this) : nullptr;
+			if (!Material)
+			{
+				continue;
+			}
+			if (Slot == SlotAccent)
+			{
+				// Painted trim in the player's colour.
+				Material->SetVectorParameterValue(TEXT("BodyColor"), CurrentAccent * 0.7f);
+			}
+			else if (Slot == SlotCore)
+			{
+				// The only light source of the rifle: emissive in the player's colour (Glow is animated in UpdateWeaponView).
+				Material->SetVectorParameterValue(TEXT("BodyColor"), CurrentAccent * 0.12f);
+				Material->SetVectorParameterValue(TEXT("AccentColor"), CurrentAccent);
+				if (bFirstPerson) { FPCoreMaterial = Material; } else { TPCoreMaterial = Material; }
+			}
+			Comp->SetMaterial(Slot, Material);
+		}
+		Comp->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+		Comp->RegisterComponent();
+		Comp->AttachToComponent(Root, FAttachmentTransformRules::KeepRelativeTransform);
+		Parts.Add(Comp);
+
+		if (bFirstPerson)
+		{
+			// A short flash at the emitter when it fires.
+			if (UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")))
+			{
+				UStaticMeshComponent* Flash = NewObject<UStaticMeshComponent>(this);
+				Flash->SetStaticMesh(Sphere);
+				Flash->SetMaterial(0, FlashMat);
+				Flash->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				Flash->SetCastShadow(false);
+				Flash->SetOnlyOwnerSee(true);
+				Flash->SetRelativeLocation(RifleMuzzle + FVector(2.f, 0.f, 0.f));
+				Flash->SetRelativeScale3D(FVector(0.02f));
+				Flash->SetVisibility(false);
+				Flash->RegisterComponent();
+				Flash->AttachToComponent(Root, FAttachmentTransformRules::KeepRelativeTransform);
+				Parts.Add(Flash);
+				FPMuzzleFlash = Flash;
+			}
+		}
+		return;
+	}
+
 	for (const FRiflePart& Part : RifleParts)
 	{
 		const TCHAR* ShapePath = TEXT("/Engine/BasicShapes/Cube.Cube");
@@ -1247,6 +1344,16 @@ void AIAPlayerCharacter::UpdateWeaponView(float DeltaSeconds)
 		FirstPersonCamera->SetFieldOfView(IASettings::GetFieldOfView());
 	}
 
+	Recoil = FMath::Max(0.f, Recoil - DeltaSeconds * 6.f);
+	WeaponClock += DeltaSeconds;
+
+	// The core of the rifle the others carry: a slow pulse, brighter right after a shot.
+	if (TPCoreMaterial && !IsLocalHuman())
+	{
+		const float Pulse = 0.5f + 0.5f * FMath::Sin(WeaponClock * 2.4f + static_cast<float>(GetUniqueID() % 16));
+		TPCoreMaterial->SetScalarParameterValue(TEXT("Glow"), 1.8f + 0.4f * Pulse + 2.6f * Recoil);
+	}
+
 	// The on-screen rifle exists only for the human playing on this machine.
 	if (!FPWeaponRoot && IsLocalHuman() && !bDead && AppliedLookKey != INT32_MIN)
 	{
@@ -1263,27 +1370,63 @@ void AIAPlayerCharacter::UpdateWeaponView(float DeltaSeconds)
 	}
 	FPWeaponRoot->SetVisibility(true, true);
 
-	Recoil = FMath::Max(0.f, Recoil - DeltaSeconds * 6.f);
+	const float Dt = FMath::Clamp(DeltaSeconds, 0.001f, 0.1f);
+	const float Motion = bCamReduced ? 0.f : 1.f; // reduced motion: no sway, no breathing, only the shot kick
 
-	// Idle sway and running bob.
-	const float Speed = GetVelocity().Size2D();
-	const float MoveAlpha = GetCharacterMovement()->IsMovingOnGround() ? FMath::Clamp(Speed / 600.f, 0.f, 1.f) : 0.f;
-	BobTime += DeltaSeconds * (1.5f + MoveAlpha * 8.f);
-	const float BobY = FMath::Sin(BobTime) * (0.15f + MoveAlpha * 0.6f);
-	const float BobZ = FMath::Cos(BobTime * 2.f) * (0.1f + MoveAlpha * 0.5f);
+	// Walking bob: the same phase and amount as the camera, so the rifle moves with the head and trails it a little.
+	const float BobY = FMath::Sin(CamBobPhase) * 0.55f * CamBobAlpha;
+	const float BobZ = FMath::Sin(CamBobPhase * 2.f - 0.9f) * 0.45f * CamBobAlpha;
+	const float BobRoll = FMath::Sin(CamBobPhase) * 0.9f * CamBobAlpha;
 
-	const FVector Base(26.f, 12.f, -12.f);
-	const FVector Kick(-7.f * Recoil, 0.f, 1.8f * Recoil);
-	FPWeaponRoot->SetRelativeLocationAndRotation(Base + Kick + FVector(0.f, BobY, BobZ), FRotator(7.f * Recoil, 0.f, 0.f));
+	// Breathing while standing still.
+	const float BreathY = FMath::Sin(WeaponClock * 1.1f) * 0.10f * Motion;
+	const float BreathZ = FMath::Sin(WeaponClock * 1.7f) * 0.14f * Motion;
 
-	// The core and the muzzle light up with each shot.
+	// Turning the view makes the rifle lag a little behind, then settle again.
+	const FRotator View = GetControlRotation();
+	FRotator ViewDelta = (View - WeaponLastView).GetNormalized();
+	if (!bWeaponHaveView)
+	{
+		ViewDelta = FRotator::ZeroRotator;
+		bWeaponHaveView = true;
+	}
+	WeaponLastView = View;
+	const float YawRate = ViewDelta.Yaw / FMath::Max(DeltaSeconds, 0.004f);
+	const float PitchRate = ViewDelta.Pitch / FMath::Max(DeltaSeconds, 0.004f);
+	WeaponSwayYaw = FMath::FInterpTo(WeaponSwayYaw, FMath::Clamp(-YawRate * 0.016f, -3.5f, 3.5f) * Motion, Dt, 9.f);
+	WeaponSwayPitch = FMath::FInterpTo(WeaponSwayPitch, FMath::Clamp(-PitchRate * 0.016f, -2.5f, 2.5f) * Motion, Dt, 9.f);
+
+	// A wall right in front of the camera: pull the rifle back and tilt it up so that it does not poke into it.
+	float WallTarget = 0.f;
+	if (FirstPersonCamera && GetWorld())
+	{
+		const FVector CamLocation = FirstPersonCamera->GetComponentLocation();
+		const float Reach = FPBaseOffset.X + RifleMuzzle.X * FPRifleScale + 2.f;
+		FHitResult WallHit;
+		FCollisionQueryParams WallParams(SCENE_QUERY_STAT(IAWeaponWall), false, this);
+		if (GetWorld()->SweepSingleByChannel(WallHit, CamLocation, CamLocation + FirstPersonCamera->GetForwardVector() * Reach,
+			FQuat::Identity, ECC_Visibility, FCollisionShape::MakeSphere(6.f), WallParams))
+		{
+			WallTarget = FMath::Clamp(Reach - WallHit.Distance - 4.f, 0.f, 40.f);
+		}
+	}
+	WeaponWallPull = FMath::FInterpTo(WeaponWallPull, WallTarget, Dt, WallTarget > WeaponWallPull ? 24.f : 9.f);
+
+	// The shot: the rifle jumps back and up and settles in a fraction of a second.
+	const FVector Kick(-6.f * Recoil, 0.f, 1.5f * Recoil);
+	const FVector Location = FPBaseOffset + Kick + FVector(-WeaponWallPull, BobY + BreathY, BobZ + BreathZ - WeaponWallPull * 0.12f);
+	const FRotator Rotation(6.f * Recoil + WeaponSwayPitch + WeaponWallPull * 0.35f, WeaponSwayYaw, BobRoll + 1.2f * Recoil);
+	FPWeaponRoot->SetRelativeLocationAndRotation(Location, Rotation);
+
+	// The core breathes slowly and flares with each shot; the flash at the emitter shows for a moment.
 	if (FPCoreMaterial)
 	{
-		FPCoreMaterial->SetScalarParameterValue(TEXT("Glow"), 4.f + 14.f * Recoil);
+		const float Pulse = 0.5f + 0.5f * FMath::Sin(WeaponClock * 2.4f);
+		FPCoreMaterial->SetScalarParameterValue(TEXT("Glow"), 1.8f + 0.4f * Pulse * Motion + 2.8f * Recoil);
 	}
 	if (FPMuzzleFlash)
 	{
-		const float FlashSize = (2.f + 11.f * Recoil) / 100.f;
+		const float FlashSize = (1.5f + 8.f * Recoil) / 100.f;
 		FPMuzzleFlash->SetRelativeScale3D(FVector(FlashSize));
 		FPMuzzleFlash->SetVisibility(Recoil > 0.15f);
 	}

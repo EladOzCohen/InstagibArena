@@ -133,6 +133,47 @@ void UIADevSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 				FTickerDelegate::CreateUObject(this, &UIADevSubsystem::FireRifle), FMath::Max(0.5f, Delay - 0.12f));
 		}
 
+		// -IAWallTest=40: three seconds before the shot the local player is moved so that the camera is 40 cm from
+		// the wall it is looking at (the first-person rifle must pull back and not poke through it).
+		float WallDistance = 0.f;
+		if (FParse::Value(FCommandLine::Get(), TEXT("IAWallTest="), WallDistance) && WallDistance > 0.f)
+		{
+			WallTestHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WallDistance](float)
+			{
+				UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+				APlayerController* PC = World ? UGameplayStatics::GetPlayerController(World, 0) : nullptr;
+				AIAPlayerCharacter* Pawn = PC ? Cast<AIAPlayerCharacter>(PC->GetPawn()) : nullptr;
+				if (Pawn)
+				{
+					FVector Eye;
+					FRotator View;
+					Pawn->GetActorEyesViewPoint(Eye, View);
+					// Look around at eye height and take the nearest real wall (a surface that stands upright) within 12 m.
+					FCollisionQueryParams Params(SCENE_QUERY_STAT(IAWallTest), false, Pawn);
+					FHitResult Best;
+					float BestDistance = 1200.f;
+					for (int32 Step = 0; Step < 24; ++Step)
+					{
+						FHitResult Hit;
+						const FVector Direction = FRotator(0.f, Step * 15.f, 0.f).Vector();
+						if (World->LineTraceSingleByChannel(Hit, Eye, Eye + Direction * 1200.f, ECC_Visibility, Params)
+							&& FMath::Abs(Hit.ImpactNormal.Z) < 0.2f && Hit.Distance < BestDistance)
+						{
+							Best = Hit;
+							BestDistance = Hit.Distance;
+						}
+					}
+					if (Best.bBlockingHit)
+					{
+						const FVector Camera = Best.ImpactPoint + Best.ImpactNormal * WallDistance;
+						Pawn->SetActorLocation(Camera - FVector(0.f, 0.f, Pawn->BaseEyeHeight), false, nullptr, ETeleportType::TeleportPhysics);
+						PC->SetControlRotation(FRotator(-6.f, (-Best.ImpactNormal).Rotation().Yaw, 0.f));
+					}
+				}
+				return false;
+			}), FMath::Max(0.5f, Delay - 3.f));
+		}
+
 		if (FParse::Param(FCommandLine::Get(), TEXT("IAPause")))
 		{
 			// Opens the pause menu half a second before the screenshot.
@@ -243,6 +284,7 @@ void UIADevSubsystem::Deinitialize()
 	FTSTicker::GetCoreTicker().RemoveTicker(WalkHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(AutoFireHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(FireHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(WallTestHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ShowroomHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(FrameStatHandle);
 	FTSTicker::GetCoreTicker().RemoveTicker(ConsoleHandle);
