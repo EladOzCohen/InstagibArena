@@ -7,7 +7,7 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
 
 <a href="https://github.com/EladOzCohen/InstagibArena/releases/latest/download/InstagibArena_Setup.exe"><img src="docs/images/download.png" width="440" alt="Download for Windows"></a>
 
-**Free · Windows 10 or 11 · about 523 MB · no account needed**
+**Free · Windows 10 or 11 · about 605 MB · no account needed**
 
 [Step-by-step guide with pictures](https://eladozcohen.github.io/InstagibArena/) · [עברית](#עברית) · [All versions](../../releases) · [Report a problem](../../issues/new)
 
