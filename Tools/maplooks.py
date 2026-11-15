@@ -316,9 +316,9 @@ def apply_look(builder, name="day_clear", **over):
             # a visible sun: direction TOWARDS the sun = opposite of the way the light travels
             p, y = math.radians(float(cfg["sun_pitch"])), math.radians(float(cfg["sun_yaw"]))
             sun_disc = dict(dir=(-math.cos(p) * math.cos(y), -math.cos(p) * math.sin(y), -math.sin(p)),
-                            rgb=cfg["sun_rgb"], radius=float(cfg.get("sun_radius", 2.0)),
+                            rgb=cfg["sun_rgb"], radius=float(cfg.get("sun_radius", 1.3)),
                             disc=float(cfg.get("sun_disc_gain", 5.0)) * 1.2 * (2.0 ** ev),
-                            halo=0.35 * 1.2 * (2.0 ** ev), halo_exp=45.0)
+                            halo=0.18 * 1.2 * (2.0 ** ev), halo_exp=110.0)
         _spawn_dome(builder, cfg["hdri"], cfg["sky_yaw"], scene, cfg["sky_tint"], sun_disc)
     if cfg["atmosphere"]:
         builder.spawn(unreal.SkyAtmosphere, "SkyAtmosphere")
