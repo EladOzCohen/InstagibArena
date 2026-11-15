@@ -7,6 +7,7 @@
 #include "IAGameMode.h"
 #include "IAAudioSubsystem.h"
 #include "IACharacterRoster.h"
+#include "IACharacterGear.h"
 #include "IABeam.h"
 #include "IASettings.h"
 #include "IAImpactEffect.h"
@@ -823,6 +824,10 @@ void AIAPlayerCharacter::UpdateLook()
 	{
 		return; // nothing to show yet, the placeholder stays
 	}
+	else if (ForcedTeam >= 0)
+	{
+		Team = (uint8)ForcedTeam;
+	}
 
 	const int32 Key = Index * 1000 + Team;
 	if (Key == AppliedLookKey)
@@ -983,7 +988,11 @@ void AIAPlayerCharacter::ApplyLook(int32 CharacterIndex, uint8 Team)
 	const FReferenceSkeleton& RefSkeleton = MeshAsset->GetRefSkeleton();
 	const FQuat MeshToActor = FRotator(0.f, -90.f, 0.f).Quaternion(); // the mesh component's rotation inside the actor
 
-	for (const FIAAccessory& Part : Look.Parts)
+	// Modelled gear (Tools/make_gear_assets.py). The primitive accessories of the roster are the fallback when no gear mesh can be loaded.
+	const int32 GearCount = IAGear::Attach(this, Skel, MeshAsset, CharacterIndex, Look, Body, AccentPaint, Accent, TeamColor, Team != IA_NoTeam, RimStrength, Accessories);
+	static const TArray<FIAAccessory> NoParts;
+
+	for (const FIAAccessory& Part : (GearCount > 0 ? NoParts : Look.Parts))
 	{
 		const int32 BoneIndex = RefSkeleton.FindBoneIndex(Part.Bone);
 		if (BoneIndex == INDEX_NONE)

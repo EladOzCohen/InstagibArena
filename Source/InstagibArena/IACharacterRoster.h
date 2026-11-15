@@ -38,6 +38,16 @@ struct FIAAccessory
 	EIAPartColor Color;
 };
 
+/**
+ * One piece of modelled gear: a static mesh made by Tools/make_gear_assets.py, authored in the bone's local space with character axes
+ * (X forward, Y right, Z up), so it attaches with no offset. The pieces of a look are listed in IACharacterGear.inl (generated).
+ */
+struct FIAGearPiece
+{
+	const TCHAR* Bone;
+	const TCHAR* Mesh;
+};
+
 /** The look of one character: which mannequin, how it is scaled, colors and accessories. */
 struct FIACharacterLook
 {
@@ -52,6 +62,7 @@ struct FIACharacterLook
 	TArray<FIAAccessory> Parts;
 	float BodyGlow = 0.f;        // makes the whole body emissive (used by the hologram)
 	float AccentMetal = 0.f;     // 1 = the accent parts are metal (gold, steel); everything else on a character is matte
+	FLinearColor GearCloth = FLinearColor(0.f, 0.f, 0.f, 0.f); // cloth of the modelled gear when it is not the body colour (alpha 0 = derive it from the body)
 };
 
 namespace IACharacters
@@ -61,6 +72,16 @@ namespace IACharacters
 
 	/** Rotation that turns a cylinder's long axis (Z) into the character's forward axis (X). */
 	inline const FRotator AlongX(-90.f, 0.f, 0.f);
+
+	/** The modelled gear of a look (empty = none: the primitive Parts of the look are used). */
+	inline const TArray<FIAGearPiece>& GetGear(int32 Index)
+	{
+		static const TArray<TArray<FIAGearPiece>> Gear = {
+#include "IACharacterGear.inl"
+		};
+		static const TArray<FIAGearPiece> None;
+		return Gear.Num() > 0 ? Gear[Index % Gear.Num()] : None;
+	}
 
 	inline const FIACharacterLook& GetLook(int32 Index)
 	{
@@ -202,7 +223,7 @@ namespace IACharacters
 				{ EIAShape::Sphere,   TEXT("head"),       FVector(-12, 14, 29), FRotator(0, 0, 0), FVector(8, 8, 4),    EIAPartColor::Light },
 				{ EIAShape::Cylinder, TEXT("spine_04"),   FVector(-11, 0, 6),   IACharacters::AlongX, FVector(24, 24, 5), EIAPartColor::Accent },
 				{ EIAShape::Cylinder, TEXT("spine_04"),   FVector(-11, 0, -8),  IACharacters::AlongX, FVector(18, 18, 4), EIAPartColor::Team },
-			  } },
+			  }, 0.f, 0.f, FLinearColor(0.20f, 0.36f, 0.08f, 1.f) },   // the moss and leaves of the modelled gear are green
 			// 13 - Specter-9: a glowing hologram with a halo and floating cubes.
 			{ TEXT("Specter-9"), TEXT("Hologram"), false, 1.0f,
 			  FLinearColor(0.0f, 0.40f, 0.55f), FLinearColor(0.7f, 1.0f, 1.0f), 0.55f, 0.0f,

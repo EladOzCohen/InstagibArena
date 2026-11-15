@@ -469,7 +469,8 @@ bool UIADevSubsystem::SpawnShowroom(float DeltaTime)
 		const FVector Location = ShowroomLocation + Right * ((I - 2) * 130.f);
 		if (AIAPlayerCharacter* Pawn = World->SpawnActor<AIAPlayerCharacter>(AIAPlayerCharacter::StaticClass(), Location, FRotator(0.f, ShowroomYaw, 0.f), Params))
 		{
-			Pawn->SetForcedLook((First + I) % IACharacters::LookCount);
+			// -IAShowroomTeams puts the characters into alternating teams (0 red, 1 blue) to check how the gear looks in team games
+			Pawn->SetForcedLook((First + I) % IACharacters::LookCount, FParse::Param(FCommandLine::Get(), TEXT("IAShowroomTeams")) ? (I % 2) : -1);
 			ShowroomPawns.Add(Pawn);
 			ShowroomHome.Add(Location);
 			if (FParse::Param(FCommandLine::Get(), TEXT("IAShowroomWalk")))
