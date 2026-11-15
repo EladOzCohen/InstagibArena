@@ -27,7 +27,7 @@ if TOOLS_DIR not in sys.path:
 import fetch_hdri as fh  # noqa: E402
 
 SKY_DIR = "/Game/Sky"
-MATERIAL = SKY_DIR + "/M_IASky"
+MATERIAL = SKY_DIR + "/M_IASkySun"
 DOME = SKY_DIR + "/SM_SkyDome"
 FORCE = os.environ.get("IA_SKY_FORCE") == "1"
 
@@ -86,12 +86,22 @@ return float3(c * d.x + s * d.y, -s * d.x + c * d.y, d.z);
 """
 
 
+SUN_HLSL = """
+float3 d = normalize(V.xyz);
+float c = dot(d, normalize(S.xyz));
+float r = radians(max(Rad, 0.05));
+float disc = smoothstep(cos(r * 1.35), cos(r * 0.8), c);
+float halo = pow(saturate(c), max(Exp, 1.0)) * Halo;
+return Col.xyz * (disc * Disc + halo);
+"""
+
+
 def build_material(default_cube):
     if eal.does_asset_exist(MATERIAL):
         if not FORCE:
             return eal.load_asset(MATERIAL)
         eal.delete_asset(MATERIAL)
-    mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset("M_IASky", SKY_DIR, unreal.Material,
+    mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(MATERIAL.split("/")[-1], SKY_DIR, unreal.Material,
                                                                   unreal.MaterialFactoryNew())
     lib.delete_all_material_expressions(mat)
     mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
@@ -134,7 +144,38 @@ def build_material(default_cube):
     m2 = _node(mat, unreal.MaterialExpressionMultiply, 50, 160)
     _link(m1, m2, "A")
     _link(bright, m2, "B")
-    lib.connect_material_property(m2, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    # The sun: a bright disc with a soft halo in the direction of the sun (world space, set per map by maplooks).
+    sdir = _node(mat, unreal.MaterialExpressionVectorParameter, -900, 500, parameter_name="SunDir",
+                 default_value=unreal.LinearColor(0.0, 0.0, -1.0, 0.0))
+    scol = _node(mat, unreal.MaterialExpressionVectorParameter, -900, 620, parameter_name="SunColor",
+                 default_value=unreal.LinearColor(1.0, 0.95, 0.85, 1.0))
+    srad = _node(mat, unreal.MaterialExpressionScalarParameter, -900, 740, parameter_name="SunRadius", default_value=2.2)
+    shalo = _node(mat, unreal.MaterialExpressionScalarParameter, -900, 820, parameter_name="SunHalo", default_value=0.0)
+    sexp = _node(mat, unreal.MaterialExpressionScalarParameter, -900, 900, parameter_name="SunHaloExp", default_value=40.0)
+    sdisc = _node(mat, unreal.MaterialExpressionScalarParameter, -900, 980, parameter_name="SunDisc", default_value=0.0)
+    for n in (sdir, scol, srad, shalo, sexp, sdisc):
+        n.set_editor_property("group", "Sun")
+    cs = _node(mat, unreal.MaterialExpressionCustom, -600, 700)
+    ins = []
+    for nm in ("V", "S", "Col", "Rad", "Halo", "Exp", "Disc"):
+        ci = unreal.CustomInput()
+        ci.set_editor_property("input_name", nm)
+        ins.append(ci)
+    cs.set_editor_property("description", "SunDisc")
+    cs.set_editor_property("code", SUN_HLSL)
+    cs.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT3)
+    cs.set_editor_property("inputs", ins)
+    _link(sub, cs, "V")
+    _link(sdir, cs, "S")
+    _link(scol, cs, "Col")
+    _link(srad, cs, "Rad")
+    _link(shalo, cs, "Halo")
+    _link(sexp, cs, "Exp")
+    _link(sdisc, cs, "Disc")
+    add = _node(mat, unreal.MaterialExpressionAdd, 250, 200)
+    _link(m2, add, "A")
+    _link(cs, add, "B")
+    lib.connect_material_property(add, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     lib.recompile_material(mat)
     eal.save_asset(MATERIAL)
     unreal.log("SKIES material built: " + MATERIAL)

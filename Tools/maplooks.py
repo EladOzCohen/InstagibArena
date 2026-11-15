@@ -30,6 +30,7 @@ Sky brightness is the brightness the sky has ON SCREEN (linear, mean of the uppe
 of `ev`: the dome multiplies by 1.2 * 2^ev, so a map that changes `ev` to light its floor does not change its sky.
 """
 
+import math
 import os
 
 import unreal
@@ -135,7 +136,7 @@ HDRI = {
 
 SKY_DIR = "/Game/Sky"
 DOME_MESH = SKY_DIR + "/SM_SkyDome"
-DOME_MATERIAL = SKY_DIR + "/M_IASky"
+DOME_MATERIAL = SKY_DIR + "/M_IASkySun"
 DOME_RADIUS = 120000.0         # uu. The maps are at most about 12000 wide; the dome only has to hold them all (the picture is
 #                                drawn by view direction, not by position, so the size does not change how the sky looks).
 
@@ -190,7 +191,7 @@ def _level_name():
         return "Level"
 
 
-def _sky_instance(level, hdri, yaw, brightness, tint):
+def _sky_instance(level, hdri, yaw, brightness, tint, sun=None):
     """The material instance /Game/Sky/MI_Sky_<level> (parent M_IASky) with the cube map and the parameters of this map."""
     eal = unreal.EditorAssetLibrary
     mlib = unreal.MaterialEditingLibrary
@@ -205,15 +206,23 @@ def _sky_instance(level, hdri, yaw, brightness, tint):
     mlib.set_material_instance_scalar_parameter_value(mic, "Rotation", float(yaw))
     mlib.set_material_instance_scalar_parameter_value(mic, "Brightness", float(brightness))
     mlib.set_material_instance_vector_parameter_value(mic, "Tint", _lin(tint))
+    sun = sun or {}
+    d = sun.get("dir", (0.0, 0.0, -1.0))
+    mlib.set_material_instance_vector_parameter_value(mic, "SunDir", unreal.LinearColor(d[0], d[1], d[2], 0.0))
+    mlib.set_material_instance_vector_parameter_value(mic, "SunColor", _lin(sun.get("rgb", (1.0, 0.95, 0.85))))
+    mlib.set_material_instance_scalar_parameter_value(mic, "SunRadius", float(sun.get("radius", 2.2)))
+    mlib.set_material_instance_scalar_parameter_value(mic, "SunDisc", float(sun.get("disc", 0.0)))
+    mlib.set_material_instance_scalar_parameter_value(mic, "SunHalo", float(sun.get("halo", 0.0)))
+    mlib.set_material_instance_scalar_parameter_value(mic, "SunHaloExp", float(sun.get("halo_exp", 40.0)))
     mlib.update_material_instance(mic)
     eal.save_asset(path)
     return mic
 
 
-def _spawn_dome(builder, hdri, yaw, brightness, tint):
+def _spawn_dome(builder, hdri, yaw, brightness, tint, sun=None):
     """The sky: one huge sphere around the map with the unlit sky material. No shadows, no collision (not walkable, shots
     and bots pass through), no decals, no lighting contribution."""
-    mic = _sky_instance(_level_name(), hdri, yaw, brightness, tint)
+    mic = _sky_instance(_level_name(), hdri, yaw, brightness, tint, sun)
     mesh = unreal.EditorAssetLibrary.load_asset(DOME_MESH)
     radius = mesh.get_bounding_box().max.x                       # the copied engine sphere (about 50 uu)
     scale = DOME_RADIUS / max(1.0, radius)
@@ -302,7 +311,15 @@ def apply_look(builder, name="day_clear", **over):
 
     # --- sky: the dome with the photographic panorama, or (sky_hdri=None) the atmosphere with its aerial perspective
     if hd is not None:
-        _spawn_dome(builder, cfg["hdri"], cfg["sky_yaw"], scene, cfg["sky_tint"])
+        sun_disc = None
+        if float(cfg["sun_pitch"]) < -3.0 and cfg.get("sun_disc", name in ("day_clear", "dusk", "desert", "arctic")):
+            # a visible sun: direction TOWARDS the sun = opposite of the way the light travels
+            p, y = math.radians(float(cfg["sun_pitch"])), math.radians(float(cfg["sun_yaw"]))
+            sun_disc = dict(dir=(-math.cos(p) * math.cos(y), -math.cos(p) * math.sin(y), -math.sin(p)),
+                            rgb=cfg["sun_rgb"], radius=float(cfg.get("sun_radius", 2.0)),
+                            disc=float(cfg.get("sun_disc_gain", 5.0)) * 1.2 * (2.0 ** ev),
+                            halo=0.35 * 1.2 * (2.0 ** ev), halo_exp=45.0)
+        _spawn_dome(builder, cfg["hdri"], cfg["sky_yaw"], scene, cfg["sky_tint"], sun_disc)
     if cfg["atmosphere"]:
         builder.spawn(unreal.SkyAtmosphere, "SkyAtmosphere")
 
