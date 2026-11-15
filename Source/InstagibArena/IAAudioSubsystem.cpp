@@ -63,6 +63,13 @@ namespace
 
 		// ---- MENUS block (append new sounds below)
 		case EIASound::UIHover:      return TEXT("/Game/Audio/SFX/S_UiHover.S_UiHover");   // made by gen_audio.py "ui_hover" (not generated yet)
+
+		// ---- capture the flag
+		case EIASound::FlagTaken:    return TEXT("/Game/Audio/SFX/S_FlagTaken.S_FlagTaken");
+		case EIASound::FlagDropped:  return TEXT("/Game/Audio/SFX/S_FlagDropped.S_FlagDropped");
+		case EIASound::FlagReturned: return TEXT("/Game/Audio/SFX/S_FlagReturned.S_FlagReturned");
+		case EIASound::FlagCaptured: return TEXT("/Game/Audio/SFX/S_FlagCaptured.S_FlagCaptured");
+		case EIASound::FlagLost:     return TEXT("/Game/Audio/SFX/S_FlagLost.S_FlagLost");
 		}
 		return TEXT("");
 	}

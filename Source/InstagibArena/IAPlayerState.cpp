@@ -28,12 +28,18 @@ void AIAPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AIAPlayerState, Streak);
 	DOREPLIFETIME(AIAPlayerState, BestStreak);
 	DOREPLIFETIME(AIAPlayerState, MultiKill);
+	DOREPLIFETIME(AIAPlayerState, Captures);
+	DOREPLIFETIME(AIAPlayerState, Returns);
+	DOREPLIFETIME(AIAPlayerState, FlagKills);
 }
 
 void AIAPlayerState::ResetMatchStats()
 {
 	Kills = 0;
 	Deaths = 0;
+	Captures = 0;
+	Returns = 0;
+	FlagKills = 0;
 	ShotsFired = 0;
 	ShotsHit = 0;
 	Streak = 0;

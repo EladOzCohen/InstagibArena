@@ -71,6 +71,19 @@ private:
 	void FollowPath(AIAPlayerCharacter* Me, float DeltaSeconds);
 	void RepathTo(const FVector& Goal, const FVector& From);
 
+	// ---- capture the flag
+	enum class EObjective : uint8 { None, Attack, Carry, Hunt, Recover, Escort, Defend };
+	void UpdateObjective(AIAPlayerCharacter* Me);
+	void MoveToObjective(AIAPlayerCharacter* Me, float DeltaSeconds);
+	float TargetWeight(const AIAPlayerCharacter* Me, const AIAPlayerCharacter* Other) const;
+
+	EObjective Objective = EObjective::None;
+	FVector ObjectiveGoal = FVector::ZeroVector;
+	float NextObjectiveTime = 0.f;
+	float NextPatrolTime = 0.f;
+	float NextPathAllowedTime = 0.f;   // a bot searches at most four times a second, and waits after a failed search
+	float CarrySinceTime = -1.f;
+
 	EIABotSkill Skill = EIABotSkill::Intermediate;
 	FIABotSkillParams Params;
 

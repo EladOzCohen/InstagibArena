@@ -46,6 +46,17 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Stats")
 	int32 ShotsHit = 0;
 
+	// ---- capture the flag (per match)
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "CTF")
+	int32 Captures = 0;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "CTF")
+	int32 Returns = 0;
+
+	/** Enemy flag carriers this player has killed. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "CTF")
+	int32 FlagKills = 0;
+
 	/** Kills since the last death. */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Stats")
 	int32 Streak = 0;

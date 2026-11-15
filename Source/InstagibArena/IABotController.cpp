@@ -1,6 +1,8 @@
 // Instagib Arena
 
 #include "IABotController.h"
+#include "IAFlag.h"
+#include "IAFlagBase.h"
 #include "IAPlayerCharacter.h"
 #include "IAPlayerState.h"
 #include "IAGameState.h"
@@ -54,6 +56,9 @@ void AIABotController::OnUnPossess()
 	bTargetVisible = false;
 	Path.Reset();
 	PathIndex = 0;
+	Objective = EObjective::None;
+	NextObjectiveTime = 0.f;
+	NextPathAllowedTime = 0.f;
 }
 
 void AIABotController::Tick(float DeltaSeconds)
@@ -124,7 +129,7 @@ void AIABotController::FindTarget(AIAPlayerCharacter* Me)
 	const float CosHalfFov = FMath::Cos(FMath::DegreesToRadians(Params.FieldOfViewDeg * 0.5f));
 
 	AIAPlayerCharacter* Best = nullptr;
-	float BestDistance = Params.SightRange;
+	float BestScore = FLT_MAX;   // distance, made smaller for an enemy who carries our flag: he is shot first
 
 	for (TActorIterator<AIAPlayerCharacter> It(GetWorld()); It; ++It)
 	{
@@ -136,7 +141,8 @@ void AIABotController::FindTarget(AIAPlayerCharacter* Me)
 
 		const FVector ToOther = Other->GetActorLocation() - Eye;
 		const float Distance = ToOther.Size();
-		if (Distance >= BestDistance)
+		const float Score = Distance * TargetWeight(Me, Other);
+		if (Distance >= Params.SightRange || Score >= BestScore)
 		{
 			continue;
 		}
@@ -151,7 +157,7 @@ void AIABotController::FindTarget(AIAPlayerCharacter* Me)
 		}
 
 		Best = Other;
-		BestDistance = Distance;
+		BestScore = Score;
 	}
 
 	if (Best)
@@ -173,6 +179,21 @@ void AIABotController::FindTarget(AIAPlayerCharacter* Me)
 			Target.Reset();
 		}
 	}
+}
+
+float AIABotController::TargetWeight(const AIAPlayerCharacter* Me, const AIAPlayerCharacter* Other) const
+{
+	// Capture the flag: whoever carries the flag of the bot's team is the first target.
+	const AIAPlayerState* MyState = Me->GetPlayerState<AIAPlayerState>();
+	if (MyState && MyState->Team < 2)
+	{
+		const AIAFlag* Flag = AIAFlag::FindCarriedBy(GetWorld(), Other);
+		if (Flag && Flag->GetFlagTeam() == MyState->Team)
+		{
+			return 0.3f;
+		}
+	}
+	return 1.f;
 }
 
 bool AIABotController::HasGroundAhead(const AIAPlayerCharacter* Me, const FVector& Direction, float Distance) const
@@ -214,6 +235,12 @@ void AIABotController::Think()
 	}
 
 	FindTarget(Me);
+
+	if (GetWorld()->GetTimeSeconds() >= NextObjectiveTime)
+	{
+		NextObjectiveTime = GetWorld()->GetTimeSeconds() + 0.4f + FMath::FRand() * 0.25f;
+		UpdateObjective(Me);
+	}
 
 	if (bReleaseJump)
 	{
@@ -268,7 +295,7 @@ void AIABotController::UpdateAim(AIAPlayerCharacter* Me, float DeltaSeconds)
 		TurnRate = FMath::Max(TurnRate, 220.f);
 		FVector Velocity = Me->GetVelocity();
 		Velocity.Z = 0.f;
-		if (Target.IsValid())
+		if (Target.IsValid() && Objective == EObjective::None)
 		{
 			Desired = (LastSeenLocation - Me->GetPawnViewLocation()).Rotation();
 		}
@@ -318,12 +345,30 @@ void AIABotController::UpdateFire(AIAPlayerCharacter* Me)
 
 void AIABotController::RepathTo(const FVector& Goal, const FVector& From)
 {
+	const float Now = GetWorld()->GetTimeSeconds();
+	const UIANavGrid* Grid = GetWorld()->GetSubsystem<UIANavGrid>();
+
+	// Path searches are expensive on big maps: one bot searches at most four times a second, and the whole world starts
+	// at most one search per frame (the bot keeps walking its old path and asks again a moment later).
+	if (Grid && Grid->IsReady())
+	{
+		if (Now < NextPathAllowedTime)
+		{
+			return;
+		}
+		if (!Grid->TryConsumePathBudget(1))
+		{
+			NextPathAllowedTime = Now + FMath::FRandRange(0.02f, 0.08f);
+			return;
+		}
+		NextPathAllowedTime = Now + 0.25f;
+	}
+
 	PathGoal = Goal;
 	PathIndex = 0;
-	NextRepathTime = GetWorld()->GetTimeSeconds() + 1.0f;
+	NextRepathTime = Now + 1.0f;
 
 	Path.Reset();
-	const UIANavGrid* Grid = GetWorld()->GetSubsystem<UIANavGrid>();
 	if (!Grid || !Grid->IsReady())
 	{
 		Path.Add(Goal); // no navigation data at all: walk straight at the goal
@@ -331,6 +376,7 @@ void AIABotController::RepathTo(const FVector& Goal, const FVector& From)
 	else if (!Grid->FindPath(From, Goal, Path))
 	{
 		Path.Reset(); // unreachable (for example on another roof): stay put and try again later
+		NextPathAllowedTime = Now + 1.5f;
 	}
 }
 
@@ -404,14 +450,26 @@ void AIABotController::UpdateMovement(AIAPlayerCharacter* Me, float DeltaSeconds
 	const float HalfHeight = Me->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	const FVector Feet = Location - FVector(0.f, 0.f, HalfHeight);
 
+	// Capture the flag: the carrier keeps running home (it still shoots whatever it sees, see UpdateFire).
+	if (Objective == EObjective::Carry)
+	{
+		MoveToObjective(Me, DeltaSeconds);
+		return;
+	}
+
 	// Combat: strafe around the enemy once close enough.
 	if (Target.IsValid() && bTargetVisible)
 	{
 		const FVector ToTarget = Target->GetActorLocation() - Location;
 		const float Distance = ToTarget.Size();
 
-		if (Distance > 1800.f)
+		if (Distance > 1800.f || (Objective != EObjective::None && Distance > 1300.f))
 		{
+			if (Objective != EObjective::None)
+			{
+				MoveToObjective(Me, DeltaSeconds);   // a far enemy is no reason to leave the task
+				return;
+			}
 			if (Path.IsEmpty() || (Now >= NextRepathTime))
 			{
 				RepathTo(Target->GetActorLocation() - FVector(0.f, 0.f, HalfHeight), Feet);
@@ -452,6 +510,13 @@ void AIABotController::UpdateMovement(AIAPlayerCharacter* Me, float DeltaSeconds
 		return;
 	}
 
+	// Capture the flag: the task goes on (the bot still turns toward the last place it saw an enemy, see UpdateAim).
+	if (Objective != EObjective::None)
+	{
+		MoveToObjective(Me, DeltaSeconds);
+		return;
+	}
+
 	// Lost sight: go to the last known position, then give up.
 	if (Target.IsValid())
 	{
@@ -486,4 +551,175 @@ void AIABotController::UpdateMovement(AIAPlayerCharacter* Me, float DeltaSeconds
 		return;
 	}
 	FollowPath(Me, DeltaSeconds);
+}
+
+// ---------------------------------------------------------------- capture the flag
+
+void AIABotController::UpdateObjective(AIAPlayerCharacter* Me)
+{
+	const EObjective Old = Objective;
+	Objective = EObjective::None;
+
+	UWorld* World = GetWorld();
+	const AIAGameState* GS = World->GetGameState<AIAGameState>();
+	const AIAPlayerState* PS = Me->GetPlayerState<AIAPlayerState>();
+	if (!GS || !GS->IsCTF() || GS->Phase != EIAMatchPhase::Live || !PS || PS->Team > 1)
+	{
+		return;
+	}
+	const uint8 Team = PS->Team;
+	const AIAFlag* Own = AIAFlag::Find(World, Team);
+	const AIAFlag* Enemy = AIAFlag::Find(World, 1 - Team);
+	const AIAFlagBase* OwnBase = AIAFlagBase::Find(World, Team);
+	if (!Own || !Enemy || !OwnBase)
+	{
+		return;
+	}
+	const float Now = World->GetTimeSeconds();
+	const float HalfHeight = Me->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	const FVector Down(0.f, 0.f, HalfHeight);
+
+	// The flag carrier brings the flag home.
+	if (Enemy->GetFlagState() == EIAFlagState::Carried && Enemy->GetCarrier() == Me)
+	{
+		Objective = EObjective::Carry;
+		ObjectiveGoal = OwnBase->GetActorLocation();
+		return;
+	}
+
+	// Our flag is in enemy hands: everybody who is free hunts the carrier.
+	if (Own->GetFlagState() == EIAFlagState::Carried && Own->GetCarrier())
+	{
+		Objective = EObjective::Hunt;
+		ObjectiveGoal = Own->GetCarrier()->GetActorLocation() - Down;
+		return;
+	}
+
+	// Our flag lies on the ground: the two bots nearest to it go and touch it.
+	if (Own->GetFlagState() == EIAFlagState::Dropped)
+	{
+		const float MyDistance = FVector::Dist2D(Me->GetActorLocation(), Own->GetRestLocation());
+		int32 Closer = 0;
+		for (FConstControllerIterator It = World->GetControllerIterator(); It; ++It)
+		{
+			const AIABotController* Other = Cast<AIABotController>(It->Get());
+			const AIAPlayerState* OtherState = Other ? Other->GetPlayerState<AIAPlayerState>() : nullptr;
+			const AIAPlayerCharacter* OtherBody = Other ? Cast<AIAPlayerCharacter>(Other->GetPawn()) : nullptr;
+			if (Other && Other != this && OtherState && OtherState->Team == Team && OtherBody && !OtherBody->IsDead()
+				&& FVector::Dist2D(OtherBody->GetActorLocation(), Own->GetRestLocation()) < MyDistance)
+			{
+				++Closer;
+			}
+		}
+		if (Closer < 2)
+		{
+			Objective = EObjective::Recover;
+			ObjectiveGoal = Own->GetRestLocation();
+			return;
+		}
+	}
+
+	// Roles by position among the living bots of the team (sorted by slot): attacker, defender, balancing, attacker, ...
+	TArray<int32> Slots;
+	for (FConstControllerIterator It = World->GetControllerIterator(); It; ++It)
+	{
+		const AIABotController* Other = Cast<AIABotController>(It->Get());
+		const AIAPlayerState* OtherState = Other ? Other->GetPlayerState<AIAPlayerState>() : nullptr;
+		const AIAPlayerCharacter* OtherBody = Other ? Cast<AIAPlayerCharacter>(Other->GetPawn()) : nullptr;
+		if (OtherState && OtherState->Team == Team && OtherBody && !OtherBody->IsDead())
+		{
+			Slots.Add(OtherState->SlotId);
+		}
+	}
+	Slots.Sort();
+	const int32 Index = FMath::Max(0, Slots.IndexOfByKey(PS->SlotId));
+	const int32 Count = Slots.Num();
+	int32 TeamRole = Count <= 1 ? 2 : Index % 3;   // 0 attacker, 1 defender, 2 balancing
+	if (TeamRole == 2)
+	{
+		// The balancing bot attacks when the team is not ahead, otherwise it helps to defend.
+		const int32 MyScore = Team == 0 ? GS->RedScore : GS->BlueScore;
+		const int32 TheirScore = Team == 0 ? GS->BlueScore : GS->RedScore;
+		TeamRole = (MyScore > TheirScore && Own->IsHome()) ? 1 : 0;
+	}
+
+	if (TeamRole == 0)
+	{
+		const ACharacter* MateCarrier = Enemy->GetFlagState() == EIAFlagState::Carried ? Enemy->GetCarrier() : nullptr;
+		if (MateCarrier)
+		{
+			Objective = EObjective::Escort;   // the enemy flag is already on its way: guard the carrier
+			ObjectiveGoal = MateCarrier->GetActorLocation() - Down;
+		}
+		else
+		{
+			Objective = EObjective::Attack;
+			ObjectiveGoal = Enemy->GetRestLocation();
+		}
+		return;
+	}
+
+	// Defender: stays around the own base and the flag, walking between a few spots.
+	Objective = EObjective::Defend;
+	if (Old != EObjective::Defend || Now >= NextPatrolTime)
+	{
+		NextPatrolTime = Now + FMath::FRandRange(4.f, 8.f);
+		FVector Spot = OwnBase->GetActorLocation();
+		if (const UIANavGrid* Grid = World->GetSubsystem<UIANavGrid>(); Grid && Grid->IsReady())
+		{
+			Grid->GetRandomLocationNear(OwnBase->GetActorLocation(), 650.f, Spot);
+		}
+		ObjectiveGoal = Spot;
+	}
+	else
+	{
+		ObjectiveGoal = ObjectiveGoal.IsZero() ? OwnBase->GetActorLocation() : ObjectiveGoal;
+	}
+}
+
+void AIABotController::MoveToObjective(AIAPlayerCharacter* Me, float DeltaSeconds)
+{
+	const float Now = GetWorld()->GetTimeSeconds();
+	const float HalfHeight = Me->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	const FVector Feet = Me->GetActorLocation() - FVector(0.f, 0.f, HalfHeight);
+	const float Flat = FVector::Dist2D(Feet, ObjectiveGoal);
+	const float DeltaZ = ObjectiveGoal.Z - Feet.Z;
+
+	// Close enough: guards and escorts wait, everybody else walks the last bit straight at the goal (touching it is the point).
+	const float StopDistance = Objective == EObjective::Defend ? 130.f : (Objective == EObjective::Escort ? 420.f : (Objective == EObjective::Hunt ? 250.f : 25.f));
+	if (Flat < StopDistance && FMath::Abs(DeltaZ) < 220.f)
+	{
+		if (StopDistance > 100.f)
+		{
+			return;
+		}
+		Me->AddMovementInput(FVector(ObjectiveGoal.X - Feet.X, ObjectiveGoal.Y - Feet.Y, 0.f).GetSafeNormal(), 1.f);
+		return;
+	}
+
+	// Follow a path to the goal; a goal that moves (a carrier) is followed with the usual repath cadence.
+	const bool bMoving = Objective == EObjective::Hunt || Objective == EObjective::Escort;
+	const bool bGoalMoved = FVector::Dist2D(PathGoal, ObjectiveGoal) > (bMoving ? 350.f : 120.f);
+	const bool bPathDone = Path.IsEmpty() || PathIndex >= Path.Num();
+	if ((bGoalMoved || (bPathDone && Flat > 140.f)) && Now >= NextRepathTime)
+	{
+		RepathTo(ObjectiveGoal, Feet);
+	}
+
+	if (PathIndex < Path.Num())
+	{
+		FollowPath(Me, DeltaSeconds);
+		return;
+	}
+
+	// No path (no navigation data, unreachable, or the last few steps): walk straight, jumping when it is higher.
+	if (Flat < 900.f || Objective == EObjective::Carry)
+	{
+		Me->AddMovementInput(FVector(ObjectiveGoal.X - Feet.X, ObjectiveGoal.Y - Feet.Y, 0.f).GetSafeNormal(), 1.f);
+		if (DeltaZ > 50.f && Me->GetCharacterMovement()->IsMovingOnGround() && Flat < 220.f)
+		{
+			Me->Jump();
+			bReleaseJump = true;
+		}
+	}
 }

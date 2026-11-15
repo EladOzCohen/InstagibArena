@@ -158,6 +158,10 @@ FText SIAMatchResults::GetSubline() const
 	if (GS->IsTeamGame())
 	{
 		Line += FString::Printf(TEXT("   Red %d : Blue %d"), GS->RedScore, GS->BlueScore);
+		if (GS->IsCTF())
+		{
+			Line += GS->RedScore + GS->BlueScore == 1 ? TEXT(" capture") : TEXT(" captures");
+		}
 	}
 	return FText::FromString(Line);
 }

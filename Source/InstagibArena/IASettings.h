@@ -16,13 +16,19 @@ namespace IABots
 
 struct INSTAGIBARENA_API FIAMatchSetup
 {
-	bool bTeamGame = false;
+	/** 0 = free for all, 1 = team deathmatch, 2 = capture the flag. */
+	int32 GameType = 0;
 	int32 MapIndex = 0;
 	int32 CharacterIndex = 0;
 	int32 BotCount = 4;
 	int32 BotSkill = 3;   // IABots::DefaultSkill
-	int32 ScoreLimit = 25;
+	int32 ScoreLimit = 25;   // frags (free for all, team deathmatch)
+	int32 CaptureLimit = 5;  // captures (capture the flag), 1..10, kept apart from the frag limit
 	int32 TimeLimit = 10;
+
+	bool IsCTF() const { return GameType == 2; }
+	/** The limit of the selected mode (frags or captures). */
+	int32& ActiveLimit() { return GameType == 2 ? CaptureLimit : ScoreLimit; }
 
 	void Load();
 	void Save() const;

@@ -2,6 +2,9 @@
 
 #include "IAHUD.h"
 #include "IACharacterRoster.h"
+#include "IAFlag.h"
+#include "IAFlagBase.h"
+#include "GameFramework/Character.h"
 #include "IAInputConfig.h"
 #include "IAMenuStyle.h"
 #include "IAPlayerController.h"
@@ -114,12 +117,15 @@ void AIAHUD::BindState(AIAGameState* GS)
 	if (AIAGameState* Old = BoundState.Get())
 	{
 		Old->OnAnnounce.Remove(AnnounceHandle);
+		Old->OnFlagEvent.Remove(FlagEventHandle);
 	}
 	BoundState = GS;
 	AnnounceHandle.Reset();
+	FlagEventHandle.Reset();
 	if (GS)
 	{
 		AnnounceHandle = GS->OnAnnounce.AddUObject(this, &AIAHUD::HandleAnnounce);
+		FlagEventHandle = GS->OnFlagEvent.AddUObject(this, &AIAHUD::HandleFlagEvent);
 	}
 }
 
@@ -238,12 +244,69 @@ void AIAHUD::HandleAnnounce(EIAAnnounce Kind, int32 Subject, int32 Param)
 	}
 	case EIAAnnounce::FragsLeft:
 		B.Size = Param == 1 ? 0.8f : 0.55f;
-		B.Title = Param == 1 ? TEXT("MATCH POINT") : FString::Printf(TEXT("%d FRAGS LEFT"), Param);
-		B.Sub = Param == 1 ? TEXT("1 frag left") : TEXT("");
+	{
+		const bool bCtfMatch = BoundState.IsValid() && BoundState->IsCTF();
+		B.Title = Param == 1 ? FString(TEXT("MATCH POINT"))
+			: (bCtfMatch ? FString::Printf(TEXT("%d CAPTURES LEFT"), Param) : FString::Printf(TEXT("%d FRAGS LEFT"), Param));
+		B.Sub = Param == 1 ? FString(bCtfMatch ? TEXT("1 capture left") : TEXT("1 frag left")) : FString();
+	}
 		B.Color = Param == 1 ? FLinearColor(1.f, 0.3f, 0.25f) : HudGold;
 		B.Priority = 2;
 		B.Sound = EIASound::Warning;
 		break;
+	}
+	QueueBanner(B);
+}
+
+void AIAHUD::HandleFlagEvent(EIAFlagEvent Kind, int32 Subject, uint8 FlagTeam)
+{
+	const AIAPlayerState* Me = GetLocalState();
+	const AIAPlayerState* Who = FindPlayer(Subject);
+	const bool bMe = Me && Who && Me->SlotId == Who->SlotId;
+	const uint8 MyTeam = Me ? Me->Team : IA_NoTeam;
+	const FString WhoName = Who ? Who->GetPlayerName() : FString();
+	const TCHAR* FlagName = FlagTeam == 0 ? TEXT("RED") : TEXT("BLUE");
+	const TCHAR* FlagNameLower = FlagTeam == 0 ? TEXT("red") : TEXT("blue");
+
+	FBanner B;
+	B.bHasSound = true;
+	B.Size = 0.8f;
+	B.Duration = 2.1f;
+	B.Priority = 2;
+	B.Color = HudTeamTint(FlagTeam, HudGold);
+	switch (Kind)
+	{
+	case EIAFlagEvent::Taken:
+		B.Title = FString::Printf(TEXT("%s FLAG TAKEN"), FlagName);
+		B.Sub = bMe ? FString(TEXT("You have the flag")) : (Who ? FString::Printf(TEXT("%s took the %s flag"), *WhoName, FlagNameLower) : FString());
+		// Good news when the flag taken is the enemy's, bad news when it is yours.
+		B.Sound = (MyTeam == IA_NoTeam || FlagTeam != MyTeam) ? EIASound::FlagTaken : EIASound::FlagLost;
+		break;
+	case EIAFlagEvent::Dropped:
+		B.Title = FString::Printf(TEXT("%s FLAG DROPPED"), FlagName);
+		B.Sub = (MyTeam == FlagTeam) ? FString(TEXT("Touch it to return it")) : (Who ? FString::Printf(TEXT("%s lost the flag"), *WhoName) : FString());
+		B.Sound = EIASound::FlagDropped;
+		break;
+	case EIAFlagEvent::Returned:
+		B.Title = FString::Printf(TEXT("%s FLAG RETURNED"), FlagName);
+		B.Sub = bMe ? FString(TEXT("You returned the flag")) : (Who ? FString::Printf(TEXT("%s returned the flag"), *WhoName) : FString(TEXT("Back at its base")));
+		B.Size = 0.7f;
+		B.Duration = 1.8f;
+		B.Priority = 1;
+		B.Sound = EIASound::FlagReturned;
+		break;
+	case EIAFlagEvent::Captured:
+	{
+		const uint8 Scorer = FlagTeam == 0 ? 1 : 0;
+		B.Title = TEXT("FLAG CAPTURED");
+		B.Color = HudTeamTint(Scorer, HudGold);
+		B.Sub = bMe ? FString(TEXT("You scored!")) : (Who ? FString::Printf(TEXT("%s scored for the %s team"), *WhoName, Scorer == 0 ? TEXT("red") : TEXT("blue")) : FString());
+		B.Size = 1.f;
+		B.Duration = 2.6f;
+		B.Priority = 3;
+		B.Sound = (MyTeam == IA_NoTeam || MyTeam == Scorer) ? EIASound::FlagCaptured : EIASound::FlagLost;
+		break;
+	}
 	}
 	QueueBanner(B);
 }
@@ -485,10 +548,10 @@ void AIAHUD::DrawTopBar(const AIAGameState& GS, float Now)
 	Text(HudClockText(GS.ClockSeconds), CX, Y0 + (H - 42.f * S) * 0.5f, 42.f * S, ClockColor, 1, bUrgent ? 1.f + 0.06f * FMath::Max(0.f, FMath::Sin(Now * 10.f)) : 1.f);
 
 	// Caption under the clock.
-	FString Caption = GS.IsTeamGame() ? TEXT("TEAM DEATHMATCH") : TEXT("FREE FOR ALL");
+	FString Caption = GS.IsCTF() ? TEXT("CAPTURE THE FLAG") : (GS.IsTeamGame() ? TEXT("TEAM DEATHMATCH") : TEXT("FREE FOR ALL"));
 	if (GS.ScoreLimit > 0)
 	{
-		Caption += FString::Printf(TEXT("   -   FIRST TO %d"), GS.ScoreLimit);
+		Caption += GS.IsCTF() ? FString::Printf(TEXT("   -   FIRST TO %d CAPTURES"), GS.ScoreLimit) : FString::Printf(TEXT("   -   FIRST TO %d"), GS.ScoreLimit);
 	}
 	Text(Caption, CX, Y0 + H + 5.f * S, 13.f * S, HudDim, 1);
 
@@ -506,10 +569,20 @@ void AIAHUD::DrawTopBar(const AIAGameState& GS, float Now)
 			const FLinearColor Tint = HudTeamTint(Side.Team, FLinearColor::White);
 			Panel(Side.X, Y0, SideW, H, 0.62f, Tint);
 			DrawRect(FLinearColor(Tint.R, Tint.G, Tint.B, 0.16f), Side.X, Y0, SideW, H);
-			Text(Side.Name, Side.X + Pad, Y0 + 10.f * S, 20.f * S, Tint, 0);
+			Text(Side.Name, Side.X + Pad, Y0 + 6.f * S, 20.f * S, Tint, 0);
 			if (MyTeam == Side.Team)
 			{
-				Text(TEXT("YOUR TEAM"), Side.X + Pad, Y0 + H - 22.f * S, 12.f * S, HudDim, 0);
+				Text(TEXT("YOUR TEAM"), Side.X + Pad + 62.f * S, Y0 + 11.f * S, 11.f * S, HudDim, 0);
+			}
+			if (GS.IsCTF())
+			{
+				// Status of this team's flag: at base, taken (by whom) or dropped (with a countdown).
+				if (const AIAFlag* Flag = AIAFlag::Find(GetWorld(), Side.Team))
+				{
+					const FLinearColor StatusColor = Flag->IsHome() ? HudDim : (Flag->GetFlagState() == EIAFlagState::Carried ? FLinearColor(1.f, 0.82f, 0.22f) : FLinearColor(1.f, 0.55f, 0.2f));
+					DrawFlagGlyph(Side.X + Pad + 7.f * S, Y0 + H - 24.f * S, 15.f * S, Tint, Flag->IsHome() ? 0.5f : 1.f);
+					Text(FlagStatusText(*Flag, SideW - 2.f * Pad - 24.f * S - 62.f * S, 12.f * S), Side.X + Pad + 22.f * S, Y0 + H - 25.f * S, 12.f * S, StatusColor, 0);
+				}
 			}
 			Text(FString::FromInt(Side.Score), Side.X + SideW - Pad, Y0 + (H - 44.f * S) * 0.5f, 44.f * S, FLinearColor::White, 2);
 		}
@@ -576,12 +649,18 @@ void AIAHUD::DrawStats(const AIAGameState& GS)
 	const float Y = Canvas->ClipY - Margin - H;
 	Panel(X, Y, W, H, 0.55f, HudAccent);
 
-	const struct { const TCHAR* Label; FString Value; FLinearColor Color; } Cells[4] = {
+	struct { const TCHAR* Label; FString Value; FLinearColor Color; } Cells[4] = {
 		{ TEXT("KILLS"), FString::FromInt(Me->Kills), FLinearColor::White },
 		{ TEXT("DEATHS"), FString::FromInt(Me->Deaths), FLinearColor(0.85f, 0.87f, 0.93f) },
 		{ TEXT("STREAK"), FString::FromInt(Me->Streak), Me->Streak >= 3 ? HudAccent : FLinearColor::White },
 		{ TEXT("ACCURACY"), Me->ShotsFired > 0 ? FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Me->GetAccuracy())) : FString(TEXT("-")), FLinearColor(0.85f, 0.87f, 0.93f) },
 	};
+	if (GS.IsCTF())
+	{
+		// Capture the flag: captures and returns take the place of streak and accuracy.
+		Cells[2] = { TEXT("CAPTURES"), FString::FromInt(Me->Captures), Me->Captures > 0 ? HudGold : FLinearColor::White };
+		Cells[3] = { TEXT("RETURNS"), FString::FromInt(Me->Returns), FLinearColor(0.85f, 0.87f, 0.93f) };
+	}
 	for (int32 I = 0; I < 4; ++I)
 	{
 		const float CellX = X + 8.f * S + ColW * I + ColW * 0.5f;
@@ -620,8 +699,8 @@ void AIAHUD::DrawKillFeed(const AIAGameState& GS, float Now)
 	// Width of one row (the same numbers as in the drawing loop below).
 	auto RowWidth = [&](const FIAFeedEntry& Entry)
 	{
-		const bool bArrowRow = !Entry.bFell && !Entry.bSuicide;
-		const FString MiddleText = Entry.bFell ? FString(TEXT("fell")) : (Entry.bSuicide ? FString(TEXT("self-fragged")) : FString());
+		const bool bArrowRow = !Entry.bFell && !Entry.bSuicide && !Entry.bFlagEvent;
+		const FString MiddleText = Entry.bFlagEvent ? Entry.EventText : (Entry.bFell ? FString(TEXT("fell")) : (Entry.bSuicide ? FString(TEXT("self-fragged")) : FString()));
 		return 10.f * S * 2.f + (bArrowRow ? TextWidth(Entry.KillerName, Px) + 22.f * S + 8.f * S : 0.f) + TextWidth(Entry.VictimName, Px)
 			+ (MiddleText.IsEmpty() ? 0.f : TextWidth(MiddleText, Px * 0.85f) + 8.f * S);
 	};
@@ -654,9 +733,10 @@ void AIAHUD::DrawKillFeed(const AIAGameState& GS, float Now)
 		if (bMineDeath && Entry->VictimTeam == IA_NoTeam) { VictimColor = FLinearColor(1.f, 0.5f, 0.45f); }
 
 		FString Middle;
-		if (Entry->bFell) { Middle = TEXT("fell"); }
+		if (Entry->bFlagEvent) { Middle = Entry->EventText; }
+		else if (Entry->bFell) { Middle = TEXT("fell"); }
 		else if (Entry->bSuicide) { Middle = TEXT("self-fragged"); }
-		const bool bArrow = !Entry->bFell && !Entry->bSuicide;
+		const bool bArrow = !Entry->bFell && !Entry->bSuicide && !Entry->bFlagEvent;
 
 		const float Pad = 10.f * S;
 		const float ArrowW = bArrow ? 22.f * S : 0.f;
@@ -668,6 +748,13 @@ void AIAHUD::DrawKillFeed(const AIAGameState& GS, float Now)
 		const float TextY = Y + (RowH - Px) * 0.5f - 1.f;
 
 		DrawRect(FLinearColor(0.f, 0.f, 0.f, (bMine ? 0.62f : 0.46f) * Alpha), X, Y, RowW, RowH);
+		if (Entry->bFlagEvent)
+		{
+			// A flag row wears the colour of the flag on its left edge.
+			const FLinearColor FlagTint = HudTeamTint(Entry->FlagTeam, HudGold);
+			DrawRect(FLinearColor(FlagTint.R, FlagTint.G, FlagTint.B, Alpha), X, Y, 3.f * S, RowH);
+			DrawRect(FLinearColor(FlagTint.R, FlagTint.G, FlagTint.B, 0.14f * Alpha), X, Y, RowW, RowH);
+		}
 		if (bMine)
 		{
 			DrawRect(FLinearColor(HudAccent.R, HudAccent.G, HudAccent.B, Alpha), X, Y, 3.f * S, RowH);
@@ -780,7 +867,11 @@ void AIAHUD::DrawCountdown(const AIAGameState& GS, float Now)
 		Text(TEXT("GET READY"), CX, CY - 120.f * S, 34.f * S, FLinearColor(0.92f, 0.94f, 1.f, 0.95f), 1);
 		const FLinearColor NumberColor = Number == 1 ? FLinearColor(1.f, 0.55f, 0.1f, Fade) : FLinearColor(1.f, 1.f, 1.f, Fade);
 		Text(FString::FromInt(Number), CX, CY - 70.f * S, Number <= 3 ? 150.f * S : 100.f * S, NumberColor, 1, Pop);
-		Text(GS.IsTeamGame() ? TEXT("Team Deathmatch") : TEXT("Free For All"), CX, CY + 100.f * S, 22.f * S, HudDim, 1);
+		Text(GS.IsCTF() ? TEXT("Capture the Flag") : (GS.IsTeamGame() ? TEXT("Team Deathmatch") : TEXT("Free For All")), CX, CY + 100.f * S, 22.f * S, HudDim, 1);
+		if (GS.IsCTF())
+		{
+			Text(TEXT("Take the enemy flag and bring it to your base"), CX, CY + 130.f * S, 18.f * S, HudDim, 1);
+		}
 		return;
 	}
 
@@ -908,6 +999,207 @@ void AIAHUD::DrawProtection(const AIAGameState& GS, float Now)
 	}
 }
 
+// ---------------------------------------------------------------- capture the flag
+
+void AIAHUD::DrawFlagGlyph(float X, float Y, float Size, const FLinearColor& Color, float Alpha)
+{
+	// A pole with a pennant: dark outline first, then the colour.
+	const FLinearColor Dark(0.f, 0.f, 0.f, 0.75f * Alpha);
+	const float W = FMath::Max(2.f, Size * 0.12f);
+	DrawRect(Dark, X - W - 1.f, Y - 1.f, W * 2.f + 2.f, Size + 2.f);
+	DrawRect(FLinearColor(0.92f, 0.94f, 0.98f, Alpha), X - W * 0.5f, Y, W, Size);
+	const FVector2D Tip(X + Size * 0.95f, Y + Size * 0.27f);
+	DrawTriangle(FVector2D(X + W * 0.5f - 1.5f, Y - 1.5f), FVector2D(X + W * 0.5f - 1.5f, Y + Size * 0.56f + 1.5f), Tip + FVector2D(2.5f, 0.f), Dark);
+	DrawTriangle(FVector2D(X + W * 0.5f, Y), FVector2D(X + W * 0.5f, Y + Size * 0.54f), Tip, FLinearColor(Color.R, Color.G, Color.B, Alpha));
+}
+
+FString AIAHUD::FlagStatusText(const AIAFlag& Flag, float MaxWidth, float Px) const
+{
+	switch (Flag.GetFlagState())
+	{
+	case EIAFlagState::Carried:
+	{
+		FString Name = TEXT("?");
+		if (const AIAPlayerState* PS = Flag.GetCarrier() ? Flag.GetCarrier()->GetPlayerState<AIAPlayerState>() : nullptr)
+		{
+			Name = PS->GetPlayerName();
+		}
+		const FString Prefix = TEXT("TAKEN: ");
+		while (Name.Len() > 2 && TextWidth(Prefix + Name, Px) > MaxWidth)
+		{
+			Name.LeftChopInline(1);
+		}
+		return Prefix + Name;
+	}
+	case EIAFlagState::Dropped:
+		return FString::Printf(TEXT("DROPPED  %d"), FMath::CeilToInt(Flag.GetDropSecondsLeft()));
+	default:
+		return TEXT("AT BASE");
+	}
+}
+
+void AIAHUD::DrawMarker(const FVector& World, const FLinearColor& Color, const FString& Label, const FString& Distance, bool bFlag, bool bPulse, float Size)
+{
+	const float Now = GetWorld()->GetTimeSeconds();
+	const FVector P = Project(World);
+	const float Margin = 46.f * S;
+	const float TopMargin = 118.f * S;
+	const float Sz = Size * S * (bPulse ? 0.9f + 0.12f * FMath::Sin(Now * 9.f) : 1.f);
+	const bool bOn = P.Z > 0.f && P.X > Margin && P.X < Canvas->ClipX - Margin && P.Y > TopMargin && P.Y < Canvas->ClipY - Margin;
+
+	FVector2D Pos(P.X, P.Y);
+	FVector2D Dir = FVector2D::ZeroVector;
+	if (!bOn)
+	{
+		// Off screen: stuck to the edge, with an arrow that points the way.
+		const FVector2D Centre(Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f);
+		Dir = FVector2D(P.X - Centre.X, P.Y - Centre.Y);
+		if (P.Z <= 0.f)
+		{
+			Dir = -Dir;
+		}
+		if (Dir.SizeSquared() < 1.f)
+		{
+			Dir = FVector2D(0.f, 1.f);   // straight behind us: point down
+		}
+		const float TX = Dir.X > 0.f ? (Canvas->ClipX - Margin - Centre.X) / Dir.X : (Dir.X < 0.f ? (Margin - Centre.X) / Dir.X : FLT_MAX);
+		const float TY = Dir.Y > 0.f ? (Canvas->ClipY - Margin - Centre.Y) / Dir.Y : (Dir.Y < 0.f ? (TopMargin - Centre.Y) / Dir.Y : FLT_MAX);
+		Pos = Centre + Dir * FMath::Min(TX, TY);
+		Dir = Dir.GetSafeNormal();
+		Pos -= Dir * Sz * 0.8f;
+	}
+
+	const FLinearColor Light(FMath::Lerp(Color.R, 1.f, 0.25f), FMath::Lerp(Color.G, 1.f, 0.25f), FMath::Lerp(Color.B, 1.f, 0.25f), 1.f);
+	if (bFlag)
+	{
+		DrawFlagGlyph(Pos.X - Sz * 0.35f, Pos.Y - Sz * 0.5f, Sz, Light, 1.f);
+	}
+	else
+	{
+		const float R = Sz * 0.5f;
+		const FVector2D Top(Pos.X, Pos.Y - R), Right(Pos.X + R, Pos.Y), Bottom(Pos.X, Pos.Y + R), Left(Pos.X - R, Pos.Y);
+		DrawTriangle(Top, Right, Left, FLinearColor(Color.R, Color.G, Color.B, 0.28f));
+		DrawTriangle(Bottom, Right, Left, FLinearColor(Color.R, Color.G, Color.B, 0.28f));
+		const float T = 3.f * FMath::Clamp(S, 0.85f, 2.f);
+		DrawLine(Top.X, Top.Y, Right.X, Right.Y, FLinearColor(0.f, 0.f, 0.f, 0.7f), T + 2.f);
+		DrawLine(Right.X, Right.Y, Bottom.X, Bottom.Y, FLinearColor(0.f, 0.f, 0.f, 0.7f), T + 2.f);
+		DrawLine(Bottom.X, Bottom.Y, Left.X, Left.Y, FLinearColor(0.f, 0.f, 0.f, 0.7f), T + 2.f);
+		DrawLine(Left.X, Left.Y, Top.X, Top.Y, FLinearColor(0.f, 0.f, 0.f, 0.7f), T + 2.f);
+		DrawLine(Top.X, Top.Y, Right.X, Right.Y, Light, T);
+		DrawLine(Right.X, Right.Y, Bottom.X, Bottom.Y, Light, T);
+		DrawLine(Bottom.X, Bottom.Y, Left.X, Left.Y, Light, T);
+		DrawLine(Left.X, Left.Y, Top.X, Top.Y, Light, T);
+	}
+	if (!bOn)
+	{
+		const FVector2D Side(-Dir.Y, Dir.X);
+		const FVector2D Base = Pos + Dir * Sz * 0.75f;
+		DrawTriangle(Base + Dir * 11.f * S, Base + Side * 8.f * S, Base - Side * 8.f * S, Light);
+	}
+	if (!Label.IsEmpty())
+	{
+		Text(Label, Pos.X, Pos.Y - Sz * 0.5f - 17.f * S, 12.f * S, FLinearColor(Light.R, Light.G, Light.B, 0.95f), 1);
+	}
+	if (!Distance.IsEmpty())
+	{
+		Text(Distance, Pos.X, Pos.Y + Sz * 0.55f + 2.f * S, 14.f * S, FLinearColor(0.95f, 0.96f, 1.f, 0.95f), 1);
+	}
+}
+
+void AIAHUD::DrawFlagMarkers(const AIAGameState& GS, float Now)
+{
+	const AIAPlayerState* Me = GetLocalState();
+	const uint8 MyTeam = Me ? Me->Team : IA_NoTeam;
+	const APawn* LocalPawn = PlayerOwner ? PlayerOwner->GetPawn() : nullptr;
+	const FVector Eye = (PlayerOwner && PlayerOwner->PlayerCameraManager) ? PlayerOwner->PlayerCameraManager->GetCameraLocation() : FVector::ZeroVector;
+	const bool bCarrying = LocalPawn && AIAFlag::FindCarriedBy(GetWorld(), LocalPawn) != nullptr;
+
+	for (uint8 Team = 0; Team < 2; ++Team)
+	{
+		const AIAFlag* Flag = AIAFlag::Find(GetWorld(), Team);
+		const AIAFlagBase* Base = AIAFlagBase::Find(GetWorld(), Team);
+		const FLinearColor Color = HudTeamTint(Team, HudGold);
+		const bool bOwn = MyTeam == Team;
+		const TCHAR* TeamWord = Team == 0 ? TEXT("RED") : TEXT("BLUE");
+		auto Metres = [&Eye](const FVector& Where) { return FString::Printf(TEXT("%d m"), FMath::RoundToInt(FVector::Dist(Eye, Where) / 100.f)); };
+
+		if (Flag && Flag->IsHome())
+		{
+			// The flag stands on its pad: one marker for both.
+			const FVector At = Flag->GetRestLocation() + FVector(0.f, 0.f, 330.f);
+			const FString Label = MyTeam == IA_NoTeam ? FString::Printf(TEXT("%s FLAG"), TeamWord) : (bOwn ? FString(TEXT("YOUR FLAG")) : FString(TEXT("ENEMY FLAG")));
+			DrawMarker(At, Color, Label, Metres(Flag->GetRestLocation()), true, !bOwn && !bCarrying && false, 30.f);
+			continue;
+		}
+
+		// The base while the flag is away; the carrier needs it most.
+		if (Base)
+		{
+			const FVector At = Base->GetActorLocation() + FVector(0.f, 0.f, 150.f);
+			const FString Label = MyTeam == IA_NoTeam ? FString::Printf(TEXT("%s BASE"), TeamWord) : (bOwn ? FString(TEXT("YOUR BASE")) : FString(TEXT("ENEMY BASE")));
+			DrawMarker(At, Color, Label, Metres(Base->GetActorLocation()), false, bOwn && bCarrying, bOwn && bCarrying ? 34.f : 26.f);
+		}
+		if (Flag)
+		{
+			if (Flag->GetFlagState() == EIAFlagState::Carried)
+			{
+				const ACharacter* Carrier = Flag->GetCarrier();
+				if (!Carrier || Carrier == LocalPawn)
+				{
+					continue;
+				}
+				const AIAPlayerState* CS = Carrier->GetPlayerState<AIAPlayerState>();
+				const FVector At = Carrier->GetActorLocation() + FVector(0.f, 0.f, 140.f);
+				const FString Label = CS ? CS->GetPlayerName() : FString(TEXT("CARRIER"));
+				// The enemy carrying our flag is the target of the whole team.
+				DrawMarker(At, Color, Label, Metres(Carrier->GetActorLocation()), true, bOwn, bOwn ? 34.f : 30.f);
+			}
+			else
+			{
+				const FVector At = Flag->GetActorLocation() + FVector(0.f, 0.f, 300.f);
+				DrawMarker(At, Color, FString::Printf(TEXT("DROPPED  %d"), FMath::CeilToInt(Flag->GetDropSecondsLeft())), Metres(Flag->GetActorLocation()), true, true, 32.f);
+			}
+		}
+	}
+}
+
+void AIAHUD::DrawFlagPrompt(const AIAGameState& GS, float Now)
+{
+	const APawn* LocalPawn = PlayerOwner ? PlayerOwner->GetPawn() : nullptr;
+	const AIAPlayerState* Me = GetLocalState();
+	if (!LocalPawn || !Me || Me->Team > 1)
+	{
+		return;
+	}
+	const float CX = Canvas->ClipX * 0.5f;
+	const float Y = Canvas->ClipY * 0.70f;
+	const AIAFlag* Own = AIAFlag::Find(GetWorld(), Me->Team);
+
+	if (AIAFlag::FindCarriedBy(GetWorld(), LocalPawn))
+	{
+		const float Pulse = 0.5f + 0.5f * FMath::Sin(Now * 6.f);
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.38f), CX - 250.f * S, Y - 10.f * S, 500.f * S, 82.f * S);
+		DrawRect(FLinearColor(HudGold.R, HudGold.G, HudGold.B, 0.9f), CX - 250.f * S, Y - 10.f * S, 500.f * S, 3.f * S);
+		Text(TEXT("YOU HAVE THE FLAG"), CX, Y, 36.f * S, FLinearColor(HudGold.R, HudGold.G, HudGold.B, 0.8f + 0.2f * Pulse), 1);
+		if (Own && !Own->IsHome())
+		{
+			Text(TEXT("YOUR FLAG IS NOT HOME: GET IT BACK FIRST"), CX, Y + 42.f * S, 20.f * S, FLinearColor(1.f, 0.6f, 0.25f, 0.95f), 1);
+		}
+		else
+		{
+			Text(TEXT("RETURN TO YOUR BASE"), CX, Y + 42.f * S, 22.f * S, FLinearColor(0.95f, 0.97f, 1.f, 0.95f), 1);
+		}
+	}
+	else if (Own && Own->GetFlagState() == EIAFlagState::Carried)
+	{
+		Text(TEXT("ENEMY HAS YOUR FLAG: KILL THE CARRIER"), CX, Y + 8.f * S, 20.f * S, FLinearColor(1.f, 0.42f, 0.38f, 0.95f), 1);
+	}
+	else if (Own && Own->GetFlagState() == EIAFlagState::Dropped)
+	{
+		Text(TEXT("YOUR FLAG IS DOWN: TOUCH IT TO RETURN IT"), CX, Y + 8.f * S, 20.f * S, FLinearColor(1.f, 0.78f, 0.3f, 0.95f), 1);
+	}
+}
+
 // ---------------------------------------------------------------- the Tab scoreboard
 
 void AIAHUD::UpdateScoreboardWidget(const AIAGameState& GS)
@@ -955,8 +1247,8 @@ void AIAHUD::UpdateScoreboardWidget(const AIAGameState& GS)
 					{
 						const AIAGameState* State = WeakState.Get();
 						if (!State) { return FText::GetEmpty(); }
-						FString Line = State->IsTeamGame() ? TEXT("TEAM DEATHMATCH") : TEXT("FREE FOR ALL");
-						if (State->ScoreLimit > 0) { Line += FString::Printf(TEXT("   -   first to %d"), State->ScoreLimit); }
+						FString Line = State->IsCTF() ? TEXT("CAPTURE THE FLAG") : (State->IsTeamGame() ? TEXT("TEAM DEATHMATCH") : TEXT("FREE FOR ALL"));
+						if (State->ScoreLimit > 0) { Line += State->IsCTF() ? FString::Printf(TEXT("   -   first to %d captures"), State->ScoreLimit) : FString::Printf(TEXT("   -   first to %d"), State->ScoreLimit); }
 						if (State->TimeLimitSeconds > 0) { Line += FString::Printf(TEXT("   -   %s left"), *HudClockText(State->ClockSeconds)); }
 						return FText::FromString(Line);
 					})
@@ -1025,6 +1317,14 @@ void AIAHUD::DrawHUD()
 	}
 
 	DrawTopBar(*GS, Now);
+	if (GS->IsCTF())
+	{
+		DrawFlagMarkers(*GS, Now);
+		if (!bDeadView)
+		{
+			DrawFlagPrompt(*GS, Now);
+		}
+	}
 	DrawStats(*GS);
 	DrawProtection(*GS, Now);
 	DrawKillFeed(*GS, Now);

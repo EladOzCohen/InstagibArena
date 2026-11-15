@@ -7,6 +7,8 @@
 #include "IAPlayerCharacter.h"
 #include "IAPlayerController.h"
 #include "IAGameState.h"
+#include "IAFlag.h"
+#include "IANavGrid.h"
 #include "IAHUD.h"
 #include "IAImpactEffect.h"
 #include "IAPlayerState.h"
@@ -232,6 +234,48 @@ void UIADevSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			}
 		}
 
+		// -IAShotCamFlag=Team,Distance,Height,YawDegrees: the camera keeps looking at that team's flag (home, carried or dropped)
+		// from the given distance, height above the flag and angle around it. For screenshots of the flags.
+		FString FlagCamText;
+		if (!CameraHandle.IsValid() && FParse::Value(FCommandLine::Get(), TEXT("IAShotCamFlag="), FlagCamText, /*bShouldStopOnSeparator*/ false))
+		{
+			TArray<FString> Parts;
+			FlagCamText.ParseIntoArray(Parts, TEXT(","));
+			if (Parts.Num() == 4)
+			{
+				const uint8 FlagTeam = static_cast<uint8>(FCString::Atoi(*Parts[0]));
+				const float Dist = FCString::Atof(*Parts[1]);
+				const float Height = FCString::Atof(*Parts[2]);
+				const float YawAround = FCString::Atof(*Parts[3]);
+				CameraHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, FlagTeam, Dist, Height, YawAround](float)
+				{
+					UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+					APlayerController* PC = World ? UGameplayStatics::GetPlayerController(World, 0) : nullptr;
+					const AIAFlag* Flag = World ? AIAFlag::Find(World, FlagTeam) : nullptr;
+					if (!PC || !Flag)
+					{
+						return true;
+					}
+					const FVector Target = Flag->GetActorLocation() + FVector(0.f, 0.f, 110.f);
+					const FVector Location = Target + FRotator(0.f, YawAround, 0.f).Vector() * Dist + FVector(0.f, 0.f, Height - 110.f);
+					const FRotator Rotation = (Target - Location).Rotation();
+					if (!Camera.IsValid())
+					{
+						Camera = World->SpawnActor<ACameraActor>(Location, Rotation);
+					}
+					if (Camera.IsValid())
+					{
+						Camera->SetActorLocationAndRotation(Location, Rotation);
+						if (PC->GetViewTarget() != Camera.Get())
+						{
+							PC->SetViewTarget(Camera.Get());
+						}
+					}
+					return true;
+				}), 0.f);
+			}
+		}
+
 		// -IAShotStart=N: the camera stands where player start number N (sorted by name) is, at eye height, looking the way
 		// a player spawns. Same view in every run: this is what the performance measurements use.
 		int32 ShotStart = -1;
@@ -392,8 +436,50 @@ bool UIADevSubsystem::Report(float DeltaTime)
 		}
 	}
 
+	// Capture the flag: where each flag is, as seen by this machine.
+	FString Flags;
+	for (uint8 Team = 0; Team < 2; ++Team)
+	{
+		if (const AIAFlag* Flag = AIAFlag::Find(World, Team))
+		{
+			const TCHAR* StateText = Flag->GetFlagState() == EIAFlagState::Home ? TEXT("home") : (Flag->GetFlagState() == EIAFlagState::Carried ? TEXT("carried") : TEXT("dropped"));
+			const AIAPlayerState* CS = Flag->GetCarrier() ? Flag->GetCarrier()->GetPlayerState<AIAPlayerState>() : nullptr;
+			Flags += FString::Printf(TEXT("flag%d=%s%s%s@%s "), Team, StateText, CS ? TEXT(":") : TEXT(""), CS ? *CS->GetPlayerName() : TEXT(""),
+				*Flag->GetRestLocation().ToCompactString());
+		}
+	}
+	if (!Flags.IsEmpty())
+	{
+		if (const AIAGameState* GS = World->GetGameState<AIAGameState>())
+		{
+			for (APlayerState* PS : GS->PlayerArray)
+			{
+				if (const AIAPlayerState* S = Cast<AIAPlayerState>(PS))
+				{
+					if (S->Captures > 0 || S->Returns > 0 || S->FlagKills > 0)
+					{
+						Flags += FString::Printf(TEXT("%s[cap%d ret%d fk%d] "), *S->GetPlayerName(), S->Captures, S->Returns, S->FlagKills);
+					}
+				}
+			}
+		}
+		UE_LOG(LogInstagib, Log, TEXT("CTFREPORT %s clock=%d %s"), Net, Clock, *Flags);
+	}
+
 	UE_LOG(LogInstagib, Log, TEXT("REPORT %s clock=%d red=%d blue=%d over=%d players=%d pawns=%d local=%s :: %s"),
 		Net, Clock, Red, Blue, bOver ? 1 : 0, Count, Pawns, *Local, *Players);
+
+	// Bot navigation cost on the server (capture the flag tests).
+	if (const UIANavGrid* Grid = World->GetSubsystem<UIANavGrid>())
+	{
+		int32 Searches = 0;
+		double TotalMs = 0.0, WorstMs = 0.0;
+		Grid->GetPathStats(Searches, TotalMs, WorstMs);
+		if (Searches > 0)
+		{
+			UE_LOG(LogInstagib, Log, TEXT("NAVSTATS clock=%d searches=%d avg=%.2f ms worst=%.2f ms"), Clock, Searches, TotalMs / Searches, WorstMs);
+		}
+	}
 	UE_LOG(LogInstagib, Log, TEXT("HUMANS %s clock=%d %s"), Net, Clock, *Humans);
 	UE_LOG(LogInstagib, Log, TEXT("FRAMES %s clock=%d avg=%.1f ms max=%.1f ms over100ms=%d (frames=%d) gpu=%.1f game=%.1f render=%.1f"), Net, Clock,
 		FrameTimeCount > 0 ? FrameTimeSum / FrameTimeCount * 1000.f : 0.f, FrameTimeMax * 1000.f, FrameHitches, FrameTimeCount,

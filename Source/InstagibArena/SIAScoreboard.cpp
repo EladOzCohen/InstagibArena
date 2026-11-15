@@ -1,6 +1,7 @@
 // Instagib Arena
 
 #include "SIAScoreboard.h"
+#include "IAFlag.h"
 #include "IAGameState.h"
 #include "IAMenuStyle.h"
 #include "IAPlayerState.h"
@@ -22,6 +23,8 @@ namespace
 	const float ColAcc = 84.f;
 	const float ColStreak = 96.f;
 	const float ColPing = 74.f;
+	const float ColCaps = 100.f;
+	const float ColRets = 96.f;
 
 	const FLinearColor SbRed(1.f, 0.36f, 0.34f);
 	const FLinearColor SbBlue(0.42f, 0.62f, 1.f);
@@ -75,11 +78,20 @@ void SIAScoreboard::Tick(const FGeometry& AllottedGeometry, const double InCurre
 	}
 
 	const bool bTeamGame = GS->IsTeamGame();
-	Players.Sort([bTeamGame](const AIAPlayerState& A, const AIAPlayerState& B)
+	const bool bCtfNow = GS->IsCTF();
+	Players.Sort([bTeamGame, bCtfNow](const AIAPlayerState& A, const AIAPlayerState& B)
 	{
 		if (bTeamGame && A.Team != B.Team)
 		{
 			return A.Team < B.Team;
+		}
+		if (bCtfNow && A.Captures != B.Captures)
+		{
+			return A.Captures > B.Captures;
+		}
+		if (bCtfNow && A.Returns != B.Returns)
+		{
+			return A.Returns > B.Returns;
 		}
 		if (A.Kills != B.Kills)
 		{
@@ -99,7 +111,7 @@ void SIAScoreboard::Tick(const FGeometry& AllottedGeometry, const double InCurre
 	}
 
 	TArray<int32> NewSignature;
-	NewSignature.Add(bTeamGame ? 1 : 0);
+	NewSignature.Add(bCtfNow ? 2 : (bTeamGame ? 1 : 0));
 	for (const AIAPlayerState* State : Players)
 	{
 		NewSignature.Add(State->SlotId);
@@ -108,6 +120,7 @@ void SIAScoreboard::Tick(const FGeometry& AllottedGeometry, const double InCurre
 	if (NewSignature != Signature)
 	{
 		Signature = NewSignature;
+		bCTF = bCtfNow;
 		Rebuild(Players, bTeamGame, GS->RedScore, GS->BlueScore);
 	}
 }
@@ -115,6 +128,24 @@ void SIAScoreboard::Tick(const FGeometry& AllottedGeometry, const double InCurre
 TSharedRef<SWidget> SIAScoreboard::MakeHeaderRow() const
 {
 	const FLinearColor SbDim = IAMenu::TextDim;
+	if (bCTF)
+	{
+		return SNew(SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
+			.Padding(FMargin(14.f, 4.f))
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("#"), ColRank, HAlign_Left, SbDim, 13) ]
+				+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("PLAYER"), ColName, HAlign_Left, SbDim, 13) ]
+				+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("CAPTURES"), ColCaps, HAlign_Right, SbDim, 13) ]
+				+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("RETURNS"), ColRets, HAlign_Right, SbDim, 13) ]
+				+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("KILLS"), ColKills, HAlign_Right, SbDim, 13) ]
+				+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("DEATHS"), ColDeaths, HAlign_Right, SbDim, 13) ]
+				+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("K/D"), ColKD, HAlign_Right, SbDim, 13) ]
+				+ SHorizontalBox::Slot().AutoWidth() [ SbCell(INVTEXT("PING"), ColPing, HAlign_Right, SbDim, 13) ]
+			];
+	}
 	return SNew(SBorder)
 		.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 		.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
@@ -171,6 +202,76 @@ TSharedRef<SWidget> SIAScoreboard::MakePlayerRow(TWeakObjectPtr<const AIAPlayerS
 
 	const FLinearColor Base = FLinearColor(0.92f, 0.93f, 0.97f);
 	const FLinearColor Highlight = bLocal ? FLinearColor(1.f, 0.42f, 0.f, 0.30f) : FLinearColor(0.f, 0.f, 0.f, 0.34f);
+
+	if (bCTF)
+	{
+		return SNew(SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(Highlight)
+			.Padding(FMargin(14.f, 5.f))
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SbCell(Rank > 0 ? FText::AsNumber(Rank) : FText::GetEmpty(), ColRank, HAlign_Left, IAMenu::TextDim, 18)
+				]
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SNew(SBox).WidthOverride(ColName)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot().AutoWidth()
+						[
+							SNew(STextBlock).Text(Number([](const AIAPlayerState& P) { return FText::FromString(P.GetPlayerName()); }))
+								.Font(IAMenu::Font(18, bLocal)).ColorAndOpacity(NameColor)
+								.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
+						]
+						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(8.f, 1.f, 0.f, 0.f)
+						[
+							SNew(STextBlock).Text(Number([](const AIAPlayerState& P)
+							{
+								// A small tag while this player carries a flag.
+								return AIAFlag::FindCarriedBy(P.GetWorld(), P.GetPawn()) ? INVTEXT("FLAG") : (P.bIsBotPlayer ? INVTEXT("BOT") : FText::GetEmpty());
+							}))
+								.Font(IAMenu::Font(11, true)).ColorAndOpacity(FLinearColor(1.f, 0.82f, 0.22f))
+						]
+						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(6.f, 1.f, 0.f, 0.f)
+						[
+							SNew(STextBlock).Text(bLocal ? INVTEXT("YOU") : FText::GetEmpty())
+								.Font(IAMenu::Font(11, true)).ColorAndOpacity(IAMenu::Accent)
+						]
+					]
+				]
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SbCell(Number([](const AIAPlayerState& P) { return FText::AsNumber(P.Captures); }), ColCaps, HAlign_Right, FLinearColor::White, 20, true)
+				]
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SbCell(Number([](const AIAPlayerState& P) { return FText::AsNumber(P.Returns); }), ColRets, HAlign_Right, FLinearColor::White, 20, true)
+				]
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SbCell(Number([](const AIAPlayerState& P) { return FText::AsNumber(P.Kills); }), ColKills, HAlign_Right, Base, 18)
+				]
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SbCell(Number([](const AIAPlayerState& P) { return FText::AsNumber(P.Deaths); }), ColDeaths, HAlign_Right, Base, 18)
+				]
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SbCell(Number([](const AIAPlayerState& P) { return FText::FromString(FString::Printf(TEXT("%.2f"), P.GetKillDeathRatio())); }),
+						ColKD, HAlign_Right, Base, 18)
+				]
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SbCell(Number([](const AIAPlayerState& P)
+					{
+						return P.bIsBotPlayer ? INVTEXT("-") : FText::AsNumber(FMath::RoundToInt(P.GetPingInMilliseconds()));
+					}), ColPing, HAlign_Right, IAMenu::TextDim, 16)
+				]
+			];
+	}
 
 	return SNew(SBorder)
 		.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))

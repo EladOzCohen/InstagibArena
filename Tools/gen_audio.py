@@ -492,7 +492,7 @@ def main():
     print("Done.")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not os.environ.get("IA_AUDIO_ONLY"):
     main()
 
 
@@ -619,5 +619,55 @@ def hud_cues():
         write_wav(os.path.join(OUT, "sfx", name + ".wav"), samples)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not os.environ.get("IA_AUDIO_ONLY"):
     hud_cues()
+
+
+# ---------------------------------------------------------------------------
+# Capture the Flag cues. Same style as the match cues above: bells, brass stabs, drum hits, no speech.
+#   IA_AUDIO_ONLY=1 python gen_audio.py  writes only these five files (flag_*.wav) into <output>/sfx.
+# ---------------------------------------------------------------------------
+
+def ctf_cues():
+    n = mtof
+    cues = {}
+
+    # Your team took the enemy flag: three bells climbing, a brass chord underneath.
+    cues["flag_taken"] = normalize(echo(mix_at([
+        (0.00, _bell(n(67), 0.5, 8), 0.9), (0.09, _bell(n(74), 0.5, 8), 0.9), (0.18, _bell(n(79), 0.9, 6), 1.1),
+        (0.18, _stab([n(55), n(62), n(67)], 0.7, 5, 0.14), 0.7), (0.00, _boom(62, 0.3, 14), 0.6)]), 0.12, 0.28, 3), 0.85)
+
+    # A flag was dropped: a bell that sinks, a dull thud as the pole hits the ground.
+    cues["flag_dropped"] = normalize(mix_at([
+        (0.00, _bell(n(76), 0.45, 9), 0.8), (0.10, _bell(n(71), 0.45, 9), 0.8), (0.20, _bell(n(64), 0.8, 6), 0.9),
+        (0.22, _boom(52, 0.4, 12), 1.0), (0.22, _noise_rise(0.05, 21, 0.9), 0.3)]), 0.8)
+
+    # A flag is home again: two soft chimes, calm.
+    cues["flag_returned"] = normalize(echo(mix_at([
+        (0.00, _bell(n(72), 0.7, 6, 0.25), 0.8), (0.13, _bell(n(79), 1.1, 4.5, 0.3), 0.9),
+        (0.13, _stab([n(60), n(67)], 0.5, 6, 0.1), 0.35)]), 0.15, 0.3, 3), 0.75)
+
+    # Your team scored: a short fanfare, brass chords rising to a bell on top.
+    cues["flag_captured"] = normalize(echo(mix_at([
+        (0.00, _stab([n(60), n(67)], 0.3, 6, 0.2), 0.7), (0.00, _bell(n(72), 0.4, 6), 0.8),
+        (0.15, _stab([n(64), n(71)], 0.3, 6, 0.2), 0.7), (0.15, _bell(n(76), 0.4, 6), 0.8),
+        (0.30, _stab([n(67), n(74)], 0.3, 6, 0.2), 0.7), (0.30, _bell(n(79), 0.4, 6), 0.8),
+        (0.45, _stab([n(60), n(72), n(79), n(84)], 1.3, 2.4, 0.2), 1.0), (0.45, _bell(n(88), 1.5, 3, 0.5), 0.8),
+        (0.45, _boom(58, 0.6, 7), 0.9), (0.00, _noise_rise(0.2, 8, 0.4), 0.5)]), 0.14, 0.28, 3), 0.9)
+
+    # The enemy took your flag or scored: two low brass notes falling, a drum.
+    cues["flag_lost"] = normalize(echo(mix_at([
+        (0.00, _stab([n(57), n(64)], 0.35, 6, 0.1), 0.9), (0.18, _stab([n(52), n(59)], 0.7, 4, 0.09), 1.0),
+        (0.18, _boom(45, 0.6, 7), 0.9), (0.00, _bell(n(69), 0.3, 12), 0.4)]), 0.14, 0.25, 3), 0.8)
+
+    print("CTF cues:")
+    for name, samples in cues.items():
+        tail = min(len(samples), int(0.04 * SR))
+        for i in range(tail):
+            samples[len(samples) - tail + i] *= 1.0 - (i + 1) / tail
+        os.makedirs(os.path.join(OUT, "sfx"), exist_ok=True)
+        write_wav(os.path.join(OUT, "sfx", name + ".wav"), samples)
+
+
+if __name__ == "__main__":
+    ctf_cues()

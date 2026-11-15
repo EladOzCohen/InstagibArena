@@ -504,13 +504,17 @@ TSharedRef<SWidget> SIAMainMenu::BuildSetupRows()
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
 				[
-					Chip(Owner, INVTEXT("Free For All"), [this]() { Setup.bTeamGame = false; }, [this]() { return !Setup.bTeamGame; }, 150.f)
+					Chip(Owner, INVTEXT("Free For All"), [this]() { Setup.GameType = 0; }, [this]() { return Setup.GameType == 0; }, 124.f, 17)
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
+				[
+					Chip(Owner, INVTEXT("Team Deathmatch"), [this]() { Setup.GameType = 1; }, [this]() { return Setup.GameType == 1; }, 154.f, 17)
 				]
 				+ SHorizontalBox::Slot().AutoWidth()
 				[
-					Chip(Owner, INVTEXT("Team Deathmatch"), [this]() { Setup.bTeamGame = true; }, [this]() { return Setup.bTeamGame; }, 170.f)
+					Chip(Owner, INVTEXT("Capture the Flag"), [this]() { Setup.GameType = 2; }, [this]() { return Setup.GameType == 2; }, 156.f, 17)
 				],
-				170.f, INVTEXT("Free For All: everyone for themselves. Team Deathmatch: two teams, red and blue."))
+				170.f, INVTEXT("Free For All: everyone for themselves. Team Deathmatch: two teams, red and blue. Capture the Flag: steal the enemy flag and bring it home."))
 		]
 
 		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f)
@@ -554,13 +558,22 @@ TSharedRef<SWidget> SIAMainMenu::BuildSetupRows()
 
 		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f)
 		[
-			Row(INVTEXT("Score limit"),
+			// Frags in free for all and team deathmatch, captures in capture the flag. Each mode keeps its own number.
+			Row(TAttribute<FText>::CreateLambda([this]() { return Setup.IsCTF() ? INVTEXT("Capture limit") : INVTEXT("Score limit"); }),
 				Stepper(Owner,
-					[this]() { return Setup.ScoreLimit == 0 ? INVTEXT("Off") : FText::AsNumber(Setup.ScoreLimit); },
-					[this, ScoreStep]() { Setup.ScoreLimit = FMath::Max(0, Setup.ScoreLimit - ScoreStep); },
-					[this, ScoreStep]() { Setup.ScoreLimit = FMath::Min(100, Setup.ScoreLimit + ScoreStep); },
+					[this]() { return Setup.IsCTF() ? FText::AsNumber(Setup.CaptureLimit) : (Setup.ScoreLimit == 0 ? INVTEXT("Off") : FText::AsNumber(Setup.ScoreLimit)); },
+					[this, ScoreStep]()
+					{
+						if (Setup.IsCTF()) { Setup.CaptureLimit = FMath::Max(1, Setup.CaptureLimit - 1); }
+						else { Setup.ScoreLimit = FMath::Max(0, Setup.ScoreLimit - ScoreStep); }
+					},
+					[this, ScoreStep]()
+					{
+						if (Setup.IsCTF()) { Setup.CaptureLimit = FMath::Min(10, Setup.CaptureLimit + 1); }
+						else { Setup.ScoreLimit = FMath::Min(100, Setup.ScoreLimit + ScoreStep); }
+					},
 					190.f),
-				170.f, INVTEXT("The match ends when someone (or a team) reaches this many frags."))
+				170.f, INVTEXT("The match ends when someone (or a team) reaches this many frags, or in Capture the Flag when a team has captured the enemy flag this many times (1 to 10)."))
 		]
 
 		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f)
@@ -812,6 +825,13 @@ TSharedRef<SWidget> SIAMainMenu::BuildHowToPlayPage()
 		[
 			Line(TEXT("Everyone carries the same rifle and every hit is a kill. Frag the other players before they frag you. The first to the score limit, or the best when the time runs out, wins."))
 		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 4.f) [ Line(TEXT("Capture the Flag"), true) ]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 16.f)
+		[
+			Line(TEXT("Two teams, red and blue. Each team has a flag on its base. Touch the enemy flag to take it, then run back and touch your own base to score a capture. "
+				"You can only capture while your own flag is at home. If your flag is taken, kill the carrier. If a carrier dies the flag drops: your team returns it by touching it, "
+				"and an enemy can pick it up. A dropped flag goes home by itself after 15 seconds. The first team to the capture limit wins, or the team with more captures when the time is up."))
+		]
 		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f) [ Line(TEXT("Controls"), true) ]
 		+ SVerticalBox::Slot().AutoHeight()
 		[
@@ -871,7 +891,8 @@ void SIAMainMenu::SelectCharacter(int32 Index)
 FString SIAMainMenu::BuildOptions(bool bHost) const
 {
 	FString Options = FString::Printf(TEXT("Mode=%s?ScoreLimit=%d?TimeLimit=%d?Bots=%d?BotSkill=%d?Char=%d"),
-		Setup.bTeamGame ? TEXT("TDM") : TEXT("FFA"), Setup.ScoreLimit, Setup.TimeLimit, Setup.BotCount, Setup.BotSkill, Setup.CharacterIndex);
+		Setup.GameType == 2 ? TEXT("CTF") : (Setup.GameType == 1 ? TEXT("TDM") : TEXT("FFA")),
+		Setup.GameType == 2 ? Setup.CaptureLimit : Setup.ScoreLimit, Setup.TimeLimit, Setup.BotCount, Setup.BotSkill, Setup.CharacterIndex);
 
 	const FString Name = IASettings::GetUrlSafePlayerName();
 	if (!Name.IsEmpty())
@@ -979,6 +1000,7 @@ void SIAMainMenu::DevCommand(const FString& Command)
 	else if (Name == TEXT("modal-cancel")) { Modal->Cancel(); }
 	else if (Name == TEXT("quickplay")) { StartGame(false); }
 	else if (Name == TEXT("host")) { StartGame(true); }
+	else if (Name == TEXT("gametype")) { Setup.GameType = FMath::Clamp(FCString::Atoi(*Value), 0, 2); }
 	else if (Name == TEXT("map")) { Setup.MapIndex = FMath::Clamp(FCString::Atoi(*Value), 0, IAMaps::Count - 1); }
 	else if (Name == TEXT("join")) { JoinAddress = Value; JoinGame(); }
 	else if (Name == TEXT("copy")) { CopiedUntil = FPlatformTime::Seconds() + 2.0; }

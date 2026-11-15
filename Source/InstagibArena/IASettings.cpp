@@ -100,8 +100,12 @@ FText IABots::SkillBlurb(int32 Index)
 
 void FIAMatchSetup::Load()
 {
-	bool bTeam = bTeamGame;
+	// Before 1.6 only "TeamGame" (true = team deathmatch) was saved; a newer file has "GameType" (0 FFA, 1 TDM, 2 CTF).
+	bool bTeam = false;
 	GConfig->GetBool(SetupSection, TEXT("TeamGame"), bTeam, GGameUserSettingsIni);
+	int32 Type = bTeam ? 1 : 0;
+	GConfig->GetInt(SetupSection, TEXT("GameType"), Type, GGameUserSettingsIni);
+	GConfig->GetInt(SetupSection, TEXT("CaptureLimit"), CaptureLimit, GGameUserSettingsIni);
 	GConfig->GetInt(SetupSection, TEXT("Map"), MapIndex, GGameUserSettingsIni);
 	GConfig->GetInt(SetupSection, TEXT("Character"), CharacterIndex, GGameUserSettingsIni);
 	GConfig->GetInt(SetupSection, TEXT("Bots"), BotCount, GGameUserSettingsIni);
@@ -118,7 +122,8 @@ void FIAMatchSetup::Load()
 	GConfig->GetInt(SetupSection, TEXT("TimeLimit"), TimeLimit, GGameUserSettingsIni);
 
 	// A file edited by hand, or written by another version, must not break the menu.
-	bTeamGame = bTeam;
+	GameType = FMath::Clamp(Type, 0, 2);
+	CaptureLimit = FMath::Clamp(CaptureLimit, 1, 10);
 	MapIndex = FMath::Clamp(MapIndex, 0, IAMaps::Count - 1);
 	CharacterIndex = FMath::Clamp(CharacterIndex, 0, IACharacters::LookCount - 1);
 	BotCount = (BotCount <= 0) ? 0 : FMath::Clamp(BotCount, 2, 10);
@@ -129,7 +134,9 @@ void FIAMatchSetup::Load()
 
 void FIAMatchSetup::Save() const
 {
-	GConfig->SetBool(SetupSection, TEXT("TeamGame"), bTeamGame, GGameUserSettingsIni);
+	GConfig->SetBool(SetupSection, TEXT("TeamGame"), GameType == 1, GGameUserSettingsIni);   // older versions still read this
+	GConfig->SetInt(SetupSection, TEXT("GameType"), GameType, GGameUserSettingsIni);
+	GConfig->SetInt(SetupSection, TEXT("CaptureLimit"), CaptureLimit, GGameUserSettingsIni);
 	GConfig->SetInt(SetupSection, TEXT("Map"), MapIndex, GGameUserSettingsIni);
 	GConfig->SetInt(SetupSection, TEXT("Character"), CharacterIndex, GGameUserSettingsIni);
 	GConfig->SetInt(SetupSection, TEXT("Bots"), BotCount, GGameUserSettingsIni);

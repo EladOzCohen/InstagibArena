@@ -8,18 +8,29 @@
 #include "IAGameMode.generated.h"
 
 class AIAPlayerState;
+class AIAFlag;
+class AIAFlagBase;
+class AIAPlayerCharacter;
+class APlayerStart;
 
 /**
- * Free for all and team deathmatch with score limit, time limit or both.
+ * Free for all, team deathmatch and capture the flag with score limit, time limit or both.
  *
  * Options are read from the travel URL, for example:
  *   /Game/Maps/Foundry?Mode=TDM?ScoreLimit=30?TimeLimit=10?Bots=6?BotSkill=2
- *     Mode       FFA (default) or TDM
- *     ScoreLimit kills needed to win, 0 = none
+ *     Mode       FFA (default), TDM or CTF
+ *     ScoreLimit kills needed to win (CTF: captures needed), 0 = none
  *     TimeLimit  minutes, 0 = none
  *     Bots       2..10, 0 = no bots, 4 if not given
  *     BotSkill   0 rookie, 1 beginner, 2 casual, 3 intermediate (default), 4 advanced, 5 expert, 6 master
- * If neither limit is given the score limit defaults to 25.
+ * If neither limit is given the score limit defaults to 25 (CTF: 5 captures and 15 minutes; with only ScoreLimit
+ * given CTF also gets the 15 minutes, with only TimeLimit given it gets the 5 captures).
+ *
+ * Capture the flag: two teams, each flag stands on its AIAFlagBase. An enemy touching a flag that is at home or dropped
+ * takes it. The carrier scores a capture by touching his own base while his own flag is at home. A team mate touching
+ * his own dropped flag returns it; a dropped flag also goes home by itself after FlagReturnSeconds. A carrier who dies
+ * (or falls out of the world) drops the flag where he died. At the time limit the team with more captures wins.
+ * Maps without AIAFlagBase actors get two bases made by CreateFallbackBases.
  *
  * A match goes through three phases (AIAGameState::Phase), all decided here on the server:
  *   Warmup  a short countdown: players can move but not fire, bots wait.
@@ -41,6 +52,8 @@ public:
 	virtual void HandleMatchHasStarted() override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual FString InitNewPlayer(APlayerController* NewPlayerController, const FUniqueNetIdRepl& UniqueId, const FString& Options, const FString& Portal = TEXT("")) override;
+	virtual void Logout(AController* Exiting) override;
+	virtual void Tick(float DeltaSeconds) override;
 
 	/** Picks the spawn point where a new arrival is least likely to be shot at once. */
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
@@ -74,8 +87,17 @@ public:
 	/** Ends the spawn protection of this pawn now (server). Safe to call for any pawn. */
 	void EndSpawnProtection(APawn* Pawn);
 
+	/** Capture the flag: seconds until a dropped flag goes home by itself. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CTF")
+	float FlagReturnSeconds = 15.f;
+
+	/** Capture the flag: how close (cm, on the ground plane) a player must come to a flag to take or return it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CTF")
+	float FlagTouchRadius = 130.f;
+
 	int32 GetBotCount() const { return BotCount; }
 	int32 GetBotSkill() const { return BotSkill; }
+	bool IsCTF() const { return GameType == EIAGameType::CaptureTheFlag; }
 
 protected:
 	virtual void FinishRestartPlayer(AController* NewPlayer, const FRotator& StartRotation) override;
@@ -97,6 +119,27 @@ protected:
 	void FinishMatch(const FString& WinnerText, int32 WinnerPlayerId, uint8 WinnerTeam);
 	void DetermineWinnerByScore();
 	void ScheduleRespawn(AController* Victim, float Delay);
+
+	// ---- capture the flag
+	void SetupCTF();
+	void ResetFlags();
+	void TickFlags();
+	void CreateFallbackBases();
+	bool FindFlatSpot(const FVector& Around, float FloorZ, FVector& OutSpot) const;
+	void SpawnBaseActor(uint8 Team, const FVector& Location, bool bFallback);
+	void HandleFlagCarrierDeath(AController* Killer, AController* Victim);
+	void DropFlag(AIAFlag* Flag, const FVector& Where, AIAPlayerState* ExCarrier);
+	void ReturnFlag(AIAFlag* Flag, AIAPlayerState* Returner);
+	void PickUpFlag(AIAFlag* Flag, AIAPlayerCharacter* Taker);
+	void CaptureFlag(AIAFlag* Flag, AIAPlayerCharacter* Carrier);
+	uint8 GetStartTeam(const APlayerStart* Start) const;
+
+	TWeakObjectPtr<AIAFlag> Flags[2];
+	TWeakObjectPtr<AIAFlagBase> Bases[2];
+	bool bCtfSetUp = false;
+
+	/** Maps without start tags: which team each start was given to by the fallback (nearest base). */
+	TMap<TWeakObjectPtr<const APlayerStart>, uint8> FallbackStartTeam;
 
 	// ---- announcements
 	void AnnounceKillMedals(AIAPlayerState* Killer, int32 MultiKillCount);

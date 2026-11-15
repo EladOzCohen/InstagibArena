@@ -1021,7 +1021,7 @@ namespace IAMenu
 			];
 	}
 
-	TSharedRef<SWidget> Row(const FText& Label, TSharedRef<SWidget> Content, float LabelWidth, const FText& Tooltip)
+	TSharedRef<SWidget> Row(const TAttribute<FText>& Label, TSharedRef<SWidget> Content, float LabelWidth, const FText& Tooltip)
 	{
 		return SNew(SHorizontalBox)
 			.ToolTip(Tooltip.IsEmpty() ? TSharedPtr<IToolTip>() : TSharedPtr<IToolTip>(MakeTip(Tooltip)))

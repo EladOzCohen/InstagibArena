@@ -33,6 +33,7 @@ private:
 	TSharedRef<SWidget> MakePlayerRow(TWeakObjectPtr<const AIAPlayerState> State, int32 Rank, bool bLocal) const;
 
 	TWeakObjectPtr<APlayerController> Owner;
+	bool bCTF = false;   // capture the flag: captures and returns instead of accuracy and streak
 	TSharedPtr<SVerticalBox> Body;
 	TArray<int32> Signature;
 };

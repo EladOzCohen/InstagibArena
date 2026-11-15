@@ -10,7 +10,18 @@ UENUM(BlueprintType)
 enum class EIAGameType : uint8
 {
 	FreeForAll,
-	TeamDeathmatch
+	TeamDeathmatch,
+	CaptureTheFlag
+};
+
+/** What happened to a flag. The server sends these to every machine (HUD banners, kill feed, sounds). */
+UENUM(BlueprintType)
+enum class EIAFlagEvent : uint8
+{
+	Taken,      // an enemy picked the flag up
+	Dropped,    // the carrier died, the flag lies on the ground
+	Returned,   // the flag is back at its base (a team mate touched it, or it timed out)
+	Captured    // a carrier brought the enemy flag to their base
 };
 
 /** Where a match is: a countdown before it, the fight itself, the results screen after it. */
@@ -54,9 +65,15 @@ struct FIAFeedEntry
 	bool bSuicide = false;
 	bool bFell = false;   // fell out of the world, nobody to blame
 	float Time = 0.f;
+
+	// Capture the flag: this row reports a flag event instead of a kill. VictimName is the player, EventText what he did.
+	bool bFlagEvent = false;
+	FString EventText;
+	uint8 FlagTeam = 255;
 };
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FIAAnnounceDelegate, EIAAnnounce /*Kind*/, int32 /*SubjectPlayerId or team*/, int32 /*Param*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FIAFlagEventDelegate, EIAFlagEvent /*Kind*/, int32 /*PlayerId, -1 = nobody*/, uint8 /*FlagTeam*/);
 
 UCLASS()
 class INSTAGIBARENA_API AIAGameState : public AGameState
@@ -109,7 +126,10 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
 	uint8 WinnerTeam = 255;
 
-	bool IsTeamGame() const { return GameType == EIAGameType::TeamDeathmatch; }
+	/** Team deathmatch and capture the flag. */
+	bool IsTeamGame() const { return GameType != EIAGameType::FreeForAll; }
+
+	bool IsCTF() const { return GameType == EIAGameType::CaptureTheFlag; }
 
 	/** False during the countdown and the results screen. */
 	bool IsFiringAllowed() const { return Phase == EIAMatchPhase::Live; }
@@ -124,6 +144,13 @@ public:
 	/** The server announces a medal, a lead change or a frag warning. */
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastAnnounce(EIAAnnounce Kind, int32 Subject, int32 Param);
+
+	/** Capture the flag: the server tells every machine what happened to a flag. Subject = SlotId of the player involved, -1 = nobody. */
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastFlagEvent(EIAFlagEvent Kind, int32 Subject, uint8 FlagTeam);
+
+	/** The HUD listens here. */
+	FIAFlagEventDelegate OnFlagEvent;
 
 	/** The newest entries last. Filled on every machine, used by the HUD. */
 	const TArray<FIAFeedEntry>& GetKillFeed() const { return KillFeed; }

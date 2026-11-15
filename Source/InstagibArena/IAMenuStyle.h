@@ -75,7 +75,7 @@ namespace IAMenu
 		TFunction<bool()> IsSelected);
 
 	/** A label on the left and a control on the right. The tooltip (when not empty) shows over the whole row. */
-	TSharedRef<SWidget> Row(const FText& Label, TSharedRef<SWidget> Content, float LabelWidth = 170.f,
+	TSharedRef<SWidget> Row(const TAttribute<FText>& Label, TSharedRef<SWidget> Content, float LabelWidth = 170.f,
 		const FText& Tooltip = FText::GetEmpty());
 
 	/** The title of a screen, with a line under it. */

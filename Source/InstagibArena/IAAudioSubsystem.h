@@ -49,7 +49,14 @@ enum class EIASound : uint8
 	Defeat,
 
 	// ---- MENUS block (append new sounds below)
-	UIHover
+	UIHover,
+
+	// ---- capture the flag cues (Tools/gen_audio.py ctf_cues)
+	FlagTaken,      // your team took the enemy flag
+	FlagDropped,    // a flag was dropped
+	FlagReturned,   // a flag is back at its base
+	FlagCaptured,   // your team scored
+	FlagLost        // the enemy took your flag, or scored
 };
 
 UENUM(BlueprintType)

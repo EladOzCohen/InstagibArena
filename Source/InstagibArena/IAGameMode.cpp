@@ -7,6 +7,8 @@
 #include "IAHUD.h"
 #include "IABotController.h"
 #include "IACharacterRoster.h"
+#include "IAFlag.h"
+#include "IAFlagBase.h"
 #include "InstagibArena.h"
 #include "Algo/RandomShuffle.h"
 #include "Components/CapsuleComponent.h"
@@ -28,6 +30,8 @@ AIAGameMode::AIAGameMode()
 	GameStateClass = AIAGameState::StaticClass();
 	HUDClass = AIAHUD::StaticClass();
 	bDelayedStart = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickInterval = 0.04f;   // capture the flag: touches are checked 25 times a second
 }
 
 void AIAGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
@@ -35,15 +39,30 @@ void AIAGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	Super::InitGame(MapName, Options, ErrorMessage);
 
 	const FString ModeOption = UGameplayStatics::ParseOption(Options, TEXT("Mode"));
-	GameType = (ModeOption.Equals(TEXT("TDM"), ESearchCase::IgnoreCase) || ModeOption.Equals(TEXT("Team"), ESearchCase::IgnoreCase))
-		? EIAGameType::TeamDeathmatch
-		: EIAGameType::FreeForAll;
+	if (ModeOption.Equals(TEXT("TDM"), ESearchCase::IgnoreCase) || ModeOption.Equals(TEXT("Team"), ESearchCase::IgnoreCase))
+	{
+		GameType = EIAGameType::TeamDeathmatch;
+	}
+	else if (ModeOption.Equals(TEXT("CTF"), ESearchCase::IgnoreCase) || ModeOption.Equals(TEXT("CaptureTheFlag"), ESearchCase::IgnoreCase))
+	{
+		GameType = EIAGameType::CaptureTheFlag;
+	}
+	else
+	{
+		GameType = EIAGameType::FreeForAll;
+	}
 
 	ScoreLimit = FMath::Max(0, UGameplayStatics::GetIntOption(Options, TEXT("ScoreLimit"), -1));
 	TimeLimitMinutes = FMath::Max(0, UGameplayStatics::GetIntOption(Options, TEXT("TimeLimit"), -1));
 	const bool bScoreGiven = UGameplayStatics::HasOption(Options, TEXT("ScoreLimit"));
 	const bool bTimeGiven = UGameplayStatics::HasOption(Options, TEXT("TimeLimit"));
-	if (!bScoreGiven && !bTimeGiven)
+	if (GameType == EIAGameType::CaptureTheFlag)
+	{
+		// Captures: 5 and 15 minutes unless the options say otherwise.
+		if (!bScoreGiven) { ScoreLimit = 5; }
+		if (!bTimeGiven) { TimeLimitMinutes = 15; }
+	}
+	else if (!bScoreGiven && !bTimeGiven)
 	{
 		ScoreLimit = 25;
 	}
@@ -60,7 +79,8 @@ void AIAGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 #endif
 
 	UE_LOG(LogInstagib, Log, TEXT("Match setup: %s, score limit %d, time limit %d min, bots %d, skill %d"),
-		GameType == EIAGameType::TeamDeathmatch ? TEXT("TDM") : TEXT("FFA"), ScoreLimit, TimeLimitMinutes, BotCount, BotSkill);
+		GameType == EIAGameType::CaptureTheFlag ? TEXT("CTF") : (GameType == EIAGameType::TeamDeathmatch ? TEXT("TDM") : TEXT("FFA")),
+		ScoreLimit, TimeLimitMinutes, BotCount, BotSkill);
 }
 
 void AIAGameMode::InitGameState()
@@ -88,6 +108,7 @@ void AIAGameMode::HandleMatchHasStarted()
 		bBotsSpawned = true;
 		SpawnBots();
 	}
+	SetupCTF();
 	BeginWarmup();
 
 #if !UE_BUILD_SHIPPING
@@ -111,6 +132,7 @@ void AIAGameMode::BeginWarmup()
 	GS->Phase = EIAMatchPhase::Warmup;
 	GS->bMatchOver = false;
 	GS->PhaseEndTime = GetWorld()->GetTimeSeconds() + WarmupSeconds;
+	ResetFlags();
 	UE_LOG(LogInstagib, Log, TEXT("Match phase: warmup for %.1f s"), WarmupSeconds);
 
 	if (WarmupSeconds <= 0.f)
@@ -358,7 +380,7 @@ FString AIAGameMode::InitNewPlayer(APlayerController* NewPlayerController, const
 
 void AIAGameMode::AssignTeam(AIAPlayerState* PlayerState)
 {
-	if (GameType != EIAGameType::TeamDeathmatch)
+	if (GameType == EIAGameType::FreeForAll)
 	{
 		PlayerState->Team = IA_NoTeam;
 		return;
@@ -439,6 +461,12 @@ void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 		return;
 	}
 
+	// A carrier who dies (or falls out of the world) drops the flag where he stood.
+	if (GS->IsCTF())
+	{
+		HandleFlagCarrierDeath(Killer, Victim);
+	}
+
 	// Falling into the void in the countdown costs nothing; after the match nothing counts at all.
 	if (GS->Phase != EIAMatchPhase::Live)
 	{
@@ -495,7 +523,7 @@ void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 	{
 		++KillerState->Kills;
 		MultiKillCount = KillerState->RegisterKill(Now, MultiKillWindow);
-		if (GS->IsTeamGame())
+		if (GameType == EIAGameType::TeamDeathmatch)
 		{
 			if (KillerState->Team == 0) { ++GS->RedScore; }
 			else if (KillerState->Team == 1) { ++GS->BlueScore; }
@@ -505,7 +533,7 @@ void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 	{
 		// Suicide or falling out of the world costs a point.
 		--VictimState->Kills;
-		if (GS->IsTeamGame())
+		if (GameType == EIAGameType::TeamDeathmatch)
 		{
 			if (VictimState->Team == 0) { --GS->RedScore; }
 			else if (VictimState->Team == 1) { --GS->BlueScore; }
@@ -769,6 +797,27 @@ AActor* AIAGameMode::ChoosePlayerStart_Implementation(AController* Player)
 	const AIAPlayerState* MyState = Player ? Player->GetPlayerState<AIAPlayerState>() : nullptr;
 	const bool bTeamGame = GS && GS->IsTeamGame();
 
+	// Capture the flag: a team spawns at its own tagged starts (and at untagged ones), never next to the enemy flag.
+	// Free for all and team deathmatch use every start.
+	const bool bCtfSpawn = GS && GS->IsCTF() && MyState && MyState->Team < 2;
+	if (bCtfSpawn)
+	{
+		TArray<APlayerStart*> Usable;
+		for (APlayerStart* Start : Starts)
+		{
+			const uint8 StartTeam = GetStartTeam(Start);
+			if (StartTeam == IA_NoTeam || StartTeam == MyState->Team)
+			{
+				Usable.Add(Start);
+			}
+		}
+		if (!Usable.IsEmpty())
+		{
+			Starts = Usable;
+		}
+	}
+	const AIAFlagBase* EnemyBase = bCtfSpawn ? Bases[1 - MyState->Team].Get() : nullptr;
+
 	// Everybody alive who could shoot the arrival (team mates are no danger).
 	TArray<const AIAPlayerCharacter*> Threats;
 	for (TActorIterator<AIAPlayerCharacter> It(World); It; ++It)
@@ -810,6 +859,14 @@ AActor* AIAGameMode::ChoosePlayerStart_Implementation(AController* Player)
 			}
 		}
 		Score += FMath::Min(MinDistance, 3000.f) * 0.02f;
+		if (bCtfSpawn)
+		{
+			if (GetStartTeam(Start) == MyState->Team) { Score += 25.f; }
+			if (EnemyBase && FVector::Dist2D(Start->GetActorLocation(), EnemyBase->GetActorLocation()) < 1100.f)
+			{
+				Score -= 400.f;   // not next to the flag the team is trying to steal
+			}
+		}
 		if (MinDistance < 220.f)
 		{
 			Score -= 500.f;   // somebody stands on it
@@ -837,6 +894,435 @@ AActor* AIAGameMode::ChoosePlayerStart_Implementation(AController* Player)
 	return Best;
 }
 
+// ---------------------------------------------------------------- capture the flag
+
+uint8 AIAGameMode::GetStartTeam(const APlayerStart* Start) const
+{
+	if (!Start)
+	{
+		return IA_NoTeam;
+	}
+	const FName Tag = Start->PlayerStartTag;
+	if (Tag == FName(TEXT("Red"))) { return 0; }
+	if (Tag == FName(TEXT("Blue"))) { return 1; }
+	if (const uint8* Team = FallbackStartTeam.Find(TWeakObjectPtr<const APlayerStart>(Start)))
+	{
+		return *Team;
+	}
+	return IA_NoTeam;
+}
+
+void AIAGameMode::SetupCTF()
+{
+	if (GameType != EIAGameType::CaptureTheFlag || bCtfSetUp)
+	{
+		return;
+	}
+	bCtfSetUp = true;
+
+	for (TActorIterator<AIAFlagBase> It(GetWorld()); It; ++It)
+	{
+		if (It->FlagTeam < 2 && !Bases[It->FlagTeam].IsValid())
+		{
+			Bases[It->FlagTeam] = *It;
+		}
+	}
+	if (!Bases[0].IsValid() || !Bases[1].IsValid())
+	{
+		CreateFallbackBases();
+	}
+	for (int32 Team = 0; Team < 2; ++Team)
+	{
+		if (Bases[Team].IsValid())
+		{
+			Flags[Team] = Bases[Team]->SpawnFlag();
+		}
+	}
+	UE_LOG(LogInstagib, Log, TEXT("CTF: setup done on %s: red base %s, blue base %s"), *GetWorld()->GetMapName(),
+		Bases[0].IsValid() ? *Bases[0]->GetActorLocation().ToCompactString() : TEXT("none"),
+		Bases[1].IsValid() ? *Bases[1]->GetActorLocation().ToCompactString() : TEXT("none"));
+}
+
+void AIAGameMode::ResetFlags()
+{
+	for (int32 Team = 0; Team < 2; ++Team)
+	{
+		if (AIAFlag* Flag = Flags[Team].Get())
+		{
+			Flag->ServerReturnHome();
+		}
+	}
+}
+
+bool AIAGameMode::FindFlatSpot(const FVector& Around, float FloorZ, FVector& OutSpot) const
+{
+	UWorld* World = GetWorld();
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(CtfBaseSpot), false);
+
+	// The floor below a point: flat, and at the height of the starts (not the top of a crate or a ledge).
+	auto Floor = [&](const FVector& P, FVector& OutFloor) -> bool
+	{
+		FHitResult Hit;
+		if (!World->LineTraceSingleByChannel(Hit, FVector(P.X, P.Y, FloorZ + 120.f), FVector(P.X, P.Y, FloorZ - 250.f), ECC_Visibility, Params))
+		{
+			return false;
+		}
+		if (Hit.ImpactNormal.Z < 0.97f || FMath::Abs(Hit.ImpactPoint.Z - FloorZ) > 40.f)
+		{
+			return false;
+		}
+		OutFloor = Hit.ImpactPoint;
+		return true;
+	};
+
+	static const float Rings[] = { 0.f, 150.f, 300.f, 450.f, 600.f, 800.f, 1000.f };
+	for (int32 Ring = 0; Ring < UE_ARRAY_COUNT(Rings); ++Ring)
+	{
+		const int32 Steps = Ring == 0 ? 1 : 12;
+		for (int32 Step = 0; Step < Steps; ++Step)
+		{
+			const float Angle = FMath::DegreesToRadians(Step * 360.f / Steps + Ring * 17.f);
+			const FVector P = Around + FVector(FMath::Cos(Angle), FMath::Sin(Angle), 0.f) * Rings[Ring];
+			FVector Centre;
+			if (!Floor(P, Centre))
+			{
+				continue;
+			}
+			// The whole pad must be flat ...
+			bool bFlat = true;
+			for (int32 K = 0; K < 8 && bFlat; ++K)
+			{
+				const float A = K * UE_TWO_PI / 8.f;
+				FVector Edge;
+				bFlat = Floor(Centre + FVector(FMath::Cos(A), FMath::Sin(A), 0.f) * 200.f, Edge) && FMath::Abs(Edge.Z - Centre.Z) < 25.f;
+			}
+			// ... and free of walls and props.
+			if (bFlat && World->OverlapBlockingTestByChannel(Centre + FVector(0.f, 0.f, 135.f), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(110.f, 100.f), Params))
+			{
+				bFlat = false;
+			}
+			if (bFlat)
+			{
+				OutSpot = Centre;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void AIAGameMode::SpawnBaseActor(uint8 Team, const FVector& Location, bool bFallback)
+{
+	const FTransform Transform(FRotator::ZeroRotator, Location);
+	AIAFlagBase* Base = GetWorld()->SpawnActorDeferred<AIAFlagBase>(AIAFlagBase::StaticClass(), Transform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	if (Base)
+	{
+		Base->FlagTeam = Team;
+		Base->bFallback = bFallback;
+		Base->FinishSpawning(Transform);
+		Bases[Team] = Base;
+	}
+}
+
+void AIAGameMode::CreateFallbackBases()
+{
+	UWorld* World = GetWorld();
+	TArray<APlayerStart*> Starts;
+	for (TActorIterator<APlayerStart> It(World); It; ++It)
+	{
+		Starts.Add(*It);
+	}
+	UE_LOG(LogInstagib, Log, TEXT("CTF: FALLBACK BASES on %s (red base %s, blue base %s on the map), %d player starts"), *World->GetMapName(),
+		Bases[0].IsValid() ? TEXT("placed") : TEXT("missing"), Bases[1].IsValid() ? TEXT("placed") : TEXT("missing"), Starts.Num());
+
+	// Two groups of starts: by their tags when the map has both, else the two farthest apart.
+	TArray<APlayerStart*> Group[2];
+	for (APlayerStart* Start : Starts)
+	{
+		const uint8 Team = GetStartTeam(Start);
+		if (Team < 2) { Group[Team].Add(Start); }
+	}
+	if (Group[0].IsEmpty() || Group[1].IsEmpty())
+	{
+		Group[0].Reset();
+		Group[1].Reset();
+		if (Starts.Num() >= 2)
+		{
+			float BestDistance = -1.f;
+			int32 A = 0, B = 1;
+			for (int32 I = 0; I < Starts.Num(); ++I)
+			{
+				for (int32 J = I + 1; J < Starts.Num(); ++J)
+				{
+					const float D = FVector::Dist2D(Starts[I]->GetActorLocation(), Starts[J]->GetActorLocation())
+						+ 0.25f * FMath::Abs(Starts[I]->GetActorLocation().Z - Starts[J]->GetActorLocation().Z);
+					if (D > BestDistance) { BestDistance = D; A = I; B = J; }
+				}
+			}
+			for (APlayerStart* Start : Starts)
+			{
+				const float ToA = FVector::Dist2D(Start->GetActorLocation(), Starts[A]->GetActorLocation());
+				const float ToB = FVector::Dist2D(Start->GetActorLocation(), Starts[B]->GetActorLocation());
+				const uint8 Team = ToA <= ToB ? 0 : 1;
+				Group[Team].Add(Start);
+				FallbackStartTeam.Add(TWeakObjectPtr<const APlayerStart>(Start), Team);
+			}
+		}
+		else if (Starts.Num() == 1)
+		{
+			Group[0].Add(Starts[0]);
+			Group[1].Add(Starts[0]);
+		}
+	}
+
+	for (int32 Team = 0; Team < 2; ++Team)
+	{
+		if (Bases[Team].IsValid())
+		{
+			continue;
+		}
+		FVector Anchor = Team == 0 ? FVector(-1500.f, 0.f, 100.f) : FVector(1500.f, 0.f, 100.f);
+		if (!Group[Team].IsEmpty())
+		{
+			FVector Centroid = FVector::ZeroVector;
+			for (const APlayerStart* Start : Group[Team]) { Centroid += Start->GetActorLocation(); }
+			Centroid /= Group[Team].Num();
+			float Nearest = FLT_MAX;
+			for (const APlayerStart* Start : Group[Team])
+			{
+				const float D = FVector::Dist(Start->GetActorLocation(), Centroid);
+				if (D < Nearest) { Nearest = D; Anchor = Start->GetActorLocation(); }
+			}
+			if (Group[0].Num() == 1 && Group[1].Num() == 1 && Group[0][0] == Group[1][0] && Team == 1)
+			{
+				Anchor += FVector(1500.f, 0.f, 0.f);   // one start on the whole map: the second base goes next to it
+			}
+		}
+
+		// The floor under the start, then the closest flat free spot around it.
+		FHitResult Hit;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(CtfBaseFloor), false);
+		float FloorZ = Anchor.Z - 90.f;
+		if (World->LineTraceSingleByChannel(Hit, Anchor + FVector(0.f, 0.f, 50.f), Anchor - FVector(0.f, 0.f, 700.f), ECC_Visibility, Params))
+		{
+			FloorZ = Hit.ImpactPoint.Z;
+		}
+		FVector Spot(Anchor.X, Anchor.Y, FloorZ);
+		const bool bFlat = FindFlatSpot(FVector(Anchor.X, Anchor.Y, FloorZ), FloorZ, Spot);
+		UE_LOG(LogInstagib, Log, TEXT("CTF: fallback %s base at %s (%s, %d starts in the group)"), Team == 0 ? TEXT("red") : TEXT("blue"),
+			*Spot.ToCompactString(), bFlat ? TEXT("flat spot") : TEXT("no flat spot, using the floor under the start"), Group[Team].Num());
+		SpawnBaseActor(static_cast<uint8>(Team), Spot, true);
+	}
+}
+
+void AIAGameMode::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	if (GameType == EIAGameType::CaptureTheFlag)
+	{
+		TickFlags();
+	}
+}
+
+void AIAGameMode::TickFlags()
+{
+	const AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!GS || GS->Phase != EIAMatchPhase::Live)
+	{
+		return;
+	}
+	UWorld* World = GetWorld();
+
+	TArray<AIAPlayerCharacter*> Players;
+	for (TActorIterator<AIAPlayerCharacter> It(World); It; ++It)
+	{
+		AIAPlayerCharacter* P = *It;
+		const AIAPlayerState* PS = P->GetPlayerState<AIAPlayerState>();
+		if (!P->IsDead() && !P->IsPendingKillPending() && PS && PS->Team < 2)
+		{
+			Players.Add(P);
+		}
+	}
+
+	auto Touches = [this](const AActor* Pawn, const FVector& Where)
+	{
+		const FVector D = Pawn->GetActorLocation() - Where;
+		return FVector2D(D.X, D.Y).SizeSquared() <= FMath::Square(FlagTouchRadius) && D.Z > -90.f && D.Z < 260.f;
+	};
+
+	for (int32 Team = 0; Team < 2; ++Team)
+	{
+		AIAFlag* Flag = Flags[Team].Get();
+		if (!Flag)
+		{
+			continue;
+		}
+
+		if (Flag->GetFlagState() == EIAFlagState::Carried)
+		{
+			AIAPlayerCharacter* Carrier = Cast<AIAPlayerCharacter>(Flag->GetCarrier());
+			AIAPlayerState* CarrierState = Carrier ? Carrier->GetPlayerState<AIAPlayerState>() : nullptr;
+			if (!Carrier || Carrier->IsDead() || Carrier->IsPendingKillPending() || !CarrierState)
+			{
+				// The carrier vanished without dying through the game (disconnect, level change): drop it where he was.
+				UE_LOG(LogInstagib, Log, TEXT("CTF: the carrier of the %s flag is gone"), Team == 0 ? TEXT("red") : TEXT("blue"));
+				DropFlag(Flag, Flag->GetLastCarrierLocation(), nullptr);
+				continue;
+			}
+
+			// A bot that cannot get anywhere with the flag must not hold up the game.
+			if (CarrierState->bIsBotPlayer && Flag->GetCarriedSeconds() > 110.f)
+			{
+				UE_LOG(LogInstagib, Warning, TEXT("CTF: BOT CARRY TIMEOUT: %s held the %s flag for %.0f s, the flag goes home"),
+					*CarrierState->GetPlayerName(), Team == 0 ? TEXT("red") : TEXT("blue"), Flag->GetCarriedSeconds());
+				ReturnFlag(Flag, nullptr);
+				continue;
+			}
+
+			// Capture: touch the own base while the own flag is at home.
+			const uint8 CarrierTeam = CarrierState->Team;
+			AIAFlag* OwnFlag = CarrierTeam < 2 ? Flags[CarrierTeam].Get() : nullptr;
+			const AIAFlagBase* OwnBase = CarrierTeam < 2 ? Bases[CarrierTeam].Get() : nullptr;
+			if (OwnFlag && OwnFlag->IsHome() && OwnBase)
+			{
+				const FVector D = Carrier->GetActorLocation() - OwnBase->GetActorLocation();
+				if (FVector2D(D.X, D.Y).SizeSquared() <= FMath::Square(OwnBase->CaptureRadius) && D.Z > -90.f && D.Z < 300.f)
+				{
+					CaptureFlag(Flag, Carrier);
+				}
+			}
+			continue;
+		}
+
+		// At home or on the ground.
+		if (Flag->GetFlagState() == EIAFlagState::Dropped && Flag->GetDropSecondsLeft() <= 0.f)
+		{
+			UE_LOG(LogInstagib, Log, TEXT("CTF: the dropped %s flag returns by itself"), Team == 0 ? TEXT("red") : TEXT("blue"));
+			ReturnFlag(Flag, nullptr);
+			continue;
+		}
+		for (AIAPlayerCharacter* P : Players)
+		{
+			if (!Touches(P, Flag->GetRestLocation()))
+			{
+				continue;
+			}
+			AIAPlayerState* PS = P->GetPlayerState<AIAPlayerState>();
+			if (PS->Team == Team)
+			{
+				if (Flag->GetFlagState() == EIAFlagState::Dropped)
+				{
+					ReturnFlag(Flag, PS);
+					break;
+				}
+			}
+			else
+			{
+				PickUpFlag(Flag, P);
+				break;
+			}
+		}
+	}
+}
+
+void AIAGameMode::PickUpFlag(AIAFlag* Flag, AIAPlayerCharacter* Taker)
+{
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	AIAPlayerState* PS = Taker ? Taker->GetPlayerState<AIAPlayerState>() : nullptr;
+	if (!Flag || !GS || !PS)
+	{
+		return;
+	}
+	Flag->ServerPickUp(Taker);
+	GS->MulticastFlagEvent(EIAFlagEvent::Taken, PS->SlotId, Flag->GetFlagTeam());
+	UE_LOG(LogInstagib, Log, TEXT("CTF: %s took the %s flag"), *PS->GetPlayerName(), Flag->GetFlagTeam() == 0 ? TEXT("red") : TEXT("blue"));
+}
+
+void AIAGameMode::DropFlag(AIAFlag* Flag, const FVector& Where, AIAPlayerState* ExCarrier)
+{
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!Flag || !GS)
+	{
+		return;
+	}
+	const bool bDropped = Flag->ServerDrop(Where, FlagReturnSeconds);
+	GS->MulticastFlagEvent(bDropped ? EIAFlagEvent::Dropped : EIAFlagEvent::Returned, bDropped && ExCarrier ? ExCarrier->SlotId : -1, Flag->GetFlagTeam());
+	UE_LOG(LogInstagib, Log, TEXT("CTF: the %s flag was %s%s%s"), Flag->GetFlagTeam() == 0 ? TEXT("red") : TEXT("blue"),
+		bDropped ? TEXT("dropped at ") : TEXT("sent home (no safe floor at "), *Where.ToCompactString(), bDropped ? TEXT("") : TEXT(")"));
+}
+
+void AIAGameMode::ReturnFlag(AIAFlag* Flag, AIAPlayerState* Returner)
+{
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!Flag || !GS)
+	{
+		return;
+	}
+	Flag->ServerReturnHome();
+	if (Returner)
+	{
+		++Returner->Returns;
+	}
+	GS->MulticastFlagEvent(EIAFlagEvent::Returned, Returner ? Returner->SlotId : -1, Flag->GetFlagTeam());
+	UE_LOG(LogInstagib, Log, TEXT("CTF: the %s flag is home again%s%s"), Flag->GetFlagTeam() == 0 ? TEXT("red") : TEXT("blue"),
+		Returner ? TEXT(", returned by ") : TEXT(""), Returner ? *Returner->GetPlayerName() : TEXT(""));
+}
+
+void AIAGameMode::CaptureFlag(AIAFlag* Flag, AIAPlayerCharacter* Carrier)
+{
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	AIAPlayerState* PS = Carrier ? Carrier->GetPlayerState<AIAPlayerState>() : nullptr;
+	if (!Flag || !GS || !PS || PS->Team > 1)
+	{
+		return;
+	}
+	if (PS->Team == 0) { ++GS->RedScore; } else { ++GS->BlueScore; }
+	++PS->Captures;
+	Flag->ServerReturnHome();
+	GS->MulticastFlagEvent(EIAFlagEvent::Captured, PS->SlotId, Flag->GetFlagTeam());
+	UE_LOG(LogInstagib, Log, TEXT("CTF: %s CAPTURED the %s flag (red %d : blue %d)"), *PS->GetPlayerName(),
+		Flag->GetFlagTeam() == 0 ? TEXT("red") : TEXT("blue"), GS->RedScore, GS->BlueScore);
+
+	CheckScoreLimit();
+	if (GS->Phase == EIAMatchPhase::Live)
+	{
+		UpdateLeadStates();
+		CheckFragsLeft();
+	}
+}
+
+void AIAGameMode::HandleFlagCarrierDeath(AController* Killer, AController* Victim)
+{
+	APawn* VictimPawn = Victim ? Victim->GetPawn() : nullptr;
+	AIAFlag* Flag = AIAFlag::FindCarriedBy(GetWorld(), VictimPawn);
+	if (!Flag)
+	{
+		return;
+	}
+	AIAPlayerState* VictimState = Victim->GetPlayerState<AIAPlayerState>();
+	AIAPlayerState* KillerState = Killer ? Killer->GetPlayerState<AIAPlayerState>() : nullptr;
+	if (KillerState && Killer != Victim && VictimState && KillerState->Team != VictimState->Team)
+	{
+		++KillerState->FlagKills;
+	}
+	DropFlag(Flag, VictimPawn->GetActorLocation(), VictimState);
+}
+
+void AIAGameMode::Logout(AController* Exiting)
+{
+	if (GameType == EIAGameType::CaptureTheFlag && Exiting)
+	{
+		if (APawn* Pawn = Exiting->GetPawn())
+		{
+			if (AIAFlag* Flag = AIAFlag::FindCarriedBy(GetWorld(), Pawn))
+			{
+				DropFlag(Flag, Pawn->GetActorLocation(), Exiting->GetPlayerState<AIAPlayerState>());
+			}
+		}
+	}
+	Super::Logout(Exiting);
+}
+
 // ---------------------------------------------------------------- developer helpers
 
 #if !UE_BUILD_SHIPPING
@@ -849,12 +1335,82 @@ void AIAGameMode::SetupDevHooks()
 	const bool bFake = FParse::Value(FCommandLine::Get(), TEXT("IAFakeKills="), FakeKillsAt);
 	const bool bKillMe = FParse::Value(FCommandLine::Get(), TEXT("IAKillMe="), KillMeAt);
 	const bool bProbe = FParse::Param(FCommandLine::Get(), TEXT("IAProtProbe"));
-	if (!bFake && !bKillMe && !bProbe)
+
+	// -IACtfForce=S[,T]: S seconds after the fight starts the first human (else the first bot) of team T (default red = 0)
+	// takes the enemy flag. -IACtfDrop=S: S seconds after the fight starts every carried flag is dropped where its carrier stands.
+	// -IACtfCapture=S: S seconds after the fight starts the carrier (if any) is moved to his base: instant capture test.
+	FString ForceText;
+	const bool bForce = FParse::Value(FCommandLine::Get(), TEXT("IACtfForce="), ForceText, /*bShouldStopOnSeparator*/ false) && IsCTF();
+	float CtfDropAt = 0.f;
+	const bool bCtfDrop = FParse::Value(FCommandLine::Get(), TEXT("IACtfDrop="), CtfDropAt) && IsCTF();
+	float CtfCaptureAt = 0.f;
+	const bool bCtfCapture = FParse::Value(FCommandLine::Get(), TEXT("IACtfCapture="), CtfCaptureAt) && IsCTF();
+	if (!bFake && !bKillMe && !bProbe && !bForce && !bCtfDrop && !bCtfCapture)
 	{
 		return;
 	}
 
 	const float StartDelay = WarmupSeconds + 1.f;
+	if (bForce)
+	{
+		TArray<FString> Parts;
+		ForceText.ParseIntoArray(Parts, TEXT(","));
+		const float At = Parts.Num() > 0 ? FCString::Atof(*Parts[0]) : 3.f;
+		const int32 Team = Parts.Num() > 1 ? FMath::Clamp(FCString::Atoi(*Parts[1]), 0, 1) : 0;
+		FTimerHandle Handle;
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this, Team]()
+		{
+			AIAPlayerCharacter* Pick = nullptr;
+			for (TActorIterator<AIAPlayerCharacter> It(GetWorld()); It; ++It)
+			{
+				const AIAPlayerState* PS = It->GetPlayerState<AIAPlayerState>();
+				if (It->IsDead() || !PS || PS->Team != Team) { continue; }
+				if (!Pick || (Pick->GetPlayerState<AIAPlayerState>()->bIsBotPlayer && !PS->bIsBotPlayer)) { Pick = *It; }
+			}
+			AIAFlag* Enemy = Flags[1 - Team].Get();
+			if (Pick && Enemy && Enemy->IsHome())
+			{
+				PickUpFlag(Enemy, Pick);
+			}
+		}), StartDelay + At, false);
+	}
+	if (bCtfDrop)
+	{
+		FTimerHandle Handle;
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this]()
+		{
+			for (int32 Team = 0; Team < 2; ++Team)
+			{
+				AIAFlag* Flag = Flags[Team].Get();
+				if (Flag && Flag->GetFlagState() == EIAFlagState::Carried && Flag->GetCarrier())
+				{
+					DropFlag(Flag, Flag->GetCarrier()->GetActorLocation(), Flag->GetCarrier()->GetPlayerState<AIAPlayerState>());
+				}
+			}
+		}), StartDelay + CtfDropAt, false);
+	}
+	if (bCtfCapture)
+	{
+		FTimerHandle Handle;
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this]()
+		{
+			for (int32 Team = 0; Team < 2; ++Team)
+			{
+				AIAFlag* Flag = Flags[Team].Get();
+				AIAPlayerCharacter* Carrier = Flag ? Cast<AIAPlayerCharacter>(Flag->GetCarrier()) : nullptr;
+				const AIAPlayerState* PS = Carrier ? Carrier->GetPlayerState<AIAPlayerState>() : nullptr;
+				if (PS && PS->Team < 2 && Bases[PS->Team].IsValid())
+				{
+					Carrier->SetActorLocation(Bases[PS->Team]->GetActorLocation() + FVector(0.f, 0.f, 100.f), false, nullptr, ETeleportType::TeleportPhysics);
+				}
+			}
+		}), StartDelay + CtfCaptureAt, false);
+	}
+	if (!bFake && !bKillMe && !bProbe)
+	{
+		return;
+	}
+
 	if (bProbe)
 	{
 		// -IAProtProbe: 3 s into the fight, shoots the same line at the first human with and without spawn protection.

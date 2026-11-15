@@ -149,6 +149,9 @@ void UIANavGrid::Build(UWorld& World)
 		}
 	}
 
+	GridOrigin = FVector2D(Bounds.Min.X, Bounds.Min.Y);
+	CellIndex = MoveTemp(CellNodes);
+
 	// Label connected areas so that bots never pick a goal on an island they cannot reach.
 	int32 ComponentCount = 0;
 	TArray<int32> Stack;
@@ -275,18 +278,89 @@ int32 UIANavGrid::FindNearestNode(const FVector& Location) const
 {
 	int32 Best = INDEX_NONE;
 	float BestCost = 700.f;
-	for (int32 I = 0; I < Nodes.Num(); ++I)
+
+	// Only the cells within 700 cm can hold a node with a cost below 700.
+	const int32 CX = FMath::FloorToInt((Location.X - GridOrigin.X) / CellSize);
+	const int32 CY = FMath::FloorToInt((Location.Y - GridOrigin.Y) / CellSize);
+	const int32 Reach = FMath::CeilToInt(700.f / CellSize) + 1;
+	for (int32 DX = -Reach; DX <= Reach; ++DX)
 	{
-		const FVector Delta = Nodes[I].Location - Location;
-		// Height differences are penalised so that we stay on the layer we are standing on.
-		const float Cost = FVector2D(Delta.X, Delta.Y).Size() + 3.f * FMath::Abs(Delta.Z);
-		if (Cost < BestCost)
+		for (int32 DY = -Reach; DY <= Reach; ++DY)
 		{
-			BestCost = Cost;
-			Best = I;
+			const TArray<int32>* Cell = CellIndex.Find(FIntPoint(CX + DX, CY + DY));
+			if (!Cell)
+			{
+				continue;
+			}
+			for (const int32 I : *Cell)
+			{
+				const FVector Delta = Nodes[I].Location - Location;
+				// Height differences are penalised so that we stay on the layer we are standing on.
+				const float Cost = FVector2D(Delta.X, Delta.Y).Size() + 3.f * FMath::Abs(Delta.Z);
+				if (Cost < BestCost)
+				{
+					BestCost = Cost;
+					Best = I;
+				}
+			}
 		}
 	}
 	return Best;
+}
+
+bool UIANavGrid::TryConsumePathBudget(int32 MaxPerFrame) const
+{
+	if (BudgetFrame != GFrameCounter)
+	{
+		BudgetFrame = GFrameCounter;
+		BudgetUsed = 0;
+	}
+	if (BudgetUsed >= MaxPerFrame)
+	{
+		return false;
+	}
+	++BudgetUsed;
+	return true;
+}
+
+bool UIANavGrid::GetRandomLocationNear(const FVector& Center, float Radius, FVector& OutLocation) const
+{
+	const int32 Origin = FindNearestNode(Center);
+	if (Origin == INDEX_NONE)
+	{
+		return false;
+	}
+	const int32 Area = Nodes[Origin].ComponentId;
+	const int32 CX = FMath::FloorToInt((Center.X - GridOrigin.X) / CellSize);
+	const int32 CY = FMath::FloorToInt((Center.Y - GridOrigin.Y) / CellSize);
+	const int32 Reach = FMath::CeilToInt(Radius / CellSize) + 1;
+
+	// Reservoir sampling over the cells around the centre.
+	int32 Seen = 0;
+	for (int32 DX = -Reach; DX <= Reach; ++DX)
+	{
+		for (int32 DY = -Reach; DY <= Reach; ++DY)
+		{
+			const TArray<int32>* Cell = CellIndex.Find(FIntPoint(CX + DX, CY + DY));
+			if (!Cell)
+			{
+				continue;
+			}
+			for (const int32 I : *Cell)
+			{
+				const FNavNode& Node = Nodes[I];
+				if (Node.ComponentId == Area && FVector::Dist2D(Node.Location, Center) <= Radius && FMath::Abs(Node.Location.Z - Center.Z) < 250.f)
+				{
+					++Seen;
+					if (FMath::RandRange(1, Seen) == 1)
+					{
+						OutLocation = Node.Location;
+					}
+				}
+			}
+		}
+	}
+	return Seen > 0;
 }
 
 bool UIANavGrid::GetRandomLocation(const FVector& Avoid, float MinDistance, FVector& OutLocation) const
@@ -314,6 +388,16 @@ bool UIANavGrid::GetRandomLocation(const FVector& Avoid, float MinDistance, FVec
 bool UIANavGrid::FindPath(const FVector& From, const FVector& To, TArray<FVector>& OutPath) const
 {
 	OutPath.Reset();
+	const double SearchStart = FPlatformTime::Seconds();
+	struct FStatScope
+	{
+		const UIANavGrid* Grid; double Start;
+		~FStatScope()
+		{
+			const double Ms = (FPlatformTime::Seconds() - Start) * 1000.0;
+			++Grid->StatSearches; Grid->StatMilliseconds += Ms; Grid->StatWorst = FMath::Max(Grid->StatWorst, Ms);
+		}
+	} Stat{ this, SearchStart };
 
 	const int32 Start = FindNearestNode(From);
 	const int32 Goal = FindNearestNode(To);

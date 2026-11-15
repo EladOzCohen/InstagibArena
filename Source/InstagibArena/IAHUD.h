@@ -59,6 +59,7 @@ private:
 	// ---- events
 	void BindState(AIAGameState* GS);
 	void HandleAnnounce(EIAAnnounce Kind, int32 Subject, int32 Param);
+	void HandleFlagEvent(EIAFlagEvent Kind, int32 Subject, uint8 FlagTeam);
 	void QueueBanner(const FBanner& Banner);
 	void UpdatePhase(const AIAGameState& GS, float Now);
 	void UpdateClockCues(const AIAGameState& GS);
@@ -84,6 +85,13 @@ private:
 	void DrawProtection(const AIAGameState& GS, float Now);
 	void DrawTriangle(const FVector2D& A, const FVector2D& B, const FVector2D& C, const FLinearColor& Color);
 
+	// ---- capture the flag
+	void DrawFlagGlyph(float X, float Y, float Size, const FLinearColor& Color, float Alpha);
+	void DrawFlagMarkers(const AIAGameState& GS, float Now);
+	void DrawMarker(const FVector& World, const FLinearColor& Color, const FString& Label, const FString& Distance, bool bFlag, bool bPulse, float Size);
+	void DrawFlagPrompt(const AIAGameState& GS, float Now);
+	FString FlagStatusText(const class AIAFlag& Flag, float MaxWidth, float Px) const;
+
 	float S = 1.f;            // screen scale
 	float FontRefHeight = 20.f;
 	UPROPERTY(Transient)
@@ -95,6 +103,7 @@ private:
 
 	TWeakObjectPtr<AIAGameState> BoundState;
 	FDelegateHandle AnnounceHandle;
+	FDelegateHandle FlagEventHandle;
 
 	TArray<FBanner> BannerQueue;
 	FBanner CurrentBanner;
