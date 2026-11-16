@@ -33,7 +33,7 @@ $logDir = Join-Path $proj "Saved\ShotLogs"
 New-Item -ItemType Directory -Force $out, $logDir | Out-Null
 
 # Camera heights that are above the floor and inside the open space of each map (x,y,z,pitch,yaw is added per view).
-$camZ = @{ Foundry = 700; Temple = 900; Dock = 500; Skyline = 1400; Neon = 600; Forge = 700; Glacier = 600; Canyon = 700 }
+$camZ = @{ Foundry = 700; Temple = 900; Dock = 500; Skyline = 1400; Neon = 600; Forge = 700; Glacier = 600; Canyon = 700; Citadel = 1500; Quarry = 1500; Downtown = 1400 }
 
 $views = @(
     @{ Name = "spawn"; Extra = "" },

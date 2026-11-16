@@ -32,6 +32,12 @@ namespace IAMaps
 		  TEXT("An arctic outpost with an ice ridge, covered tunnels and a radio tower.") },
 		{ TEXT("Canyon"), TEXT("/Game/Maps/DM-Canyon"),
 		  TEXT("A huge desert canyon with rope bridges, high mesas and rock spires.") },
+		{ TEXT("Citadel"), TEXT("/Game/Maps/DM-Citadel"),
+		  TEXT("A big stone castle on a meadow: two keeps, a gatehouse, a courtyard and forest paths between. Made for Capture the Flag.") },
+		{ TEXT("Quarry"), TEXT("/Game/Maps/DM-Quarry"),
+		  TEXT("A huge open-pit quarry with haul roads, tunnels, a crushing plant and a loading dock. Made for Capture the Flag.") },
+		{ TEXT("Downtown"), TEXT("/Game/Maps/DM-Downtown"),
+		  TEXT("A big city district with streets, plazas, rooftops and underpasses. Made for Capture the Flag.") },
 	};
 
 	inline constexpr int32 Count = UE_ARRAY_COUNT(List);
