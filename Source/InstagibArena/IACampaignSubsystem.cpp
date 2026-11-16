@@ -2,6 +2,7 @@
 
 #include "IACampaignSubsystem.h"
 #include "IACharacterRoster.h"
+#include "IAMapList.h"
 #include "InstagibArena.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
@@ -153,9 +154,23 @@ void UIACampaignSubsystem::SetEnding(int32 Value)
 	Save();
 }
 
+FString UIACampaignSubsystem::ResolveMapName(const TCHAR* ShortName)
+{
+	// A map of the plan that is not built yet is played on a stand-in until it is: Orbital, Derelict and Nexus (the space arenas).
+	const FString Wanted = FString::Printf(TEXT("/Game/Maps/DM-%s"), ShortName);
+	for (const FIAMapInfo& Info : IAMaps::List)
+	{
+		if (Wanted == Info.AssetPath) { return ShortName; }
+	}
+	if (FCString::Stricmp(ShortName, TEXT("Orbital")) == 0) { return TEXT("Skyline"); }
+	if (FCString::Stricmp(ShortName, TEXT("Derelict")) == 0) { return TEXT("Forge"); }
+	if (FCString::Stricmp(ShortName, TEXT("Nexus")) == 0) { return TEXT("Downtown"); }
+	return TEXT("Foundry");
+}
+
 FString UIACampaignSubsystem::MapPath(const TCHAR* ShortName)
 {
-	return FString::Printf(TEXT("/Game/Maps/DM-%s"), ShortName);
+	return FString::Printf(TEXT("/Game/Maps/DM-%s"), *ResolveMapName(ShortName));
 }
 
 TArray<int32> UIACampaignSubsystem::BuildAllyLooks(int32 MatchIndex) const

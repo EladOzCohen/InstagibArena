@@ -203,6 +203,19 @@ void AIAGameMode::StartLive()
 	{
 		StartWave(1);
 	}
+
+	// Campaign: the title of the match, in the announcer's voice.
+	if (CampaignMatch >= 0)
+	{
+		const FIACampaignMatch& M = IACampaign::Matches()[CampaignMatch];
+		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+		{
+			if (AIAPlayerController* PC = Cast<AIAPlayerController>(It->Get()))
+			{
+				PC->ClientShowMessage(FString::Printf(TEXT("MATCH %d: %s"), CampaignMatch + 1, *FString(M.Title).ToUpper()), FLinearColor(1.f, 0.78f, 0.25f), 3.f);
+			}
+		}
+	}
 }
 
 // ---------------------------------------------------------------- spawn protection

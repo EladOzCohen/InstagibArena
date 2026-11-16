@@ -55,7 +55,10 @@ public:
 	/** The URL options (without the map) of a match, e.g. "Mode=TDM?ScoreLimit=25?Bots=5?...?Camp=4". */
 	FString BuildTravelOptions(int32 MatchIndex) const;
 
-	/** The asset path of a map by its short name ("Foundry" -> "/Game/Maps/DM-Foundry"). */
+	/** The short name of the map that is really played (a stand-in while a planned map does not exist yet). */
+	static FString ResolveMapName(const TCHAR* ShortName);
+
+	/** The asset path of a map by its short name ("Foundry" -> "/Game/Maps/DM-Foundry"), after ResolveMapName. */
 	static FString MapPath(const TCHAR* ShortName);
 
 	/** Called by the game mode when a campaign match ends. Records the result, recruits, advances the ladder, saves. */

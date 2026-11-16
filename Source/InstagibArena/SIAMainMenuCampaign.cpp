@@ -287,6 +287,31 @@ TSharedRef<SWidget> SIAMainMenu::BuildCampaignLadder()
 				]
 			]
 		];
+		// The last match of a chapter won: the story moves on to the next world.
+		const bool bChapterEnd = bWon && (Camp->LastResult.Match + 1 >= IACampaign::MatchCount || Matches[Camp->LastResult.Match + 1].Chapter != Last.Chapter);
+		if (bChapterEnd)
+		{
+			Body->AddSlot().AutoHeight().Padding(0.f, 0.f, 0.f, 14.f)
+			[
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(FLinearColor(0.08f, 0.1f, 0.18f, 0.7f))
+				.Padding(FMargin(14.f, 10.f))
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight()
+					[
+						SNew(STextBlock)
+						.Text(FText::Format(INVTEXT("END OF CHAPTER {0}: {1}"), Last.Chapter + 1, FText::FromString(Chapters[Last.Chapter].Name)))
+						.Font(Font(16, true)).ColorAndOpacity(Accent)
+					]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 4.f, 0.f, 0.f)
+					[
+						Paragraph(FText::FromString(Chapters[Last.Chapter].Outro), 15)
+					]
+				]
+			];
+		}
 		Camp->LastResult.Match = -1;
 	}
 
@@ -314,7 +339,7 @@ TSharedRef<SWidget> SIAMainMenu::BuildCampaignLadder()
 			+ SHorizontalBox::Slot().FillWidth(1.f)
 			[
 				Chip(Owner,
-					bOpen ? FText::Format(INVTEXT("{0}.  {1}      {2}  -  {3}"), Index + 1, FText::FromString(Matches[Index].Title), ModeName(Matches[Index].Mode), FText::FromString(Matches[Index].Map))
+					bOpen ? FText::Format(INVTEXT("{0}.  {1}      {2}  -  {3}"), Index + 1, FText::FromString(Matches[Index].Title), ModeName(Matches[Index].Mode), FText::FromString(UIACampaignSubsystem::ResolveMapName(Matches[Index].Map)))
 					      : FText::Format(INVTEXT("{0}.  LOCKED"), Index + 1),
 					[this, Index, bOpen]() { if (bOpen) { CampaignSelected = Index; SetCampaignView(2); } },
 					[this, Index]() { return CampaignSelected == Index; }, 0.f, 16)
@@ -344,7 +369,7 @@ TSharedRef<SWidget> SIAMainMenu::BuildCampaignLadder()
 	];
 	Body->AddSlot().AutoHeight()
 	[
-		Paragraph(FText::Format(INVTEXT("{0} on {1}.  Opponents: {2} ({3}), skill: {4}."), ModeName(Sel.Mode), FText::FromString(Sel.Map),
+		Paragraph(FText::Format(INVTEXT("{0} on {1}.  Opponents: {2} ({3}), skill: {4}."), ModeName(Sel.Mode), FText::FromString(UIACampaignSubsystem::ResolveMapName(Sel.Map)),
 			FText::FromString(Faction.Name), Sel.EnemyCount, IABots::SkillName(Skill)), 15, TextDim)
 	];
 	if (Sel.AllyCount > 0)
