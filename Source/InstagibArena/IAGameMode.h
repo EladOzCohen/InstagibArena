@@ -137,6 +137,7 @@ protected:
 	TWeakObjectPtr<AIAFlag> Flags[2];
 	TWeakObjectPtr<AIAFlagBase> Bases[2];
 	bool bCtfSetUp = false;
+	bool bDevDemoCarrier = false;   // development only: -IACtfCarryDemo
 
 	/** Maps without start tags: which team each start was given to by the fallback (nearest base). */
 	TMap<TWeakObjectPtr<const APlayerStart>, uint8> FallbackStartTeam;

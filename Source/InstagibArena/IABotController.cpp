@@ -87,8 +87,9 @@ void AIABotController::Tick(float DeltaSeconds)
 	{
 		LogAccumulator = 0.f;
 		const AIAPlayerState* PS = GetPlayerState<AIAPlayerState>();
-		UE_LOG(LogInstagib, Verbose, TEXT("[bot %s] at %s target=%s visible=%d path=%d/%d kills=%d deaths=%d"),
-			PS ? *PS->GetPlayerName() : TEXT("?"), *Me->GetActorLocation().ToCompactString(),
+		UE_LOG(LogInstagib, Verbose, TEXT("[bot %s] team %d at %s obj=%d goal=%s target=%s visible=%d path=%d/%d kills=%d deaths=%d"),
+			PS ? *PS->GetPlayerName() : TEXT("?"), PS ? static_cast<int32>(PS->Team) : -1, *Me->GetActorLocation().ToCompactString(),
+			static_cast<int32>(Objective), *ObjectiveGoal.ToCompactString(),
 			Target.IsValid() ? *GetNameSafe(Target.Get()) : TEXT("none"), bTargetVisible ? 1 : 0,
 			PathIndex, Path.Num(), PS ? PS->Kills : 0, PS ? PS->Deaths : 0);
 	}
@@ -558,6 +559,18 @@ void AIABotController::UpdateMovement(AIAPlayerCharacter* Me, float DeltaSeconds
 void AIABotController::UpdateObjective(AIAPlayerCharacter* Me)
 {
 	const EObjective Old = Objective;
+	UpdateObjectiveInner(Me, Old);
+	if (Objective != Old)
+	{
+		static const TCHAR* const Names[] = { TEXT("none"), TEXT("attack"), TEXT("carry"), TEXT("hunt"), TEXT("recover"), TEXT("escort"), TEXT("defend") };
+		const AIAPlayerState* PS = Me->GetPlayerState<AIAPlayerState>();
+		UE_LOG(LogInstagib, Verbose, TEXT("CTF bot %s (team %d): %s -> %s, goal %s"), PS ? *PS->GetPlayerName() : TEXT("?"), PS ? static_cast<int32>(PS->Team) : -1,
+			Names[static_cast<int32>(Old)], Names[static_cast<int32>(Objective)], *ObjectiveGoal.ToCompactString());
+	}
+}
+
+void AIABotController::UpdateObjectiveInner(AIAPlayerCharacter* Me, EObjective Old)
+{
 	Objective = EObjective::None;
 
 	UWorld* World = GetWorld();

@@ -642,6 +642,10 @@ float AIAPlayerCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 	{
 		return 0.f;
 	}
+	if (ForcedLook >= 0 && !GetPlayerState())
+	{
+		return 0.f;   // developer showroom and screenshot dummies cannot be shot
+	}
 
 	// No friendly fire in team games. Self damage is allowed.
 	if (const AIAGameState* GS = GetWorld()->GetGameState<AIAGameState>())

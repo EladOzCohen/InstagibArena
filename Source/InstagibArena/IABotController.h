@@ -74,6 +74,7 @@ private:
 	// ---- capture the flag
 	enum class EObjective : uint8 { None, Attack, Carry, Hunt, Recover, Escort, Defend };
 	void UpdateObjective(AIAPlayerCharacter* Me);
+	void UpdateObjectiveInner(AIAPlayerCharacter* Me, EObjective Old);
 	void MoveToObjective(AIAPlayerCharacter* Me, float DeltaSeconds);
 	float TargetWeight(const AIAPlayerCharacter* Me, const AIAPlayerCharacter* Other) const;
 

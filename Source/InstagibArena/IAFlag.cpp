@@ -23,9 +23,12 @@ namespace
 
 	// How the flag sits on a carrier: bone, offset and rotation in the bone's space, scale of the whole flag.
 	// (-IAFlagCarry=x,y,z,pitch,yaw,roll,scale changes it for tuning.)
+	// The offset is in character space (x forward, z up, from the middle of the capsule); pitch = how far the pole leans back,
+	// yaw = how the cloth is turned (90: it streams out behind the carrier). The bone only carries the flag: its own axes do
+	// not matter, the relative transform is worked out from the character's orientation when the flag is attached.
 	const FName CarryBone(TEXT("spine_03"));
-	FVector CarryLocation(-14.f, 0.f, 6.f);
-	FRotator CarryRotation(0.f, 0.f, 0.f);
+	FVector CarryLocation(-24.f, 0.f, 8.f);
+	FRotator CarryRotation(9.f, 90.f, 0.f);
 	float CarryScale = 0.5f;
 	bool bCarryTuned = false;
 
@@ -355,12 +358,20 @@ void AIAFlag::ApplyState()
 	if (State == EIAFlagState::Carried)
 	{
 		USkeletalMeshComponent* Mesh = Carrier ? Carrier->GetMesh() : nullptr;
-		if (Mesh)
+		// The bone exists once the carrier's look has been applied on this machine; until then Tick asks again.
+		if (Mesh && Mesh->GetSkeletalMeshAsset() && Mesh->DoesSocketExist(CarryBone))
 		{
 			if (Root->GetAttachParent() != Mesh)
 			{
-				AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, CarryBone);
-				Root->SetRelativeLocationAndRotation(CarryLocation, CarryRotation);
+				// Where the flag should be in the world (behind the back, upright, leaning back a little) ...
+				const FQuat ActorQuat = FRotator(0.f, Carrier->GetActorRotation().Yaw, 0.f).Quaternion();
+				const FQuat DesiredQuat = ActorQuat * FRotator(CarryRotation.Pitch, 0.f, 0.f).Quaternion() * FRotator(0.f, CarryRotation.Yaw, 0.f).Quaternion();
+				const FVector DesiredLocation = Carrier->GetActorLocation() + ActorQuat.RotateVector(CarryLocation);
+				// ... and the same place expressed in the bone's space, so that it follows the back from now on.
+				const FTransform BoneWorld = Mesh->GetSocketTransform(CarryBone, RTS_World);
+				AttachToComponent(Mesh, FAttachmentTransformRules::KeepRelativeTransform, CarryBone);
+				Root->SetRelativeLocationAndRotation(BoneWorld.InverseTransformPositionNoScale(DesiredLocation),
+					(BoneWorld.GetRotation().Inverse() * DesiredQuat).Rotator());
 			}
 			bAttachedToCarrier = true;
 			Visual->SetRelativeLocation(FVector::ZeroVector);
@@ -423,9 +434,10 @@ void AIAFlag::UpdateLook(float DeltaSeconds)
 {
 	// The player who carries the flag does not see it behind his own head.
 	bool bHide = false;
-	if (State == EIAFlagState::Carried && Carrier && Carrier->IsLocallyControlled() && Cast<APlayerController>(Carrier->GetController()))
+	if (State == EIAFlagState::Carried && Carrier && Carrier->IsLocallyControlled())
 	{
-		bHide = true;
+		const APlayerController* PC = Cast<APlayerController>(Carrier->GetController());
+		bHide = PC && PC->GetViewTarget() == Carrier;   // only while the camera is in his own head
 	}
 	if (bHide != bHiddenForCarrier)
 	{
@@ -477,6 +489,6 @@ void AIAFlag::UpdateLook(float DeltaSeconds)
 	if (Beam)
 	{
 		// Carried: the beam is shorter (it rides on the player).
-		Beam->SetRelativeScale3D(State == EIAFlagState::Carried ? FVector(1.f, 1.f, 0.5f) : FVector::OneVector);
+		Beam->SetRelativeScale3D(State == EIAFlagState::Carried ? FVector(1.f, 1.f, 0.67f) : FVector::OneVector);
 	}
 }

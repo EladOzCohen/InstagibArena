@@ -1164,6 +1164,12 @@ void AIAGameMode::TickFlags()
 			AIAPlayerState* CarrierState = Carrier ? Carrier->GetPlayerState<AIAPlayerState>() : nullptr;
 			if (!Carrier || Carrier->IsDead() || Carrier->IsPendingKillPending() || !CarrierState)
 			{
+#if !UE_BUILD_SHIPPING
+				if (bDevDemoCarrier && Carrier && !Carrier->IsDead())
+				{
+					continue;   // the screenshot dummy carries the flag without a player
+				}
+#endif
 				// The carrier vanished without dying through the game (disconnect, level change): drop it where he was.
 				UE_LOG(LogInstagib, Log, TEXT("CTF: the carrier of the %s flag is gone"), Team == 0 ? TEXT("red") : TEXT("blue"));
 				DropFlag(Flag, Flag->GetLastCarrierLocation(), nullptr);
@@ -1345,12 +1351,43 @@ void AIAGameMode::SetupDevHooks()
 	const bool bCtfDrop = FParse::Value(FCommandLine::Get(), TEXT("IACtfDrop="), CtfDropAt) && IsCTF();
 	float CtfCaptureAt = 0.f;
 	const bool bCtfCapture = FParse::Value(FCommandLine::Get(), TEXT("IACtfCapture="), CtfCaptureAt) && IsCTF();
-	if (!bFake && !bKillMe && !bProbe && !bForce && !bCtfDrop && !bCtfCapture)
+	// -IACtfCarryDemo=dx,dy,yaw: a body without a player (like the showroom ones) stands dx,dy from the red base and carries the
+	// red flag for ever, for screenshots of the carried flag (the match goes on around it).
+	FString DemoText;
+	const bool bCarryDemo = FParse::Value(FCommandLine::Get(), TEXT("IACtfCarryDemo="), DemoText, /*bShouldStopOnSeparator*/ false) && IsCTF();
+	if (!bFake && !bKillMe && !bProbe && !bForce && !bCtfDrop && !bCtfCapture && !bCarryDemo)
 	{
 		return;
 	}
 
 	const float StartDelay = WarmupSeconds + 1.f;
+	if (bCarryDemo)
+	{
+		TArray<FString> Parts;
+		DemoText.ParseIntoArray(Parts, TEXT(","));
+		const FVector Offset(Parts.Num() > 0 ? FCString::Atof(*Parts[0]) : 400.f, Parts.Num() > 1 ? FCString::Atof(*Parts[1]) : 0.f, 0.f);
+		const float Yaw = Parts.Num() > 2 ? FCString::Atof(*Parts[2]) : 0.f;
+		FTimerHandle Handle;
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this, Offset, Yaw]()
+		{
+			const AIAFlagBase* Base = Bases[0].Get();
+			AIAFlag* Flag = Flags[0].Get();
+			if (!Base || !Flag)
+			{
+				return;
+			}
+			FActorSpawnParameters Params;
+			Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			AIAPlayerCharacter* Body = GetWorld()->SpawnActor<AIAPlayerCharacter>(AIAPlayerCharacter::StaticClass(),
+				Base->GetActorLocation() + Offset + FVector(0.f, 0.f, 100.f), FRotator(0.f, Yaw, 0.f), Params);
+			if (Body)
+			{
+				Body->SetForcedLook(3, 1);
+				Flag->ServerPickUp(Body);
+				bDevDemoCarrier = true;
+			}
+		}), StartDelay + 0.5f, false);
+	}
 	if (bForce)
 	{
 		TArray<FString> Parts;

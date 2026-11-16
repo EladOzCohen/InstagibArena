@@ -101,7 +101,7 @@ def build_pole():
 
 def build_cloth():
     nx, nz = 14, 8
-    width, height = 118.0, 86.0
+    width, height = 104.0, 76.0
     top = 233.0
     pole_gap = 3.4
     m = M()
@@ -307,16 +307,27 @@ def make_cloth_material():
     lib.connect_material_property(wpo, "", unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
 
     # Cloth shading: fold shading from the same wave, a darker lower edge, a lighter hem along the top.
-    fold = b.add(b.const(0.88), b.mul(b.sin(phase1), b.const(0.12)))
-    edge_dark = b.lerp(b.const(1.0), b.const(0.72), b.power(v, b.const(2.0)))
+    fold = b.add(b.const(0.74), b.mul(b.sin(phase1), b.const(0.26)))
+    edge_dark = b.lerp(b.const(1.0), b.const(0.7), b.power(v, b.const(2.0)))
     hem = b.band(v, -0.1, 0.07, 80.0)
     base = b.mul(team, b.mul(fold, edge_dark))
     base = b.lerp(base, b.mul(team, b.const(1.8)), b.mul(hem, b.const(0.5)))
+    # A pale round emblem on the cloth.
+    emblem_centre = node(mat, unreal.MaterialExpressionConstant2Vector, -1200, 900)
+    emblem_centre.set_editor_property("r", 0.36)
+    emblem_centre.set_editor_property("g", 0.42)
+    emblem_dist = node(mat, unreal.MaterialExpressionDistance, -1000, 900)
+    link(uv, emblem_dist, "A")
+    link(emblem_centre, emblem_dist, "B")
+    emblem = b.sat(b.mul(b.sub(b.const(0.17), emblem_dist), b.const(45.0)))
+    ring_in = b.sat(b.mul(b.sub(b.const(0.105), emblem_dist), b.const(45.0)))
+    pale = b.mul(b.const3(0.75, 0.75, 0.75), fold)
+    base = b.lerp(base, pale, b.mul(b.sub(emblem, ring_in), b.const(0.8)))
     lib.connect_material_property(base, "", unreal.MaterialProperty.MP_BASE_COLOR)
     lib.connect_material_property(b.mul(team, b.const(0.07)), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
-    lib.connect_material_property(b.const(0.86), "", unreal.MaterialProperty.MP_ROUGHNESS)
+    lib.connect_material_property(b.const(0.92), "", unreal.MaterialProperty.MP_ROUGHNESS)
     lib.connect_material_property(b.const(0.0), "", unreal.MaterialProperty.MP_METALLIC)
-    lib.connect_material_property(b.const(0.2), "", unreal.MaterialProperty.MP_SPECULAR)
+    lib.connect_material_property(b.const(0.08), "", unreal.MaterialProperty.MP_SPECULAR)
     finish_material(mat)
     return mat
 
