@@ -122,6 +122,19 @@ LOOKS = {
         ambient_gain=1.0, sun_override=False),
 }
 
+# Space looks of the campaign arenas (skies made by Tools/make_space_sky.py, imported by Tools/import_space_skies.py): one hard white sun,
+# no atmosphere or fog, dim ambient light from the stars and the planet, interiors are lit by their own lamps.
+_SPACE = dict(sun_lux=9.0, sun_pitch=-32.0, sun_yaw=215.0, sun_rgb=(1.0, 0.97, 0.92), sun_angle=0.2,
+              sky_intensity=3.0, sky_rgb=(0.80, 0.86, 1.0), ground_rgb=(0.04, 0.04, 0.05),
+              atmosphere=False, fog_rgb=(0.0, 0.0, 0.0), fog_density=0.0, fog_falloff=0.3, fog_start=0.0, fog_max_opacity=0.0,
+              ev=1.0, bloom=0.35, saturation=1.0, contrast=1.1, ssr=30.0, ao=0.7,
+              sky_yaw=0.0, sky_brightness=0.5, sky_tint=(1.0, 1.0, 1.0), sky_rgb_hdri=(1.0, 1.0, 1.0),
+              ambient_gain=6.0, sun_override=False, sun_disc=False)
+for _name in ("space_orbital", "space_derelict", "space_nexus"):
+    LOOKS[_name] = dict(_SPACE, hdri=_name)
+LOOKS["space_derelict"].update(sun_lux=6.0, sun_rgb=(1.0, 0.92, 0.82))
+LOOKS["space_nexus"].update(sun_lux=8.0, sun_rgb=(0.85, 0.92, 1.0), ambient_gain=7.0)
+
 # Measurements of the panoramas (printed by Tools/import_skies.py as SKIES_TABLE; azimuth/elevation of the sun in the picture,
 # azimuth 0 = the +x axis of the unrotated sky, growing towards +y; colours are linear, relative to the mean brightness of the upper hemisphere).
 HDRI = {
@@ -132,6 +145,9 @@ HDRI = {
     "volcanic": dict(slug="scythian_tombs_puresky", sun_az=35.64, sun_el=13.18, horizon=(1.016, 0.968, 0.889)),
     "arctic": dict(slug="syferfontein_18d_clear_puresky", sun_az=35.87, sun_el=18.37, horizon=(1.649, 2.108, 2.499)),
     "desert": dict(slug="kloofendal_43d_clear_puresky", sun_az=36.18, sun_el=42.93, horizon=(1.500, 1.773, 2.179)),
+    "space_orbital": dict(slug="procedural", sun_az=35.0, sun_el=32.0, horizon=(0.18, 0.15, 0.13)),
+    "space_derelict": dict(slug="procedural", sun_az=215.0, sun_el=24.0, horizon=(0.09, 0.06, 0.10)),
+    "space_nexus": dict(slug="procedural", sun_az=250.0, sun_el=30.0, horizon=(0.10, 0.07, 0.07)),
 }
 
 SKY_DIR = "/Game/Sky"
