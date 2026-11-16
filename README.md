@@ -54,6 +54,8 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
   and a body that collapses when it is hit. Scorch marks stay on walls and floors.
 - **A complete match:** 5 second warm-up with a 3-2-1 countdown, live play, a results screen (rank, kills, deaths, accuracy,
   best streak) and a quick rematch. Medals for first blood, multi-kills and killing sprees, a kill feed, and a short protection after you respawn.
+- **Campaign: The Apex League.** 20 matches in 5 chapters across five worlds: duels, free for all, team deathmatch, capture the flag and survival.
+  Recruit a squad, earn up to 3 stars per match, face a different faction in every chapter, and choose how the story ends.
 - **Free for all**, **team deathmatch** (red vs blue) and **Capture the Flag**: take the enemy flag to your base while yours is safe. Bots play it too.
 - **Bots** (2 to 10) at seven skill levels, from Rookie (very forgiving, for first-timers) to Master (for professionals).
 - **15 characters** with their own looks, picked in a menu with a live 3D preview.
