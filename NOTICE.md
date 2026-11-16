@@ -62,6 +62,9 @@ Surface textures of the world material library (`Tools/matlib.py`, imported into
 
 <!-- TEXTURES-END -->
 
+**Lawn of DM-Downtown** (the park, surface "Grass" registered in memory by `Tools/mapkit_big3.py`): Poly Haven "Leafy Grass" (https://polyhaven.com/a/leafy_grass) by Charlotte Baglioni, licence CC0 1.0 (public domain),
+1k maps downloaded by `Tools/fetch_textures.py` into `~/AssetCache/textures/Grass` and imported as `T_Grass_*`.
+
 **Character cloth detail** (fine fabric normal, roughness and brightness variation on the people, `Content/Characters/Textures/T_CharSuit_*`):
 Poly Haven "Scuba Suede" (https://polyhaven.com/a/scuba_suede) by colormass (photography) and Rico Cilliers (processing), licence CC0 1.0 (public domain),
 1k maps downloaded by `Tools/make_character_assets.py` into `~/AssetCache/textures/CharSuit` and imported into the project.
