@@ -48,18 +48,28 @@ void AIAGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	{
 		GameType = EIAGameType::CaptureTheFlag;
 	}
+	else if (ModeOption.Equals(TEXT("Survival"), ESearchCase::IgnoreCase))
+	{
+		GameType = EIAGameType::Survival;
+	}
 	else
 	{
 		GameType = EIAGameType::FreeForAll;
 	}
 
-	ScoreLimit = FMath::Max(0, UGameplayStatics::GetIntOption(Options, TEXT("ScoreLimit"), -1));
+	ScoreLimit =FMath::Max(0, UGameplayStatics::GetIntOption(Options, TEXT("ScoreLimit"), -1));
 	TimeLimitMinutes = FMath::Max(0, UGameplayStatics::GetIntOption(Options, TEXT("TimeLimit"), -1));
 	const bool bScoreGiven = UGameplayStatics::HasOption(Options, TEXT("ScoreLimit"));
 	const bool bTimeGiven = UGameplayStatics::HasOption(Options, TEXT("TimeLimit"));
 	if (GameType == EIAGameType::CaptureTheFlag)
 	{
 		// Captures: 5 and 15 minutes unless the options say otherwise.
+		if (!bScoreGiven) { ScoreLimit = 5; }
+		if (!bTimeGiven) { TimeLimitMinutes = 15; }
+	}
+	else if (GameType == EIAGameType::Survival)
+	{
+		// ScoreLimit = number of waves; the clock is the time the squad has for all of them.
 		if (!bScoreGiven) { ScoreLimit = 5; }
 		if (!bTimeGiven) { TimeLimitMinutes = 15; }
 	}
@@ -88,7 +98,7 @@ void AIAGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 #endif
 
 	UE_LOG(LogInstagib, Log, TEXT("Match setup: %s, score limit %d, time limit %d min, bots %d, skill %d"),
-		GameType == EIAGameType::CaptureTheFlag ? TEXT("CTF") : (GameType == EIAGameType::TeamDeathmatch ? TEXT("TDM") : TEXT("FFA")),
+		GameType == EIAGameType::CaptureTheFlag ? TEXT("CTF") : (GameType == EIAGameType::TeamDeathmatch ? TEXT("TDM") : (GameType == EIAGameType::Survival ? TEXT("Survival") : TEXT("FFA"))),
 		ScoreLimit, TimeLimitMinutes, BotCount, BotSkill);
 }
 
@@ -188,6 +198,11 @@ void AIAGameMode::StartLive()
 			BeginSpawnProtection(C->GetPawn());
 		}
 	}
+
+	if (GameType == EIAGameType::Survival)
+	{
+		StartWave(1);
+	}
 }
 
 // ---------------------------------------------------------------- spawn protection
@@ -259,6 +274,16 @@ void AIAGameMode::StartNewMatch()
 	bFirstBloodDone = false;
 	LastFragsLeft = ScoreLimit;
 	TeamLead[0] = TeamLead[1] = 0;
+
+	if (GameType == EIAGameType::Survival)
+	{
+		GetWorldTimerManager().ClearTimer(WaveTimer);
+		ClearEnemyControllers();
+		WaveNumber = 0;
+		bWaveActive = false;
+		GS->Wave = 0;
+		GS->WaveEnemiesLeft = 0;
+	}
 
 	GS->RedScore = 0;
 	GS->BlueScore = 0;
@@ -349,8 +374,24 @@ void AIAGameMode::SpawnBots()
 		}
 	}
 
+	// Survival: only the allies are here from the start; the enemies come in waves.
+	if (GameType == EIAGameType::Survival)
+	{
+		SurvivalEnemyLooks.Reset();
+		int32 EnemyEntries = 0;
+		for (int32 I = 0; I < ScriptedLooks.Num(); ++I)
+		{
+			if (!ScriptedAlly[I]) { SurvivalEnemyLooks.Add(ScriptedLooks[I]); ++EnemyEntries; }
+		}
+		SurvivalEnemyBase = EnemyEntries > 0 ? EnemyEntries : FMath::Max(1, BotCount);
+	}
+
 	for (int32 I = 0; I < BotCount; ++I)
 	{
+		if (GameType == EIAGameType::Survival && !(ScriptedAlly.IsValidIndex(I) && ScriptedAlly[I]))
+		{
+			continue;
+		}
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		AIABotController* Bot = GetWorld()->SpawnActor<AIABotController>(AIABotController::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
@@ -409,6 +450,11 @@ void AIAGameMode::AssignTeam(AIAPlayerState* PlayerState)
 	if (GameType == EIAGameType::FreeForAll)
 	{
 		PlayerState->Team = IA_NoTeam;
+		return;
+	}
+	if (GameType == EIAGameType::Survival)
+	{
+		PlayerState->Team = 0;   // the humans and the allies; the waves are team 1
 		return;
 	}
 
@@ -571,6 +617,13 @@ void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 	if (bRealKill)
 	{
 		AnnounceKillMedals(KillerState, MultiKillCount);
+	}
+
+	if (GameType == EIAGameType::Survival)
+	{
+		// No respawns during a wave: the squad is revived when the wave is cleared.
+		CheckWaveState(Victim);
+		return;
 	}
 
 	CheckScoreLimit();
@@ -746,6 +799,12 @@ void AIAGameMode::DetermineWinnerByScore()
 		return;
 	}
 
+	if (GameType == EIAGameType::Survival)
+	{
+		FinishMatch(TEXT("Time is up!"), -1, 1);   // the waves were not all cleared in time
+		return;
+	}
+
 	if (GS->IsTeamGame())
 	{
 		if (GS->RedScore > GS->BlueScore) { FinishMatch(TEXT("Red team wins!"), -1, 0); }
@@ -801,6 +860,8 @@ void AIAGameMode::FinishMatch(const FString& WinnerText, int32 WinnerPlayerId, u
 	UE_LOG(LogInstagib, Log, TEXT("Match phase: ended (%s), next match in %.0f s"), *WinnerText, RestartDelay);
 
 	GetWorldTimerManager().ClearTimer(ClockTimer);
+	GetWorldTimerManager().ClearTimer(WaveTimer);
+	bWaveActive = false;
 	if (CampaignMatch < 0)   // a campaign match waits for the player's choice (continue, retry, menu)
 	{
 		GetWorldTimerManager().SetTimer(RestartTimer, this, &AIAGameMode::StartNewMatch, RestartDelay, false);
@@ -878,6 +939,176 @@ void AIAGameMode::ReportCampaignResult(int32 WinnerPlayerId, uint8 WinnerTeam)
 	}
 	UE_LOG(LogInstagib, Log, TEXT("Campaign: match %d %s (%d : %d), %d stars"), CampaignMatch + 1, bWon ? TEXT("won") : TEXT("lost"), Mine, Theirs, Stars);
 	Camp->RecordResult(CampaignMatch, bWon, Stars);
+}
+
+// ---------------------------------------------------------------- survival
+
+int32 AIAGameMode::CountAlive(uint8 Team, const AController* Ignore) const
+{
+	int32 Count = 0;
+	for (TActorIterator<AIAPlayerCharacter> It(GetWorld()); It; ++It)
+	{
+		const AIAPlayerCharacter* Body = *It;
+		const AController* C = Body->GetController();
+		const AIAPlayerState* State = C ? C->GetPlayerState<AIAPlayerState>() : nullptr;
+		if (!State || C == Ignore || Body->IsDead() || Body->IsPendingKillPending() || State->Team != Team)
+		{
+			continue;
+		}
+		++Count;
+	}
+	return Count;
+}
+
+void AIAGameMode::ClearEnemyControllers()
+{
+	TArray<AController*> Enemies;
+	for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+	{
+		AController* C = It->Get();
+		const AIAPlayerState* State = C ? C->GetPlayerState<AIAPlayerState>() : nullptr;
+		if (State && State->bIsBotPlayer && State->Team == 1)
+		{
+			Enemies.Add(C);
+		}
+	}
+	for (AController* C : Enemies)
+	{
+		if (APawn* Body = C->GetPawn())
+		{
+			C->UnPossess();
+			Body->Destroy();
+		}
+		C->Destroy();
+	}
+}
+
+void AIAGameMode::SpawnWaveBot(int32 Slot, int32 Look)
+{
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AIABotController* Bot = GetWorld()->SpawnActor<AIABotController>(AIABotController::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+	if (!Bot)
+	{
+		return;
+	}
+	Bot->SetSkill(static_cast<EIABotSkill>(BotSkill));
+	if (AIAPlayerState* PS = Bot->GetPlayerState<AIAPlayerState>())
+	{
+		PS->SetPlayerName(IACharacters::GetLook(Look).Name);
+		PS->bIsBotPlayer = true;
+		PS->SlotId = NextSlotId++;
+		PS->CharacterIndex = Look;
+		PS->Team = 1;
+	}
+	RestartPlayer(Bot);
+	BeginSpawnProtection(Bot->GetPawn());
+}
+
+void AIAGameMode::StartWave(int32 Wave)
+{
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!GS || GS->Phase != EIAMatchPhase::Live)
+	{
+		return;
+	}
+
+	WaveNumber = Wave;
+	bWaveActive = false;
+	ClearEnemyControllers();
+
+	// The squad is whole again: everybody who fell gets a body.
+	TArray<AController*> Fallen;
+	for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+	{
+		AController* C = It->Get();
+		const AIAPlayerState* State = C ? C->GetPlayerState<AIAPlayerState>() : nullptr;
+		if (State && State->Team == 0 && !C->GetPawn())
+		{
+			Fallen.Add(C);
+		}
+	}
+	for (AController* C : Fallen)
+	{
+		RestartPlayer(C);
+		BeginSpawnProtection(C->GetPawn());
+	}
+
+	// Each wave has one more enemy than the last, at most 10 at a time.
+	const int32 Count = FMath::Clamp(SurvivalEnemyBase + (Wave - 1), 1, 10);
+	TArray<int32> Looks = SurvivalEnemyLooks;
+	if (Looks.IsEmpty())
+	{
+		for (int32 I = 0; I < IACharacters::LookCount; ++I) { Looks.Add(I); }
+		Algo::RandomShuffle(Looks);
+	}
+	for (int32 I = 0; I < Count; ++I)
+	{
+		SpawnWaveBot(I, Looks[I % Looks.Num()]);
+	}
+
+	bWaveActive = true;
+	GS->Wave = Wave;
+	GS->WaveEnemiesLeft = Count;
+	GS->BlueScore = Count;
+	UE_LOG(LogInstagib, Log, TEXT("Survival: wave %d of %d starts with %d enemies"), Wave, ScoreLimit, Count);
+
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (AIAPlayerController* PC = Cast<AIAPlayerController>(It->Get()))
+		{
+			PC->ClientShowMessage(FString::Printf(TEXT("WAVE %d OF %d"), Wave, FMath::Max(ScoreLimit, Wave)), FLinearColor(1.f, 0.55f, 0.1f), 2.5f);
+		}
+	}
+}
+
+void AIAGameMode::CheckWaveState(AController* JustDied)
+{
+	AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!GS || GS->Phase != EIAMatchPhase::Live || !bWaveActive)
+	{
+		return;
+	}
+
+	const int32 EnemiesLeft = CountAlive(1, JustDied);
+	GS->WaveEnemiesLeft = EnemiesLeft;
+	GS->BlueScore = EnemiesLeft;
+
+	// The whole squad is down: the match is lost.
+	if (CountAlive(0, JustDied) <= 0)
+	{
+		FinishMatch(TEXT("The squad is down!"), -1, 1);
+		return;
+	}
+
+	if (EnemiesLeft > 0)
+	{
+		return;
+	}
+
+	// Wave cleared.
+	bWaveActive = false;
+	++GS->RedScore;
+	GS->WaveEnemiesLeft = 0;
+	UE_LOG(LogInstagib, Log, TEXT("Survival: wave %d cleared (%d of %d)"), WaveNumber, GS->RedScore, ScoreLimit);
+	if (WaveNumber >= ScoreLimit)
+	{
+		FinishMatch(TEXT("Every wave survived!"), -1, 0);
+		return;
+	}
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (AIAPlayerController* PC = Cast<AIAPlayerController>(It->Get()))
+		{
+			PC->ClientShowMessage(TEXT("WAVE CLEARED"), FLinearColor(0.4f, 1.f, 0.5f), 2.5f);
+		}
+	}
+	const int32 Next = WaveNumber + 1;
+	const int32 Generation = MatchGeneration;
+	GetWorldTimerManager().SetTimer(WaveTimer, FTimerDelegate::CreateLambda([this, Next, Generation]()
+	{
+		if (Generation == MatchGeneration) { StartWave(Next); }
+	}), 4.f, false);
 }
 
 // ---------------------------------------------------------------- smart spawning

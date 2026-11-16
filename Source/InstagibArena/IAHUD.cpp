@@ -548,8 +548,12 @@ void AIAHUD::DrawTopBar(const AIAGameState& GS, float Now)
 	Text(HudClockText(GS.ClockSeconds), CX, Y0 + (H - 42.f * S) * 0.5f, 42.f * S, ClockColor, 1, bUrgent ? 1.f + 0.06f * FMath::Max(0.f, FMath::Sin(Now * 10.f)) : 1.f);
 
 	// Caption under the clock.
-	FString Caption = GS.IsCTF() ? TEXT("CAPTURE THE FLAG") : (GS.IsTeamGame() ? TEXT("TEAM DEATHMATCH") : TEXT("FREE FOR ALL"));
-	if (GS.ScoreLimit > 0)
+	FString Caption = GS.IsSurvival() ? TEXT("SURVIVAL") : (GS.IsCTF() ? TEXT("CAPTURE THE FLAG") : (GS.IsTeamGame() ? TEXT("TEAM DEATHMATCH") : TEXT("FREE FOR ALL")));
+	if (GS.IsSurvival())
+	{
+		Caption += FString::Printf(TEXT("   -   WAVE %d OF %d"), FMath::Max(GS.Wave, 1), GS.ScoreLimit);
+	}
+	else if (GS.ScoreLimit > 0)
 	{
 		Caption += GS.IsCTF() ? FString::Printf(TEXT("   -   FIRST TO %d CAPTURES"), GS.ScoreLimit) : FString::Printf(TEXT("   -   FIRST TO %d"), GS.ScoreLimit);
 	}
@@ -563,7 +567,7 @@ void AIAHUD::DrawTopBar(const AIAGameState& GS, float Now)
 	{
 		const uint8 MyTeam = Me ? Me->Team : IA_NoTeam;
 		const struct { float X; uint8 Team; int32 Score; const TCHAR* Name; } Sides[2] = {
-			{ LeftX, 0, GS.RedScore, TEXT("RED") }, { RightX, 1, GS.BlueScore, TEXT("BLUE") } };
+			{ LeftX, 0, GS.RedScore, GS.IsSurvival() ? TEXT("CLEARED") : TEXT("RED") }, { RightX, 1, GS.BlueScore, GS.IsSurvival() ? TEXT("ENEMIES") : TEXT("BLUE") } };
 		for (const auto& Side : Sides)
 		{
 			const FLinearColor Tint = HudTeamTint(Side.Team, FLinearColor::White);
@@ -1247,8 +1251,9 @@ void AIAHUD::UpdateScoreboardWidget(const AIAGameState& GS)
 					{
 						const AIAGameState* State = WeakState.Get();
 						if (!State) { return FText::GetEmpty(); }
-						FString Line = State->IsCTF() ? TEXT("CAPTURE THE FLAG") : (State->IsTeamGame() ? TEXT("TEAM DEATHMATCH") : TEXT("FREE FOR ALL"));
-						if (State->ScoreLimit > 0) { Line += State->IsCTF() ? FString::Printf(TEXT("   -   first to %d captures"), State->ScoreLimit) : FString::Printf(TEXT("   -   first to %d"), State->ScoreLimit); }
+						FString Line = State->IsSurvival() ? TEXT("SURVIVAL") : (State->IsCTF() ? TEXT("CAPTURE THE FLAG") : (State->IsTeamGame() ? TEXT("TEAM DEATHMATCH") : TEXT("FREE FOR ALL")));
+						if (State->IsSurvival()) { Line += FString::Printf(TEXT("   -   %d waves"), State->ScoreLimit); }
+						else if (State->ScoreLimit > 0) { Line += State->IsCTF() ? FString::Printf(TEXT("   -   first to %d captures"), State->ScoreLimit) : FString::Printf(TEXT("   -   first to %d"), State->ScoreLimit); }
 						if (State->TimeLimitSeconds > 0) { Line += FString::Printf(TEXT("   -   %s left"), *HudClockText(State->ClockSeconds)); }
 						return FText::FromString(Line);
 					})

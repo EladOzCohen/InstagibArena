@@ -150,6 +150,19 @@ protected:
 	void UpdateLeadStates();
 	void CheckFragsLeft();
 
+	// ---- survival: waves of bots against the humans and their allies (team 0). Nobody respawns during a wave; the squad is revived between waves.
+	bool IsSurvival() const { return GameType == EIAGameType::Survival; }
+	void StartWave(int32 Wave);
+	void CheckWaveState(AController* JustDied);
+	void ClearEnemyControllers();
+	int32 CountAlive(uint8 Team, const AController* Ignore) const;
+	void SpawnWaveBot(int32 Slot, int32 Look);
+	int32 WaveNumber = 0;
+	bool bWaveActive = false;
+	int32 SurvivalEnemyBase = 4;          // enemies in the first wave (one more each wave, at most 10)
+	TArray<int32> SurvivalEnemyLooks;     // characters of the enemy faction (campaign), empty = random
+	FTimerHandle WaveTimer;
+
 	/** Campaign: sends the result of the match (win, stars) to the campaign subsystem. Server and standalone only. */
 	void ReportCampaignResult(int32 WinnerPlayerId, uint8 WinnerTeam);
 	int32 CampaignMatch = -1;

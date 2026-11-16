@@ -25,6 +25,8 @@ void AIAGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(AIAGameState, PhaseEndTime);
 	DOREPLIFETIME(AIAGameState, WinnerPlayerId);
 	DOREPLIFETIME(AIAGameState, WinnerTeam);
+	DOREPLIFETIME(AIAGameState, Wave);
+	DOREPLIFETIME(AIAGameState, WaveEnemiesLeft);
 }
 
 float AIAGameState::GetPhaseSecondsLeft() const

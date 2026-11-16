@@ -11,7 +11,8 @@ enum class EIAGameType : uint8
 {
 	FreeForAll,
 	TeamDeathmatch,
-	CaptureTheFlag
+	CaptureTheFlag,
+	Survival   // the humans and their allies (team 0) against waves of bots (team 1), campaign only
 };
 
 /** What happened to a flag. The server sends these to every machine (HUD banners, kill feed, sounds). */
@@ -130,6 +131,15 @@ public:
 	bool IsTeamGame() const { return GameType != EIAGameType::FreeForAll; }
 
 	bool IsCTF() const { return GameType == EIAGameType::CaptureTheFlag; }
+
+	bool IsSurvival() const { return GameType == EIAGameType::Survival; }
+
+	/** Survival: the wave being fought (1..ScoreLimit) and how many enemies of it are still alive. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+	int32 Wave = 0;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+	int32 WaveEnemiesLeft = 0;
 
 	/** False during the countdown and the results screen. */
 	bool IsFiringAllowed() const { return Phase == EIAMatchPhase::Live; }
