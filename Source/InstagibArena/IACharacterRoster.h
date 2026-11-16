@@ -68,7 +68,7 @@ struct FIACharacterLook
 namespace IACharacters
 {
 	/** Number of distinct looks. Roster entries beyond this reuse them with a shifted hue. */
-	inline constexpr int32 LookCount = 15;
+	inline constexpr int32 LookCount = 37;
 
 	/** Rotation that turns a cylinder's long axis (Z) into the character's forward axis (X). */
 	inline const FRotator AlongX(-90.f, 0.f, 0.f);
@@ -246,6 +246,72 @@ namespace IACharacters
 				{ EIAShape::Cube,     TEXT("spine_05"),   FVector(13, 0, 2),    FRotator(0, 0, 0),   FVector(3, 10, 22),  EIAPartColor::Glow },
 				{ EIAShape::Cone,     TEXT("pelvis"),     FVector(-14, 0, -8),  FRotator(100, 0, 0), FVector(6, 6, 50),   EIAPartColor::Body },
 			  } },
+			// 15 - Kestrel: the mentor. A weathered veteran in a long grey coat with a scarf and a worn shoulder plate.
+			{ TEXT("Kestrel"), TEXT("Mentor"), false, 1.02f,
+			  FLinearColor(0.30f, 0.30f, 0.32f), FLinearColor(0.80f, 0.62f, 0.28f), 0.85f, 0.1f, {} },
+			// 16 - Sovereign: the champion. Tall, in black and gold armour, with a crown-like helmet and a long cape.
+			{ TEXT("Sovereign"), TEXT("Champion"), false, 1.12f,
+			  FLinearColor(0.04f, 0.04f, 0.05f), FLinearColor(0.92f, 0.70f, 0.15f), 0.35f, 0.9f, {} },
+			// 17 - Scrapjaw (Rustborn): a brute in welded plates with a spiked jaw guard.
+			{ TEXT("Scrapjaw"), TEXT("Brute"), false, 1.10f,
+			  FLinearColor(0.35f, 0.22f, 0.12f), FLinearColor(0.90f, 0.40f, 0.05f), 0.9f, 0.3f, {} },
+			// 18 - Rivet (Rustborn): a small, quick scrapper with a bandana, goggles and a bolt bandolier.
+			{ TEXT("Rivet"), TEXT("Scrapper"), true, 0.96f,
+			  FLinearColor(0.50f, 0.30f, 0.15f), FLinearColor(0.95f, 0.80f, 0.20f), 0.9f, 0.1f, {} },
+			// 19 - Flux (Rustborn): an arc welder in a welding mask with a cable pack and glowing gauntlets.
+			{ TEXT("Flux"), TEXT("Welder"), false, 1.0f,
+			  FLinearColor(0.15f, 0.15f, 0.18f), FLinearColor(1.0f, 0.55f, 0.10f), 0.8f, 0.3f, {} },
+			// 20 - Torch (Rustborn): a firebug in an asbestos suit with a respirator and twin fuel tanks.
+			{ TEXT("Torch"), TEXT("Firebug"), false, 1.08f,
+			  FLinearColor(0.45f, 0.12f, 0.05f), FLinearColor(1.0f, 0.35f, 0.0f), 0.85f, 0.2f, {} },
+			// 21 - Praetor (Legion): the commander, with a crested helmet, a red cape and heavy plate.
+			{ TEXT("Praetor"), TEXT("Commander"), false, 1.08f,
+			  FLinearColor(0.55f, 0.08f, 0.08f), FLinearColor(0.85f, 0.65f, 0.15f), 0.45f, 0.7f, {} },
+			// 22 - Auxilia (Legion): light infantry with a round shield on the arm and a leather cuirass.
+			{ TEXT("Auxilia"), TEXT("Skirmisher"), true, 1.0f,
+			  FLinearColor(0.50f, 0.38f, 0.20f), FLinearColor(0.70f, 0.10f, 0.10f), 0.75f, 0.3f, {} },
+			// 23 - Signifer (Legion): the standard bearer, with a banner pole on the back and a wolf pelt.
+			{ TEXT("Signifer"), TEXT("Standard"), false, 1.0f,
+			  FLinearColor(0.45f, 0.32f, 0.15f), FLinearColor(0.85f, 0.65f, 0.15f), 0.7f, 0.4f, {} },
+			// 24 - Tribune (Legion): an officer in polished armour with a tall plume.
+			{ TEXT("Tribune"), TEXT("Officer"), false, 1.04f,
+			  FLinearColor(0.70f, 0.60f, 0.35f), FLinearColor(0.60f, 0.05f, 0.05f), 0.4f, 0.8f, {} },
+			// 25 - Cipher (Syndicate): a hacker with a data visor, a floating cube and a slim cyan suit.
+			{ TEXT("Cipher"), TEXT("Hacker"), true, 1.0f,
+			  FLinearColor(0.04f, 0.06f, 0.10f), FLinearColor(0.0f, 0.9f, 1.0f), 0.6f, 0.2f, {} },
+			// 26 - Chrome (Syndicate): a sleek silver suit with a mirror helmet and magenta lights.
+			{ TEXT("Chrome"), TEXT("Enforcer"), false, 1.03f,
+			  FLinearColor(0.70f, 0.75f, 0.80f), FLinearColor(0.90f, 0.20f, 0.80f), 0.25f, 0.95f, {} },
+			// 27 - Broker (Syndicate): a dealer in a dark suit with a gold monocle visor and a long coat tail.
+			{ TEXT("Broker"), TEXT("Dealer"), false, 1.0f,
+			  FLinearColor(0.10f, 0.10f, 0.15f), FLinearColor(0.95f, 0.80f, 0.20f), 0.5f, 0.5f, {} },
+			// 28 - Glitch (Syndicate): a fighter in a violet suit with broken, flickering armour panels.
+			{ TEXT("Glitch"), TEXT("Phantom"), true, 1.0f,
+			  FLinearColor(0.10f, 0.02f, 0.18f), FLinearColor(0.20f, 1.0f, 0.40f), 0.6f, 0.1f, {} },
+			// 29 - Apogee (Void Corps): a commander in a white pressure suit with a ring helmet.
+			{ TEXT("Apogee"), TEXT("Commander"), false, 1.06f,
+			  FLinearColor(0.85f, 0.87f, 0.90f), FLinearColor(0.20f, 0.50f, 0.90f), 0.55f, 0.2f, {} },
+			// 30 - Tether (Void Corps): a rigger with cables, a grapple pack and orange markings.
+			{ TEXT("Tether"), TEXT("Rigger"), true, 1.0f,
+			  FLinearColor(0.50f, 0.55f, 0.60f), FLinearColor(1.0f, 0.60f, 0.10f), 0.7f, 0.3f, {} },
+			// 31 - Vanta (Void Corps): a stealth suit, matte black with blue lights.
+			{ TEXT("Vanta"), TEXT("Infiltrator"), true, 1.0f,
+			  FLinearColor(0.02f, 0.03f, 0.05f), FLinearColor(0.20f, 0.60f, 1.0f), 0.9f, 0.1f, {} },
+			// 32 - Perigee (Void Corps): a sniper in a grey suit with a long scope visor.
+			{ TEXT("Perigee"), TEXT("Marksman"), false, 1.04f,
+			  FLinearColor(0.60f, 0.65f, 0.72f), FLinearColor(0.90f, 0.90f, 0.20f), 0.6f, 0.3f, {} },
+			// 33 - Oni (Hollow Court): a red demon mask with horns, a heavy black and red robe.
+			{ TEXT("Oni"), TEXT("Demon Mask"), false, 1.12f,
+			  FLinearColor(0.35f, 0.02f, 0.02f), FLinearColor(1.0f, 0.80f, 0.10f), 0.6f, 0.3f, {} },
+			// 34 - Jackal (Hollow Court): a jackal-headed guard in dark armour with a gold collar.
+			{ TEXT("Jackal"), TEXT("Guardian"), false, 1.05f,
+			  FLinearColor(0.08f, 0.06f, 0.04f), FLinearColor(0.85f, 0.65f, 0.20f), 0.4f, 0.8f, {} },
+			// 35 - Gorgon (Hollow Court): a serpent-haired mask with green scale armour.
+			{ TEXT("Gorgon"), TEXT("Serpent"), true, 1.0f,
+			  FLinearColor(0.05f, 0.25f, 0.12f), FLinearColor(0.90f, 0.90f, 0.20f), 0.5f, 0.3f, {} },
+			// 36 - Wraith (Hollow Court): a hooded black robe with a pale mask.
+			{ TEXT("Wraith"), TEXT("Hooded"), true, 1.02f,
+			  FLinearColor(0.07f, 0.07f, 0.10f), FLinearColor(0.70f, 0.75f, 0.85f), 0.8f, 0.1f, {} },
 		};
 		return Looks[Index % Looks.Num()];
 	}

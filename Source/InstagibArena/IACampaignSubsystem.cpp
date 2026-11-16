@@ -192,7 +192,10 @@ TArray<int32> UIACampaignSubsystem::BuildAllyLooks(int32 MatchIndex) const
 	}
 	// The League's draft fills the rest: looks that are not the hero, not the squad, not the enemy faction.
 	for (int32 Look : Allies) { Excluded.Add(Look); }
-	Allies.Append(PickLooks({ 5, 13, 12, 8, 3, 11 }, Excluded, M.AllyCount - Allies.Num()));
+	// Kestrel, the mentor, fights beside the hero in the first chapters after the first recruit.
+	TArray<int32> Draft = { 5, 13, 12, 8, 3, 11 };
+	if (MatchIndex >= 3 && MatchIndex <= 8) { Draft.Insert(IACampaign::LookKestrel, 0); }
+	Allies.Append(PickLooks(Draft, Excluded, M.AllyCount - Allies.Num()));
 	return Allies;
 }
 
@@ -208,7 +211,12 @@ TArray<int32> UIACampaignSubsystem::BuildEnemyLooks(int32 MatchIndex) const
 	Excluded.Add(HeroLook);
 	for (int32 Look : Squad) { Excluded.Add(Look); }
 	for (int32 Look : BuildAllyLooks(MatchIndex)) { Excluded.Add(Look); }
-	return PickLooks(IACampaign::Factions()[M.Faction].Looks, Excluded, M.EnemyCount);
+	// The character who joins after the match is the one you fight in it; the last match is the duel with the champion.
+	TArray<int32> Preferred;
+	if (MatchIndex == IACampaign::MatchCount - 1) { Preferred.Add(IACampaign::LookSovereign); }
+	else if (M.RecruitLook >= 0 && !Excluded.Contains(M.RecruitLook)) { Preferred.Add(M.RecruitLook); }
+	Preferred.Append(IACampaign::Factions()[M.Faction].Looks);
+	return PickLooks(Preferred, Excluded, M.EnemyCount);
 }
 
 FString UIACampaignSubsystem::BuildTravelOptions(int32 MatchIndex) const

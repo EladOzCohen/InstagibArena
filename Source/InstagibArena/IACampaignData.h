@@ -136,23 +136,23 @@ namespace IACampaign
 			// 0 Ferrum
 			{ TEXT("Rustborn"), TEXT("We were here first."),
 			  TEXT("Anarchists of Ferrum. They build their armour from the moon's own scrap and answer to nobody. Fast, loud, careless with their own lives."),
-			  FLinearColor(0.85f, 0.35f, 0.08f), { 9, 7, 4 } },
+			  FLinearColor(0.85f, 0.35f, 0.08f), { 17, 18, 19, 20, 9, 7, 4 } },
 			// 1 Aurelia
 			{ TEXT("Aurelian Legion"), TEXT("Hold the line."),
 			  TEXT("The army of a fallen empire, still drilling in its own ruins. Matching armour, matching tactics, one voice on the radio."),
-			  FLinearColor(0.78f, 0.62f, 0.16f), { 5, 0, 10, 2 } },
+			  FLinearColor(0.78f, 0.62f, 0.16f), { 21, 22, 23, 24, 10, 5, 0, 2 } },
 			// 2 Meridian
 			{ TEXT("Neon Syndicate"), TEXT("Everything has a price."),
 			  TEXT("Corporate fighters of the capital: bright, sleek, ruthless with the clock. They win by getting there first and leaving with the prize."),
-			  FLinearColor(0.15f, 0.8f, 0.95f), { 1, 8, 13 } },
+			  FLinearColor(0.15f, 0.8f, 0.95f), { 25, 26, 27, 28, 1, 8, 13 } },
 			// 3 Cryos and the orbit
 			{ TEXT("Void Corps"), TEXT("Silence is a weapon."),
 			  TEXT("Soldiers raised in vacuum. Slow to anger, perfect in aim. They never waste a shot and never leave a position."),
-			  FLinearColor(0.6f, 0.75f, 0.9f), { 11, 3, 12 } },
+			  FLinearColor(0.6f, 0.75f, 0.9f), { 29, 30, 31, 32, 11, 3, 12 } },
 			// 4 Nexus
 			{ TEXT("Hollow Court"), TEXT("We are what remains."),
 			  TEXT("The last guards of Nexus, masked as the old gods of the arena. Nobody has seen their faces. Nobody has beaten them twice."),
-			  FLinearColor(0.75f, 0.1f, 0.1f), { 14, 6 } },
+			  FLinearColor(0.75f, 0.1f, 0.1f), { 33, 34, 35, 36, 14, 6 } },
 		};
 		return Items;
 	}

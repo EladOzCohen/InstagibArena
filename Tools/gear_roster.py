@@ -53,4 +53,19 @@ def build(i):
             return getattr(gear_chars_c, fn)(B)
     except ImportError:
         pass
+    try:
+        import importlib
+        names = {15: "kestrel", 16: "sovereign", 17: "scrapjaw", 18: "rivet", 19: "flux", 20: "torch", 21: "praetor", 22: "auxilia", 23: "signifer", 24: "tribune",
+                 25: "cipher", 26: "chrome", 27: "broker", 28: "glitch", 29: "apogee", 30: "tether", 31: "vanta", 32: "perigee", 33: "oni", 34: "jackal", 35: "gorgon",
+                 36: "wraith"}
+        fn = names.get(i)
+        for mod in ("gear_chars_d", "gear_chars_e", "gear_chars_f", "gear_chars_g", "gear_chars_h", "gear_chars_i"):
+            try:
+                m = importlib.import_module(mod)
+            except ImportError:
+                continue
+            if fn and hasattr(m, fn):
+                return getattr(m, fn)(B)
+    except ImportError:
+        pass
     raise KeyError("no gear for look %d" % i)
