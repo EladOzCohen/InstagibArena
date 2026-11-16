@@ -7,7 +7,7 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
 
 <a href="https://github.com/EladOzCohen/InstagibArena/releases/latest/download/InstagibArena_Setup.exe"><img src="docs/images/download.png" width="440" alt="Download for Windows"></a>
 
-**Free · Windows 10 or 11 · about 615 MB · no account needed**
+**Free · Windows 10 or 11 · about 722 MB · no account needed**
 
 [Step-by-step guide with pictures](https://eladozcohen.github.io/InstagibArena/) · [עברית](#עברית) · [All versions](../../releases) · [Report a problem](../../issues/new)
 
@@ -44,8 +44,9 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
 
 ![A match in Neon Street](docs/images/neon.png)
 
-- **8 maps:** Foundry (industrial yard), Sunken Temple, Harbour Dock, Skyline (rooftops, falling kills), **Neon Street** (night city duel),
-  **Forge** (lava hall), **Glacier** (ice outpost) and **Canyon** (huge, with rope bridges). **Jump pads** launch you to the high ground.
+- **11 maps:** Foundry (industrial yard), Sunken Temple, Harbour Dock, Skyline (rooftops, falling kills), **Neon Street** (night city duel),
+  **Forge** (lava hall), **Glacier** (ice outpost) and **Canyon** (huge, with rope bridges). New and big: **Citadel** (castle and meadow),
+  **Quarry** (open-pit mine) and **Downtown** (city district). **Jump pads** launch you to the high ground.
 - **Instagib rifle:** hitscan, one hit kills. Glowing beams, spark bursts, a hit marker and kill messages.
 - **Fast, fluid movement:** double jump, dodge (double-tap a direction), wall dodge, crouch and a slow walk. A smooth camera
   with head bob, a lean when strafing and a dip on landing (each can be switched off).
@@ -53,7 +54,7 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
   and a body that collapses when it is hit. Scorch marks stay on walls and floors.
 - **A complete match:** 5 second warm-up with a 3-2-1 countdown, live play, a results screen (rank, kills, deaths, accuracy,
   best streak) and a quick rematch. Medals for first blood, multi-kills and killing sprees, a kill feed, and a short protection after you respawn.
-- **Free for all** and **team deathmatch** (red vs blue), with a score limit, a time limit, or both.
+- **Free for all**, **team deathmatch** (red vs blue) and **Capture the Flag**: take the enemy flag to your base while yours is safe. Bots play it too.
 - **Bots** (2 to 10) at seven skill levels, from Rookie (very forgiving, for first-timers) to Master (for professionals).
 - **15 characters** with their own looks, picked in a menu with a live 3D preview.
 - **Online multiplayer** with friends: one hosts, the others join with an address.
