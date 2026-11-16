@@ -28,6 +28,39 @@ struct FIACampaignFaction
 	TArray<int32> Looks;
 };
 
+/** What the third star asks for. The values refer to the human player (Margin and EnemyScore to the match score). */
+enum class EIABonus : uint8
+{
+	MaxDeaths,       // at most Value deaths
+	MinAccuracy,     // accuracy of at least Value percent
+	MinStreak,       // a kill streak of at least Value
+	MinKills,        // at least Value kills
+	MinCaptures,     // at least Value flag captures of your own
+	MaxEnemyScore,   // the enemy side scored at most Value (captures or frags of the best opponent)
+	MinMargin        // won by at least Value points of the match score
+};
+
+struct FIABonusGoal
+{
+	EIABonus Kind;
+	int32 Value;
+
+	FString ToText() const
+	{
+		switch (Kind)
+		{
+		case EIABonus::MaxDeaths:     return Value <= 0 ? TEXT("Win without dying.") : FString::Printf(TEXT("Win with %d or fewer deaths."), Value);
+		case EIABonus::MinAccuracy:   return FString::Printf(TEXT("Win with an accuracy of %d percent or more."), Value);
+		case EIABonus::MinStreak:     return FString::Printf(TEXT("Get a kill streak of %d or more."), Value);
+		case EIABonus::MinKills:      return FString::Printf(TEXT("Win with at least %d kills of your own."), Value);
+		case EIABonus::MinCaptures:   return Value <= 1 ? FString(TEXT("Win and capture a flag yourself.")) : FString::Printf(TEXT("Win and capture %d flags yourself."), Value);
+		case EIABonus::MaxEnemyScore: return Value <= 0 ? FString(TEXT("Win without letting the enemy score.")) : FString::Printf(TEXT("Win and let the enemy score at most %d."), Value);
+		case EIABonus::MinMargin:     return FString::Printf(TEXT("Win by %d or more points."), Value);
+		}
+		return FString();
+	}
+};
+
 /** One match of the ladder. */
 struct FIACampaignMatch
 {
@@ -45,7 +78,7 @@ struct FIACampaignMatch
 	const TCHAR* Briefing;
 	const TCHAR* WinLine;
 	const TCHAR* LoseLine;
-	const TCHAR* BonusGoal;        // the third star: a small extra goal, shown on the card
+	FIABonusGoal Bonus;            // the third star: a small extra goal, checked by the game mode
 };
 
 /** Story characters who do not fight in the ladder as ordinary opponents. */
@@ -152,110 +185,110 @@ namespace IACampaign
 			  TEXT("A qualifier on an empty foundry floor. One opponent, one rifle. A man in the stands, wrapped in a grey coat, is watching."),
 			  TEXT("Clean. The man in the grey coat nods once and is gone before you can find him."),
 			  TEXT("You go down hard. The man in the grey coat stays in his seat. Try again."),
-			  TEXT("Win without dying more than three times.") },
+			  { EIABonus::MaxDeaths, 3 } },
 			{ 0, TEXT("The Dockside Brawl"), TEXT("Dock"), EIACampaignMode::FreeForAll, 0, 3, 0, 15, 8, 0, -1,
 			  TEXT("Everyone against everyone among the shipping containers. The Rustborn do not fight fair, and do not care."),
 			  TEXT("You come out of the stacks on your feet. The Rustborn ask your name. You give it."),
 			  TEXT("The Rustborn laugh and send you back to the start of the line."),
-			  TEXT("Finish first with an accuracy of 30 percent or more.") },
+			  { EIABonus::MinAccuracy, 30 } },
 			{ 0, TEXT("Forge Run"), TEXT("Forge"), EIACampaignMode::FreeForAll, 1, 4, 0, 15, 10, 0, -1,
 			  TEXT("The lava forge. Jump pads, gantries and the glare of the pit. A stranger walks the gantry above, unarmed, taking notes."),
 			  TEXT("The stranger introduces himself: Kestrel. He tells you that you shoot well and move badly. He is right."),
 			  TEXT("The forge is not forgiving. Kestrel says nothing. That is worse."),
-			  TEXT("Win without falling into the lava.") },
+			  { EIABonus::MaxDeaths, 4 } },
 			{ 0, TEXT("Gearhead's Challenge"), TEXT("Foundry"), EIACampaignMode::TeamDeathmatch, 1, 3, 2, 20, 10, 0, 9,
 			  TEXT("Gearhead, the best mechanic on Ferrum, wants to see if you are worth building a team around. Two League draftees fight beside you."),
 			  TEXT("Gearhead wipes the grease off his goggles and holds out a wrench. He will keep your rifle clean. Gearhead joins your squad."),
 			  TEXT("Gearhead shakes his head. Not yet."),
-			  TEXT("Finish with more frags than anyone on your team.") },
+			  { EIABonus::MinKills, 8 } },
 
 			// ---- Chapter 2: Aurelia (Aurelian Legion) ----
 			{ 1, TEXT("Ruins of the Empire"), TEXT("Temple"), EIACampaignMode::TeamDeathmatch, 2, 3, 2, 25, 10, 1, -1,
 			  TEXT("The Legion forms up in the old temple. Their formation is perfect until someone breaks it. Find the weak flank."),
 			  TEXT("A Legion officer salutes you, which has never happened to anyone from Ferrum."),
 			  TEXT("The Legion closes ranks and does not stop. Regroup."),
-			  TEXT("Win with no teammate dying more than twice.") },
+			  { EIABonus::MaxDeaths, 3 } },
 			{ 1, TEXT("Last Stand on the Mesa"), TEXT("Canyon"), EIACampaignMode::Survival, 2, 4, 2, 5, 12, 1, 10,
 			  TEXT("A Legion drill: hold the mesa against wave after wave of recruits. Aurelia, a legionary who trained under the empire's last general, is on the mesa with you."),
 			  TEXT("Five waves down. Aurelia lowers her sword. She has seen enough: she will fight beside you. Aurelia joins your squad."),
 			  TEXT("The mesa falls. The Legion marches on."),
-			  TEXT("Survive every wave with no one on your team down.") },
+			  { EIABonus::MaxDeaths, 2 } },
 			{ 1, TEXT("The First Flag"), TEXT("Citadel"), EIACampaignMode::CaptureTheFlag, 2, 4, 3, 3, 12, 1, -1,
 			  TEXT("The Citadel: two keeps, a river, a village. Take their flag back to your keep. Defend yours. The Legion has done this for a thousand years."),
 			  TEXT("Three captures. Kestrel, watching from the wall, says only: that was good."),
 			  TEXT("The Legion keeps its flag. You keep your lessons."),
-			  TEXT("Win without letting them capture even once.") },
+			  { EIABonus::MaxEnemyScore, 0 } },
 			{ 1, TEXT("Black Glass"), TEXT("Skyline"), EIACampaignMode::TeamDeathmatch, 3, 4, 3, 25, 12, 1, -1,
 			  TEXT("The Frontier final: rooftops at sunset. Across the bridge waits Obsidian Crown, the League's house team in black glass armour. This is the first time you meet them."),
 			  TEXT("You beat the Crown, and the League throws the result out an hour later: an irregularity in the scoring. Kestrel says: they cheat when you win. Remember that."),
 			  TEXT("Obsidian Crown wins by nine. The broadcast runs it as a highlight. Kestrel says: you are not ready yet."),
-			  TEXT("Land at least five kills on the Crown's captain.") },
+			  { EIABonus::MinStreak, 3 } },
 
 			// ---- Chapter 3: Meridian (Neon Syndicate) ----
 			{ 2, TEXT("Night Shift"), TEXT("Neon"), EIACampaignMode::Duel, 3, 1, 0, 10, 8, 2, -1,
 			  TEXT("Meridian by night. A Syndicate duellist, Vesper, bets on herself in every match and has not lost a credit in two years."),
 			  TEXT("Vesper reads the scoreboard and for once the number is not hers. She flips you a chip and says: I will see you in the district."),
 			  TEXT("Vesper collects. She is polite about it."),
-			  TEXT("Win without dying.") },
+			  { EIABonus::MaxDeaths, 1 } },
 			{ 2, TEXT("Hostile Takeover"), TEXT("Downtown"), EIACampaignMode::CaptureTheFlag, 3, 4, 3, 3, 12, 2, 1,
 			  TEXT("The Syndicate's home district. Flags, rooftops, a plaza with a fountain. They will trade anything, including your position."),
 			  TEXT("Vesper has changed sides. She had been waiting for someone worth betting on. Vesper joins your squad."),
 			  TEXT("The Syndicate takes the district and the credit."),
-			  TEXT("Win with a capture in under two minutes.") },
+			  { EIABonus::MinCaptures, 2 } },
 			{ 2, TEXT("Rooftop Rules"), TEXT("Skyline"), EIACampaignMode::Survival, 4, 5, 3, 6, 12, 2, -1,
 			  TEXT("A Syndicate betting game: survive six waves on the rooftops. Somewhere the odds are being displayed to a billion people."),
 			  TEXT("They paid out on you. Several people will not forgive that."),
 			  TEXT("The odds were always against you."),
-			  TEXT("Survive without anyone falling off a roof.") },
+			  { EIABonus::MaxDeaths, 2 } },
 			{ 2, TEXT("The Fix"), TEXT("Downtown"), EIACampaignMode::TeamDeathmatch, 4, 4, 3, 30, 12, 2, -1,
 			  TEXT("The Syndicate's last stand. In the third minute the flags jam and the jump pads go dark: Voss is steering the arena. Your squad has seen it too."),
 			  TEXT("The Syndicate folds. In the confusion you read a message in the arena system: the League is not fair. You knew that. Now you can prove it."),
 			  TEXT("The Syndicate wins. Nobody asks why the arena went dark."),
-			  TEXT("Win with no one on your team dying twice.") },
+			  { EIABonus::MaxDeaths, 3 } },
 
 			// ---- Chapter 4: Cryos and the orbit (Void Corps) ----
 			{ 3, TEXT("Frozen Outpost"), TEXT("Glacier"), EIACampaignMode::CaptureTheFlag, 4, 4, 3, 3, 12, 3, -1,
 			  TEXT("Cryos: ice and a radio tower. The Void Corps fight like they were born in silence: one shot, one kill, no wasted words."),
 			  TEXT("The Corps' commander salutes. Tundra, their scout, asks to be remembered."),
 			  TEXT("The Corps does not gloat. It does not need to."),
-			  TEXT("Win with the lowest number of deaths on your team.") },
+			  { EIABonus::MaxDeaths, 3 } },
 			{ 3, TEXT("The Ring"), TEXT("Orbital"), EIACampaignMode::FreeForAll, 5, 5, 0, 20, 12, 3, -1,
 			  TEXT("A station on the edge of a gas giant. Windows the size of buildings. Nobody here fires without a reason."),
 			  TEXT("Six hundred kilometres below, the planet turns. You are still standing."),
 			  TEXT("The station keeps its silence."),
-			  TEXT("Finish with the best accuracy in the match.") },
+			  { EIABonus::MinAccuracy, 45 } },
 			{ 3, TEXT("Sealed Quarry"), TEXT("Quarry"), EIACampaignMode::CaptureTheFlag, 5, 4, 3, 3, 15, 3, -1,
 			  TEXT("A mining pit under a dome. Mid-match the flags stick to their bases and will not move. Voss makes no effort to hide it. You push through anyway."),
 			  TEXT("You win without the flags. Voss goes quiet on the channel. The audience does not."),
 			  TEXT("Voss lets the flag stay stuck, and the Corps takes the pit."),
-			  TEXT("Capture at least once while the flags are stuck.") },
+			  { EIABonus::MinCaptures, 1 } },
 			{ 3, TEXT("Derelict"), TEXT("Derelict"), EIACampaignMode::TeamDeathmatch, 5, 4, 3, 30, 15, 3, -1,
 			  TEXT("A dead ship, drifting. Obsidian Crown waits in the dark. This time you have a squad, a reason, and a plan."),
 			  TEXT("Obsidian Crown falls. Their captain looks into the camera and says only: Sovereign wants to see you."),
 			  TEXT("The Crown wins again, and this time they are not gentle."),
-			  TEXT("Win by 10 or more.") },
+			  { EIABonus::MinMargin, 10 } },
 
 			// ---- Chapter 5: Nexus (Hollow Court) ----
 			{ 4, TEXT("Before the Throne"), TEXT("Orbital"), EIACampaignMode::Survival, 5, 5, 3, 8, 15, 4, -1,
 			  TEXT("The last survival trial before Nexus. Eight waves. The Hollow Court sends its masked guards one by one."),
 			  TEXT("Eight waves cleared. A door opens at the end of the station that was not there before."),
 			  TEXT("Eight waves was too many. The door does not open."),
-			  TEXT("Clear every wave without losing a squad mate.") },
+			  { EIABonus::MaxDeaths, 2 } },
 			{ 4, TEXT("The Court"), TEXT("Quarry"), EIACampaignMode::FreeForAll, 6, 6, 0, 30, 15, 4, -1,
 			  TEXT("Nexus, the arena of arenas. The Hollow Court wears the faces of old gods. They are the last fighters before the throne, and they do not die easily."),
 			  TEXT("The masks fall one by one. Nobody had seen their faces. They are only people. That, somehow, is worse."),
 			  TEXT("The gods do not get up. You do not rise."),
-			  TEXT("Win with at least 5 kills in a row.") },
+			  { EIABonus::MinStreak, 5 } },
 			{ 4, TEXT("Throne Room"), TEXT("Citadel"), EIACampaignMode::CaptureTheFlag, 6, 4, 3, 5, 20, 4, -1,
 			  TEXT("The semi-final: two sides of the oldest keep in the League. The Court plays like a single mind. Voss watches from every screen."),
 			  TEXT("Five captures. Voss is no longer smiling on the broadcast. Kestrel stands up from the stands."),
 			  TEXT("The Court holds the keep. Sovereign is told to wait."),
-			  TEXT("Win without ever losing your own flag.") },
+			  { EIABonus::MaxEnemyScore, 0 } },
 			{ 4, TEXT("Sovereign"), TEXT("Downtown"), EIACampaignMode::Duel, 6, 1, 0, 15, 12, 4, -1,
 			  TEXT("The final. One against one, with every world watching. Sovereign has not lost in eleven seasons, and has been waiting for someone to try."),
 			  TEXT("Sovereign lowers the rifle. They say: finally. The Apex League has a new champion. The question is what you do with the crown."),
 			  TEXT("Sovereign does not gloat. They say: come back when you are ready. Voss says nothing at all."),
-			  TEXT("Win with an accuracy of 50 percent or better.") },
+			  { EIABonus::MinAccuracy, 50 } },
 		};
 		return Items;
 	}

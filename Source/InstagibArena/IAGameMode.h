@@ -95,6 +95,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CTF")
 	float FlagTouchRadius = 130.f;
 
+	/** Campaign: index (0..19) of the ladder match being played, -1 when this is an ordinary match. */
+	int32 GetCampaignMatch() const { return CampaignMatch; }
+
 	int32 GetBotCount() const { return BotCount; }
 	int32 GetBotSkill() const { return BotSkill; }
 	bool IsCTF() const { return GameType == EIAGameType::CaptureTheFlag; }
@@ -146,6 +149,10 @@ protected:
 	void AnnounceKillMedals(AIAPlayerState* Killer, int32 MultiKillCount);
 	void UpdateLeadStates();
 	void CheckFragsLeft();
+
+	/** Campaign: sends the result of the match (win, stars) to the campaign subsystem. Server and standalone only. */
+	void ReportCampaignResult(int32 WinnerPlayerId, uint8 WinnerTeam);
+	int32 CampaignMatch = -1;
 
 	EIAGameType GameType = EIAGameType::FreeForAll;
 	int32 ScoreLimit = 25;

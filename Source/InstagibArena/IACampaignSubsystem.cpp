@@ -3,7 +3,9 @@
 #include "IACampaignSubsystem.h"
 #include "IACharacterRoster.h"
 #include "InstagibArena.h"
+#include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Parse.h"
 
 namespace
 {
@@ -55,6 +57,14 @@ void UIACampaignSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 	StarsPerMatch.Init(0, IACampaign::MatchCount);
 	Load();
+
+#if !UE_BUILD_SHIPPING
+	// Test helper: -IACampStart starts a fresh campaign (the progress of the player is overwritten in the ini of this run).
+	if (FParse::Param(FCommandLine::Get(), TEXT("IACampStart")))
+	{
+		StartNewCampaign(TEXT("Tester"), 5, 1);
+	}
+#endif
 }
 
 void UIACampaignSubsystem::Load()

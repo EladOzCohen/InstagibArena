@@ -7,6 +7,7 @@
 #include "IAHUD.h"
 #include "IABotController.h"
 #include "IACharacterRoster.h"
+#include "IACampaignSubsystem.h"
 #include "IAFlag.h"
 #include "IAFlagBase.h"
 #include "InstagibArena.h"
@@ -70,6 +71,14 @@ void AIAGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	const int32 RequestedBots = UGameplayStatics::GetIntOption(Options, TEXT("Bots"), 4);
 	BotCount = RequestedBots <= 0 ? 0 : FMath::Clamp(RequestedBots, 2, 10);
 	BotSkill = FMath::Clamp(UGameplayStatics::GetIntOption(Options, TEXT("BotSkill"), 3), 0, 6);
+
+	// Campaign matches name the ladder match (Camp=1..20) and may have a single bot (duel).
+	const int32 CampaignOption = UGameplayStatics::GetIntOption(Options, UIACampaignSubsystem::UrlOption, 0);
+	CampaignMatch = (CampaignOption > 0 && CampaignOption <= IACampaign::MatchCount) ? CampaignOption - 1 : -1;
+	if (CampaignMatch >= 0 && RequestedBots > 0)
+	{
+		BotCount = FMath::Clamp(RequestedBots, 1, 12);
+	}
 
 #if !UE_BUILD_SHIPPING
 	// Test helpers: shorter or longer countdown and results screen.
@@ -328,6 +337,18 @@ void AIAGameMode::SpawnBots()
 		Roster.Add(0);
 	}
 
+	// Campaign: the squad and the League's draft fight on the player's side, the faction on the other.
+	TArray<int32> ScriptedLooks;
+	TArray<bool> ScriptedAlly;
+	if (CampaignMatch >= 0 && GetGameInstance())
+	{
+		if (const UIACampaignSubsystem* Camp = GetGameInstance()->GetSubsystem<UIACampaignSubsystem>())
+		{
+			for (int32 Look : Camp->BuildAllyLooks(CampaignMatch)) { ScriptedLooks.Add(Look); ScriptedAlly.Add(true); }
+			for (int32 Look : Camp->BuildEnemyLooks(CampaignMatch)) { ScriptedLooks.Add(Look); ScriptedAlly.Add(false); }
+		}
+	}
+
 	for (int32 I = 0; I < BotCount; ++I)
 	{
 		FActorSpawnParameters SpawnParams;
@@ -342,12 +363,17 @@ void AIAGameMode::SpawnBots()
 
 		if (AIAPlayerState* PS = Bot->GetPlayerState<AIAPlayerState>())
 		{
-			const int32 CharacterIndex = Roster[I % Roster.Num()];
+			const bool bScripted = ScriptedLooks.IsValidIndex(I);
+			const int32 CharacterIndex = bScripted ? ScriptedLooks[I] : Roster[I % Roster.Num()];
 			PS->SetPlayerName(IACharacters::GetLook(CharacterIndex).Name);
 			PS->bIsBotPlayer = true;
 			PS->SlotId = NextSlotId++;
 			PS->CharacterIndex = CharacterIndex;
 			AssignTeam(PS);
+			if (bScripted && GameType != EIAGameType::FreeForAll)
+			{
+				PS->Team = ScriptedAlly[I] ? 0 : 1;   // the human takes the red side (the first player in)
+			}
 		}
 		// The body comes when the countdown ends (StartLive).
 	}
@@ -775,7 +801,83 @@ void AIAGameMode::FinishMatch(const FString& WinnerText, int32 WinnerPlayerId, u
 	UE_LOG(LogInstagib, Log, TEXT("Match phase: ended (%s), next match in %.0f s"), *WinnerText, RestartDelay);
 
 	GetWorldTimerManager().ClearTimer(ClockTimer);
-	GetWorldTimerManager().SetTimer(RestartTimer, this, &AIAGameMode::StartNewMatch, RestartDelay, false);
+	if (CampaignMatch < 0)   // a campaign match waits for the player's choice (continue, retry, menu)
+	{
+		GetWorldTimerManager().SetTimer(RestartTimer, this, &AIAGameMode::StartNewMatch, RestartDelay, false);
+	}
+
+	ReportCampaignResult(WinnerPlayerId, WinnerTeam);
+}
+
+void AIAGameMode::ReportCampaignResult(int32 WinnerPlayerId, uint8 WinnerTeam)
+{
+	UGameInstance* Instance = GetGameInstance();
+	UIACampaignSubsystem* Camp = (CampaignMatch >= 0 && Instance) ? Instance->GetSubsystem<UIACampaignSubsystem>() : nullptr;
+	if (!Camp)
+	{
+		return;
+	}
+
+	// The human of a campaign match is the one player who is not a bot.
+	const AIAPlayerState* Human = nullptr;
+	if (GameState)
+	{
+		for (APlayerState* Other : GameState->PlayerArray)
+		{
+			const AIAPlayerState* State = Cast<AIAPlayerState>(Other);
+			if (State && !State->bIsBotPlayer) { Human = State; break; }
+		}
+	}
+	const AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!Human || !GS)
+	{
+		return;
+	}
+
+	const bool bTeamGame = GS->IsTeamGame();
+	const bool bWon = bTeamGame ? (WinnerTeam == Human->Team) : (WinnerPlayerId == Human->GetPlayerId());
+
+	// Match score of both sides: team score, or the human's kills against the best opponent's.
+	int32 Mine = 0;
+	int32 Theirs = 0;
+	if (bTeamGame)
+	{
+		Mine = Human->Team == 0 ? GS->RedScore : GS->BlueScore;
+		Theirs = Human->Team == 0 ? GS->BlueScore : GS->RedScore;
+	}
+	else
+	{
+		Mine = Human->Kills;
+		for (APlayerState* Other : GS->PlayerArray)
+		{
+			if (const AIAPlayerState* State = Cast<AIAPlayerState>(Other))
+			{
+				if (State != Human) { Theirs = FMath::Max(Theirs, State->Kills); }
+			}
+		}
+	}
+
+	int32 Stars = 0;
+	if (bWon)
+	{
+		Stars = 1;
+		if (Mine * 2 >= Theirs * 3) { ++Stars; }   // a clear win: at least 1.5 times the opponent's score
+		const FIABonusGoal& Goal = IACampaign::Matches()[CampaignMatch].Bonus;
+		bool bBonus = false;
+		switch (Goal.Kind)
+		{
+		case EIABonus::MaxDeaths:     bBonus = Human->Deaths <= Goal.Value; break;
+		case EIABonus::MinAccuracy:   bBonus = Human->GetAccuracy() >= Goal.Value; break;
+		case EIABonus::MinStreak:     bBonus = Human->BestStreak >= Goal.Value; break;
+		case EIABonus::MinKills:      bBonus = Human->Kills >= Goal.Value; break;
+		case EIABonus::MinCaptures:   bBonus = Human->Captures >= Goal.Value; break;
+		case EIABonus::MaxEnemyScore: bBonus = Theirs <= Goal.Value; break;
+		case EIABonus::MinMargin:     bBonus = Mine - Theirs >= Goal.Value; break;
+		}
+		if (bBonus) { ++Stars; }
+	}
+	UE_LOG(LogInstagib, Log, TEXT("Campaign: match %d %s (%d : %d), %d stars"), CampaignMatch + 1, bWon ? TEXT("won") : TEXT("lost"), Mine, Theirs, Stars);
+	Camp->RecordResult(CampaignMatch, bWon, Stars);
 }
 
 // ---------------------------------------------------------------- smart spawning
