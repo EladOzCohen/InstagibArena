@@ -2,6 +2,7 @@
 
 #include "SIAMainMenu.h"
 #include "IAAudioSubsystem.h"
+#include "IACampaignSubsystem.h"
 #include "IACharacterRoster.h"
 #include "IAInputConfig.h"
 #include "IAMapList.h"
@@ -128,6 +129,21 @@ void SIAMainMenu::Construct(const FArguments& InArgs)
 		]
 	];
 
+	// Back from a campaign match: open on the ladder, on the match that was just played (or the next one after a win).
+	if (const APlayerController* PC = Owner.Get())
+	{
+		UGameInstance* Instance = PC->GetGameInstance();
+		UIACampaignSubsystem* Camp = Instance ? Instance->GetSubsystem<UIACampaignSubsystem>() : nullptr;
+		if (Camp && Camp->bOpenLadderOnMenu && Camp->HasCampaign())
+		{
+			Camp->bOpenLadderOnMenu = false;
+			Page = EPage::Campaign;
+			CampaignView = 2;
+			const bool bWon = Camp->LastResult.bWon;
+			CampaignSelected = (Camp->LastResult.Match >= 0 && !bWon) ? Camp->LastResult.Match : FMath::Min(Camp->GetNextMatch(), IACampaign::MatchCount - 1);
+		}
+	}
+
 	PageHost->SetContent(BuildPage(Page));
 
 	if (OnPageChanged)
@@ -163,7 +179,8 @@ float SIAMainMenu::PageWidth() const
 	case EPage::Custom:
 	case EPage::Multiplayer: return 720.f;
 	case EPage::Settings:
-	case EPage::HowToPlay:   return 840.f;
+	case EPage::HowToPlay:
+	case EPage::Campaign:    return 840.f;
 	default:                 return 640.f;
 	}
 }
@@ -176,6 +193,7 @@ TSharedRef<SWidget> SIAMainMenu::BuildPage(EPage Which)
 	case EPage::Multiplayer: return BuildMultiplayerPage();
 	case EPage::Character:   return BuildCharacterPage();
 	case EPage::Settings:    return BuildSettingsPage();
+	case EPage::Campaign:    return BuildCampaignPage();
 	case EPage::Credits:     return BuildCreditsPage();
 	case EPage::HowToPlay:   return BuildHowToPlayPage();
 	default:                 return BuildMainPage();
@@ -198,9 +216,10 @@ void SIAMainMenu::GoTo(EPage NewPage)
 
 void SIAMainMenu::ShowPageForTest(int32 PageIndex, int32 Tab)
 {
-	Page = static_cast<EPage>(FMath::Clamp(PageIndex, 0, 6));
+	Page = static_cast<EPage>(FMath::Clamp(PageIndex, 0, 7));
 	MultiplayerTab = FMath::Clamp(Tab, 0, 1);
 	SettingsTab = FMath::Clamp(Tab, 0, 3);
+	CampaignView = FMath::Clamp(Tab, 0, 2);   // campaign page: 0 home, 1 new campaign, 2 the ladder
 	PageTime = 1.f;
 	PageHost->SetContent(BuildPage(Page));
 	if (OnPageChanged)
@@ -398,6 +417,10 @@ TSharedRef<SWidget> SIAMainMenu::BuildMainPage()
 			+ SVerticalBox::Slot().AutoHeight()
 			[
 				NavButton(Owner, INVTEXT("QUICK PLAY"), INVTEXT("Jump into a match with your last settings"), [this]() { StartGame(false); })
+			]
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				NavButton(Owner, INVTEXT("CAMPAIGN"), INVTEXT("The Apex League: 20 matches, 5 worlds"), [this]() { CampaignView = 0; bCampaignResetAsked = false; GoTo(EPage::Campaign); })
 			]
 			+ SVerticalBox::Slot().AutoHeight()
 			[

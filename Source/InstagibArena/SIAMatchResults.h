@@ -36,4 +36,6 @@ private:
 	TFunction<void()> PlayAgain;
 	float Age = 0.f;
 	bool bHost = false;
+	bool bCampaign = false;              // a campaign match: CONTINUE (to the ladder) and RETRY instead of the countdown
+	TFunction<void()> MainMenuFn;
 };

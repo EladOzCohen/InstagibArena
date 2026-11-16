@@ -226,6 +226,10 @@ void UIACampaignSubsystem::RecordResult(int32 MatchIndex, bool bWon, int32 Stars
 	{
 		return;
 	}
+	LastResult.Match = MatchIndex;
+	LastResult.bWon = bWon;
+	LastResult.Stars = bWon ? FMath::Clamp(Stars, 1, 3) : 0;
+	bOpenLadderOnMenu = true;
 	if (!bWon)
 	{
 		UE_LOG(LogInstagib, Log, TEXT("Campaign: match %d lost"), MatchIndex + 1);

@@ -65,6 +65,18 @@ public:
 	TArray<int32> BuildAllyLooks(int32 MatchIndex) const;
 	TArray<int32> BuildEnemyLooks(int32 MatchIndex) const;
 
+	/** The last campaign match that ended in this session, for the ladder screen to tell. Match = -1 when nothing is waiting. */
+	struct FLastResult
+	{
+		int32 Match = -1;
+		bool bWon = false;
+		int32 Stars = 0;
+	};
+	FLastResult LastResult;
+
+	/** True after a campaign match: the main menu then opens on the ladder instead of the main screen. */
+	bool bOpenLadderOnMenu = false;
+
 	/** URL option value: match number + 1, 0 when the match is not a campaign match. */
 	static constexpr const TCHAR* UrlOption = TEXT("Camp");
 

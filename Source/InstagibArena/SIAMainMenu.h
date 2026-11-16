@@ -66,7 +66,8 @@ private:
 		Character,
 		Settings,
 		Credits,
-		HowToPlay
+		HowToPlay,
+		Campaign
 	};
 
 	void GoTo(EPage NewPage);
@@ -80,6 +81,20 @@ private:
 	TSharedRef<SWidget> BuildSettingsPage();
 	TSharedRef<SWidget> BuildCreditsPage();
 	TSharedRef<SWidget> BuildHowToPlayPage();
+
+	// ---- campaign "The Apex League" (SIAMainMenuCampaign.cpp): 0 home, 1 new campaign, 2 the ladder
+	TSharedRef<SWidget> BuildCampaignPage();
+	TSharedRef<SWidget> BuildCampaignHome();
+	TSharedRef<SWidget> BuildCampaignNew();
+	TSharedRef<SWidget> BuildCampaignLadder();
+	void SetCampaignView(int32 View);
+	void StartCampaignMatch(int32 MatchIndex);
+	int32 CampaignView = 0;
+	int32 CampaignSelected = 0;        // the match shown on the ladder
+	int32 CampaignDifficulty = 1;      // new campaign: 0 relaxed, 1 normal, 2 hard
+	int32 CampaignLook = 0;            // new campaign: the hero's character
+	FString CampaignName;              // new campaign: the hero's name
+	bool bCampaignResetAsked = false;
 
 	/** Heading, a body that scrolls when the window is small, and a row of buttons that always stays visible. */
 	TSharedRef<SWidget> Frame(const FText& Title, TSharedRef<SWidget> Body, TSharedRef<SWidget> Footer);

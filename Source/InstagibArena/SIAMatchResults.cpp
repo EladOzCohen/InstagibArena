@@ -1,6 +1,8 @@
 // Instagib Arena
 
 #include "SIAMatchResults.h"
+#include "IACampaignSubsystem.h"
+#include "IAGameMode.h"
 #include "IAGameState.h"
 #include "IAMenuStyle.h"
 #include "IAPlayerState.h"
@@ -45,6 +47,11 @@ void SIAMatchResults::Construct(const FArguments& InArgs)
 	PlayAgain = InArgs._OnPlayAgain;
 	const TFunction<void()> MainMenu = InArgs._OnMainMenu;
 	bHost = Owner.IsValid() && Owner->HasAuthority();
+	MainMenuFn = MainMenu;
+	if (Owner.IsValid() && Owner->GetWorld())
+	{
+		if (const AIAGameMode* GM = Owner->GetWorld()->GetAuthGameMode<AIAGameMode>()) { bCampaign = GM->GetCampaignMatch() >= 0; }
+	}
 
 	ChildSlot
 	[
@@ -105,12 +112,14 @@ void SIAMatchResults::Construct(const FArguments& InArgs)
 						SNew(SBox)
 						.Visibility(bHost ? EVisibility::Visible : EVisibility::Collapsed)
 						[
-							PrimaryButton(Owner, INVTEXT("PLAY AGAIN"), [this]() { if (PlayAgain) { PlayAgain(); } }, 240.f)
+							PrimaryButton(Owner, bCampaign ? INVTEXT("CONTINUE") : INVTEXT("PLAY AGAIN"),
+								[this]() { if (bCampaign) { if (MainMenuFn) { MainMenuFn(); } } else if (PlayAgain) { PlayAgain(); } }, 240.f)
 						]
 					]
 					+ SHorizontalBox::Slot().AutoWidth()
 					[
-						Chip(Owner, INVTEXT("MAIN MENU"), [MainMenu]() { if (MainMenu) { MainMenu(); } }, nullptr, 200.f, 20)
+						Chip(Owner, bCampaign ? INVTEXT("RETRY") : INVTEXT("MAIN MENU"),
+						[this, MainMenu]() { if (bCampaign) { if (PlayAgain) { PlayAgain(); } } else if (MainMenu) { MainMenu(); } }, nullptr, 200.f, 20)
 					]
 				]
 			]
@@ -127,7 +136,12 @@ void SIAMatchResults::Tick(const FGeometry& AllottedGeometry, const double InCur
 
 FReply SIAMatchResults::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (bHost && (InKeyEvent.GetKey() == EKeys::Enter || InKeyEvent.GetKey() == EKeys::SpaceBar) && PlayAgain)
+	if (bCampaign && (InKeyEvent.GetKey() == EKeys::Enter || InKeyEvent.GetKey() == EKeys::SpaceBar) && MainMenuFn)
+	{
+		MainMenuFn();
+		return FReply::Handled();
+	}
+	if (bHost && !bCampaign && (InKeyEvent.GetKey() == EKeys::Enter || InKeyEvent.GetKey() == EKeys::SpaceBar) && PlayAgain)
 	{
 		PlayAgain();
 		return FReply::Handled();
@@ -170,6 +184,10 @@ FText SIAMatchResults::GetCountdownText() const
 {
 	const AIAGameState* GS = ResultsState(Owner);
 	if (!GS)
+	{
+		return FText::GetEmpty();
+	}
+	if (bCampaign)
 	{
 		return FText::GetEmpty();
 	}
