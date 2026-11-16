@@ -80,6 +80,15 @@ TEXTURES = {
     # --- fabric, rope -----------------------------------------------------------------------------
     "Canvas":           ("ph", "hessian_230", "1k", None),
     "Rope":             ("acg", "Rope001", "1K", 0.5),
+    # --- DM-Citadel (grass, castle masonry, river bed, terracotta roofs) -----------------------------
+    "GrassGround":      ("ph", "grass_ground", "1k", None),
+    "GrassPath":        ("ph", "grass_path_2", "1k", None),
+    "MossRock":         ("ph", "mossy_rock", "1k", None),
+    "CastleSlate":      ("ph", "castle_wall_slates", "1k", None),
+    "CastleStone":      ("ph", "castle_wall_varriation", "1k", None),
+    "RiverPebbles":     ("ph", "ganges_river_pebbles", "1k", None),
+    "RockyTrail":       ("ph", "rocky_trail", "1k", None),
+    "ClayRoof":         ("ph", "clay_roof_tiles", "1k", None),
     # --- lava (only used by M_IALava, which is the one emissive material of the library) --------------
     "Lava":             ("acg", "Lava004", "1K", 2.0),
 }

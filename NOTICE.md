@@ -58,6 +58,14 @@ Surface textures of the world material library (`Tools/matlib.py`, imported into
 | Ice | ambientCG | [Ice002](https://ambientcg.com/a/Ice002) | ambientCG (Lennart Demes) | CC0 1.0 |
 | Canvas | Poly Haven | [hessian_230](https://polyhaven.com/a/hessian_230) | Rico Cilliers, colormass | CC0 1.0 |
 | Rope | ambientCG | [Rope001](https://ambientcg.com/a/Rope001) | ambientCG (Lennart Demes) | CC0 1.0 |
+| GrassGround | Poly Haven | [grass_ground](https://polyhaven.com/a/grass_ground) | Charlotte Baglioni | CC0 1.0 |
+| GrassPath | Poly Haven | [grass_path_2](https://polyhaven.com/a/grass_path_2) | Rob Tuytel | CC0 1.0 |
+| MossRock | Poly Haven | [mossy_rock](https://polyhaven.com/a/mossy_rock) | Rob Tuytel | CC0 1.0 |
+| CastleSlate | Poly Haven | [castle_wall_slates](https://polyhaven.com/a/castle_wall_slates) | Rob Tuytel | CC0 1.0 |
+| CastleStone | Poly Haven | [castle_wall_varriation](https://polyhaven.com/a/castle_wall_varriation) | Rob Tuytel | CC0 1.0 |
+| RiverPebbles | Poly Haven | [ganges_river_pebbles](https://polyhaven.com/a/ganges_river_pebbles) | Amal Kumar | CC0 1.0 |
+| RockyTrail | Poly Haven | [rocky_trail](https://polyhaven.com/a/rocky_trail) | Amal Kumar | CC0 1.0 |
+| ClayRoof | Poly Haven | [clay_roof_tiles](https://polyhaven.com/a/clay_roof_tiles) | Amal Kumar | CC0 1.0 |
 | Lava | ambientCG | [Lava004](https://ambientcg.com/a/Lava004) | ambientCG (Lennart Demes) | CC0 1.0 |
 
 <!-- TEXTURES-END -->
