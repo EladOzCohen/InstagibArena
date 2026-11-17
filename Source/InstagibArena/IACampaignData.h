@@ -120,7 +120,7 @@ namespace IACampaign
 			{ TEXT("THE GRAND LEAGUE"), TEXT("MERIDIAN"),
 			  TEXT("Meridian is the capital: a planet that is one city, built up for ten thousand years. The Neon Syndicate runs its arenas and its bets. Everything here is for sale, including the result. The League says it is clean. The scoreboard says otherwise."),
 			  TEXT("The Syndicate falls. The flags that stuck, the pads that went dark: it was never luck. Someone is steering the arenas. You still do not know who.") },
-			{ TEXT("THE CHAMPIONSHIP"), TEXT("CRYOS AND THE ORBIT"),
+			{ TEXT("THE CHAMPIONSHIP"), TEXT("CRYOS"),
 			  TEXT("Past the last planet is the ring: cold worlds, drifting stations, wrecks of ships that never came home. The Void Corps, soldiers raised in vacuum, hold the Championship. Orbit is quiet. Nobody can hear you fall."),
 			  TEXT("Obsidian Crown is broken. Voss has not hidden it: the arenas obey him. And the champion, Sovereign, has asked to speak to you.") },
 			{ TEXT("NEXUS"), TEXT("NEXUS"),
