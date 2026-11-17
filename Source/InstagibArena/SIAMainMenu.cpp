@@ -138,6 +138,11 @@ void SIAMainMenu::Construct(const FArguments& InArgs)
 		{
 			Camp->bOpenLadderOnMenu = false;
 			Page = EPage::Campaign;
+			bCampaignMusic = true;
+			if (UIAAudioSubsystem* Audio = UIAAudioSubsystem::Get(PC))
+			{
+				Audio->PlayMusic(EIAMusic::Campaign);
+			}
 			CampaignView = 2;
 			const bool bWon = Camp->LastResult.bWon;
 			CampaignSelected = (Camp->LastResult.Match >= 0 && !bWon) ? Camp->LastResult.Match : FMath::Min(Camp->GetNextMatch(), IACampaign::MatchCount - 1);
@@ -205,6 +210,14 @@ void SIAMainMenu::GoTo(EPage NewPage)
 	Setup.Save();
 	Page = NewPage;
 	PageTime = 0.f;
+	if ((NewPage == EPage::Campaign) != bCampaignMusic)
+	{
+		bCampaignMusic = NewPage == EPage::Campaign;
+		if (UIAAudioSubsystem* Audio = UIAAudioSubsystem::Get(Owner.Get()))
+		{
+			Audio->PlayMusic(bCampaignMusic ? EIAMusic::Campaign : EIAMusic::Menu);
+		}
+	}
 	PageHost->SetContent(BuildPage(NewPage));
 	if (OnPageChanged)
 	{

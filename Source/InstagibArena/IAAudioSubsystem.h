@@ -63,7 +63,8 @@ UENUM(BlueprintType)
 enum class EIAMusic : uint8
 {
 	Menu,
-	Battle
+	Battle,     // picks by map and campaign match: space arenas, the final match, or a general battle track
+	Campaign    // the campaign screens
 };
 
 /**

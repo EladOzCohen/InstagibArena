@@ -337,6 +337,18 @@ SONGS = {
     "battle_02": dict(bpm=150, bars=32, prog=[(50, True), (46, False), (41, False), (48, False)],
                       bass=[0, 12, 0, 12, 0, 7, 0, 12], kicks=[0, 3, 6, 8, 11, 14], snare=[4, 12],
                       arp=[0, 2, 1, 3, 2, 4, 3, 5], drums=True, pad=True, seed=2),
+    # Em - C - G - D: the space arenas, slower and wider
+    "space_01": dict(bpm=112, bars=32, prog=[(40, True), (36, False), (43, False), (38, False)],
+                     bass=[0, None, 0, None, 7, None, 0, 12], kicks=[0, 6, 10], snare=[12],
+                     arp=[0, 2, 4, 2, 1, 3, 5, 3], drums=True, pad=True, seed=4),
+    # Dm - Bb - Gm - A: the final match, fast and dark
+    "finale": dict(bpm=162, bars=32, prog=[(38, True), (34, False), (43, True), (45, False)],
+                   bass=[0, 0, 12, 0, 0, 12, 7, 12], kicks=[0, 4, 8, 10, 12], snare=[4, 12],
+                   arp=[0, 3, 1, 4, 2, 5, 3, 4], drums=True, pad=True, seed=5),
+    # Am - F - Dm - E: the campaign screens, serious and slow
+    "campaign_theme": dict(bpm=76, bars=16, prog=[(45, True), (41, False), (38, True), (40, False)],
+                           bass=[0, None, None, None, 7, None, None, None], kicks=[0, 8], snare=[],
+                           arp=[0, 2, 1, 3, 2, 4, 1, 2], drums=False, pad=True, seed=6),
     # Am - F - C - Em, slow and atmospheric
     "menu_theme": dict(bpm=88, bars=16, prog=[(45, True), (41, False), (48, False), (40, True)],
                        bass=[0, None, None, None, 7, None, None, None], kicks=[0, 8], snare=[],

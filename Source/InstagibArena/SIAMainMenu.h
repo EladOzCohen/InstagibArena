@@ -119,6 +119,7 @@ private:
 	TFunction<void(int32)> OnPageChanged;
 
 	EPage Page = EPage::Main;
+	bool bCampaignMusic = false;       // the campaign theme is playing
 	FIAMatchSetup Setup;
 
 	int32 MultiplayerTab = 0;      // 0 = host a game, 1 = join a game

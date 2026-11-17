@@ -204,10 +204,27 @@ void UIAAudioSubsystem::PlayMusic(EIAMusic Track)
 	}
 
 	const TCHAR* Path = TEXT("/Game/Audio/Music/M_MenuTheme.M_MenuTheme");
-	if (Track == EIAMusic::Battle)
+	if (Track == EIAMusic::Campaign)
+	{
+		Path = TEXT("/Game/Audio/Music/M_CampaignTheme.M_CampaignTheme");
+	}
+	else if (Track == EIAMusic::Battle)
 	{
 		Path = FMath::RandBool() ? TEXT("/Game/Audio/Music/M_Battle01.M_Battle01")
 		                         : TEXT("/Game/Audio/Music/M_Battle02.M_Battle02");
+
+		// The last match of the campaign has its own track; the space arenas have a slower, wider one.
+		const FString Url = GetWorld()->URL.ToString();
+		const bool bFinale = UGameplayStatics::ParseOption(Url, TEXT("Camp")) == TEXT("20");
+		const bool bSpace = Url.Contains(TEXT("Orbital")) || Url.Contains(TEXT("Derelict")) || Url.Contains(TEXT("Nexus"));
+		if (bFinale)
+		{
+			Path = TEXT("/Game/Audio/Music/M_Finale.M_Finale");
+		}
+		else if (bSpace && FMath::FRand() < 0.65f)
+		{
+			Path = TEXT("/Game/Audio/Music/M_Space01.M_Space01");
+		}
 	}
 
 	USoundBase* Asset = LoadAsset(Path);

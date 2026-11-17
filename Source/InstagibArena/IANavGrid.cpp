@@ -204,15 +204,17 @@ void UIANavGrid::Build(UWorld& World)
 		for (int32 K = 0; K < FMath::Min(6, Order.Num()); ++K)
 		{
 			FVector Sum = FVector::ZeroVector;
+			FBox AreaBox(ForceInit);
 			for (const FNavNode& Node : Nodes)
 			{
 				if (Node.ComponentId == Order[K])
 				{
 					Sum += Node.Location;
+					AreaBox += Node.Location;
 				}
 			}
-			UE_LOG(LogInstagib, Log, TEXT("NavGrid: area %d has %d nodes around %s"), Order[K], AreaSizes[Order[K]],
-				*(Sum / FMath::Max(1, AreaSizes[Order[K]])).ToCompactString());
+			UE_LOG(LogInstagib, Log, TEXT("NavGrid: area %d has %d nodes around %s, from %s to %s"), Order[K], AreaSizes[Order[K]],
+				*(Sum / FMath::Max(1, AreaSizes[Order[K]])).ToCompactString(), *AreaBox.Min.ToCompactString(), *AreaBox.Max.ToCompactString());
 		}
 	}
 #if !UE_BUILD_SHIPPING
