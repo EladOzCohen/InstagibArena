@@ -108,7 +108,7 @@ namespace IACharacters
 			  } },
 			// 2 - Khet: golden headdress, collar and arm bands.
 			{ TEXT("Khet"), TEXT("Pharaoh"), false, 1.0f,
-			  FLinearColor(0.02f, 0.40f, 0.36f), FLinearColor(1.0f, 0.62f, 0.05f), 0.85f, 0.0f,
+			  FLinearColor(0.02f, 0.40f, 0.36f), FLinearColor(1.0f, 0.62f, 0.05f), 0.4f, 0.55f,
 			  {
 				{ EIAShape::Cone,     TEXT("head"),       FVector(-2, 0, 24), FRotator(0, 0, 0), FVector(20, 20, 38), EIAPartColor::Accent },
 				{ EIAShape::Cube,     TEXT("head"),       FVector(-4, 0, 6),  FRotator(0, 0, 0), FVector(26, 30, 5),  EIAPartColor::Team },
@@ -214,7 +214,7 @@ namespace IACharacters
 			  } },
 			// 12 - Mosscap: a mushroom creature with a huge spotted cap and shelf fungi on its back.
 			{ TEXT("Mosscap"), TEXT("Fungus"), false, 0.98f,
-			  FLinearColor(0.38f, 0.24f, 0.12f), FLinearColor(0.9f, 0.12f, 0.1f), 0.85f, 0.0f,
+			  FLinearColor(0.30f, 0.19f, 0.09f), FLinearColor(0.62f, 0.06f, 0.05f), 0.8f, 0.0f,
 			  {
 				{ EIAShape::Sphere,   TEXT("head"),       FVector(0, 0, 20),    FRotator(0, 0, 0), FVector(64, 64, 28), EIAPartColor::Accent },
 				{ EIAShape::Sphere,   TEXT("head"),       FVector(8, 10, 31),   FRotator(0, 0, 0), FVector(10, 10, 4),  EIAPartColor::Light },
@@ -248,34 +248,34 @@ namespace IACharacters
 			  } },
 			// 15 - Kestrel: the mentor. A weathered veteran in a long grey coat with a scarf and a worn shoulder plate.
 			{ TEXT("Kestrel"), TEXT("Mentor"), false, 1.02f,
-			  FLinearColor(0.30f, 0.30f, 0.32f), FLinearColor(0.80f, 0.62f, 0.28f), 0.85f, 0.1f, {} },
+			  FLinearColor(0.20f, 0.20f, 0.22f), FLinearColor(0.80f, 0.62f, 0.28f), 0.7f, 0.25f, {} },
 			// 16 - Sovereign: the champion. Tall, in black and gold armour, with a crown-like helmet and a long cape.
 			{ TEXT("Sovereign"), TEXT("Champion"), false, 1.12f,
 			  FLinearColor(0.04f, 0.04f, 0.05f), FLinearColor(0.92f, 0.70f, 0.15f), 0.35f, 0.9f, {} },
 			// 17 - Scrapjaw (Rustborn): a brute in welded plates with a spiked jaw guard.
 			{ TEXT("Scrapjaw"), TEXT("Brute"), false, 1.10f,
-			  FLinearColor(0.35f, 0.22f, 0.12f), FLinearColor(0.90f, 0.40f, 0.05f), 0.9f, 0.3f, {} },
+			  FLinearColor(0.11f, 0.065f, 0.04f), FLinearColor(0.90f, 0.40f, 0.05f), 0.55f, 0.75f, {} },
 			// 18 - Rivet (Rustborn): a small, quick scrapper with a bandana, goggles and a bolt bandolier.
 			{ TEXT("Rivet"), TEXT("Scrapper"), true, 0.96f,
-			  FLinearColor(0.50f, 0.30f, 0.15f), FLinearColor(0.95f, 0.80f, 0.20f), 0.9f, 0.1f, {} },
+			  FLinearColor(0.20f, 0.10f, 0.05f), FLinearColor(0.95f, 0.80f, 0.20f), 0.6f, 0.6f, {} },
 			// 19 - Flux (Rustborn): an arc welder in a welding mask with a cable pack and glowing gauntlets.
 			{ TEXT("Flux"), TEXT("Welder"), false, 1.0f,
-			  FLinearColor(0.15f, 0.15f, 0.18f), FLinearColor(1.0f, 0.55f, 0.10f), 0.8f, 0.3f, {} },
+			  FLinearColor(0.04f, 0.04f, 0.055f), FLinearColor(1.0f, 0.55f, 0.10f), 0.5f, 0.8f, {} },
 			// 20 - Torch (Rustborn): a firebug in an asbestos suit with a respirator and twin fuel tanks.
 			{ TEXT("Torch"), TEXT("Firebug"), false, 1.08f,
-			  FLinearColor(0.45f, 0.12f, 0.05f), FLinearColor(1.0f, 0.35f, 0.0f), 0.85f, 0.2f, {} },
+			  FLinearColor(0.30f, 0.07f, 0.03f), FLinearColor(1.0f, 0.35f, 0.0f), 0.6f, 0.5f, {} },
 			// 21 - Praetor (Legion): the commander, with a crested helmet, a red cape and heavy plate.
 			{ TEXT("Praetor"), TEXT("Commander"), false, 1.08f,
 			  FLinearColor(0.55f, 0.08f, 0.08f), FLinearColor(0.85f, 0.65f, 0.15f), 0.45f, 0.7f, {} },
 			// 22 - Auxilia (Legion): light infantry with a round shield on the arm and a leather cuirass.
 			{ TEXT("Auxilia"), TEXT("Skirmisher"), true, 1.0f,
-			  FLinearColor(0.50f, 0.38f, 0.20f), FLinearColor(0.70f, 0.10f, 0.10f), 0.75f, 0.3f, {} },
+			  FLinearColor(0.26f, 0.15f, 0.07f), FLinearColor(0.70f, 0.10f, 0.10f), 0.6f, 0.45f, {} },
 			// 23 - Signifer (Legion): the standard bearer, with a banner pole on the back and a wolf pelt.
 			{ TEXT("Signifer"), TEXT("Standard"), false, 1.0f,
-			  FLinearColor(0.45f, 0.32f, 0.15f), FLinearColor(0.85f, 0.65f, 0.15f), 0.7f, 0.4f, {} },
+			  FLinearColor(0.20f, 0.10f, 0.08f), FLinearColor(0.85f, 0.65f, 0.15f), 0.6f, 0.5f, {} },
 			// 24 - Tribune (Legion): an officer in polished armour with a tall plume.
 			{ TEXT("Tribune"), TEXT("Officer"), false, 1.04f,
-			  FLinearColor(0.70f, 0.60f, 0.35f), FLinearColor(0.60f, 0.05f, 0.05f), 0.4f, 0.8f, {} },
+			  FLinearColor(0.50f, 0.32f, 0.06f), FLinearColor(0.60f, 0.05f, 0.05f), 0.3f, 0.9f, {} },
 			// 25 - Cipher (Syndicate): a hacker with a data visor, a floating cube and a slim cyan suit.
 			{ TEXT("Cipher"), TEXT("Hacker"), true, 1.0f,
 			  FLinearColor(0.04f, 0.06f, 0.10f), FLinearColor(0.0f, 0.9f, 1.0f), 0.6f, 0.2f, {} },
