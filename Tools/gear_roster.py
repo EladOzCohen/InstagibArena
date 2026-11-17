@@ -33,6 +33,11 @@ LOOKS = parse()
 
 
 def build(i):
+    import gear_detail
+    return gear_detail.apply(i, gb.body(LOOKS[i]["quinn"]), _build(i))
+
+
+def _build(i):
     import gear_chars_a
     look = LOOKS[i]
     B = gb.body(look["quinn"])
