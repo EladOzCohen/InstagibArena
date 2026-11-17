@@ -215,7 +215,8 @@ void UIAAudioSubsystem::PlayMusic(EIAMusic Track)
 
 		// The last match of the campaign has its own track; the space arenas have a slower, wider one.
 		const FString Url = GetWorld()->URL.ToString();
-		const bool bFinale = UGameplayStatics::ParseOption(Url, TEXT("Camp")) == TEXT("20");
+		const TCHAR* CampOption = GetWorld()->URL.GetOption(TEXT("Camp="), nullptr);
+		const bool bFinale = CampOption && FCString::Atoi(CampOption) == 20;
 		const bool bSpace = Url.Contains(TEXT("Orbital")) || Url.Contains(TEXT("Derelict")) || Url.Contains(TEXT("Nexus"));
 		if (bFinale)
 		{
@@ -242,6 +243,6 @@ void UIAAudioSubsystem::PlayMusic(EIAMusic Track)
 	if (MusicComponent)
 	{
 		MusicComponent->FadeIn(2.0f, MusicVolume);
-		UE_LOG(LogInstagib, Log, TEXT("Audio: music %s"), Path);
+		UE_LOG(LogInstagib, Log, TEXT("Audio: music %s (%s)"), Path, *GetWorld()->URL.ToString());
 	}
 }

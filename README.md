@@ -60,7 +60,7 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
 - **Bots** (2 to 10) at seven skill levels, from Rookie (very forgiving, for first-timers) to Master (for professionals).
 - **37 characters** in five factions, each with its own armour, picked in a menu with a live 3D preview.
 - **Online multiplayer** with friends: one hosts, the others join with an address.
-- **Sound and music:** footsteps, weapons, hit feedback and three music tracks, with volume settings.
+- **Sound and music:** footsteps, weapons, hit feedback and six music tracks (menu, campaign, space arenas, final match and two battle themes), with volume settings.
 - **Proper menus:** Quick Play, Custom Game (with a picture and a recommended player count for every map), Multiplayer, Character,
   How to Play, Settings in tabs (gameplay, video, audio and controls with **rebindable keys**, four crosshair styles) and a pause menu.
   Everything works with the mouse and the keyboard.
