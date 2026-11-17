@@ -58,11 +58,18 @@ def grating(m, mats, x0, x1, y0, y1, z, tag="Grate"):
 
 
 def hologram(m, mats, x, y, z, h=220.0, tag="Holo"):
-    _box(m, "%sBase_%d_%d" % (tag, int(x), int(y)), x - 50, x + 50, y - 50, y + 50, z, z + 70, mats["dark"], solid=True)
-    _box(m, "%sRing_%d_%d" % (tag, int(x), int(y)), x - 56, x + 56, y - 56, y + 56, z + 70, z + 78, mats["glow_a"])
-    _box(m, "%sScreen_%d_%d" % (tag, int(x), int(y)), x - 4, x + 4, y - 90, y + 90, z + 110, z + 110 + h, mats["glow_a"], yaw=0.0)
-    _box(m, "%sBar_%d_%d" % (tag, int(x), int(y)), x - 6, x + 6, y - 90, y + 90, z + 110, z + 118, mats["glow_b"])
-    m.accent_light("%sLight_%d_%d" % (tag, int(x), int(y)), (x, y, z + 160), (0.3, 0.9, 1.0), candela=25.0, radius=600.0)
+    """A holographic data column: a pedestal, a projector ring, a ring of glowing bars of different heights and a turning cube on top."""
+    k = "%d_%d" % (int(x), int(y))
+    _box(m, "%sBase_%s" % (tag, k), x - 50, x + 50, y - 50, y + 50, z, z + 70, mats["dark"], solid=True)
+    _box(m, "%sRing_%s" % (tag, k), x - 56, x + 56, y - 56, y + 56, z + 70, z + 78, mats["glow_a"])
+    heights = (0.55, 0.9, 0.7, 1.0, 0.45, 0.8, 0.62, 0.95)
+    for j, f in enumerate(heights):
+        a = j / float(len(heights)) * 2.0 * math.pi
+        bx, by = x + math.cos(a) * 34.0, y + math.sin(a) * 34.0
+        _box(m, "%sBar_%s_%d" % (tag, k, j), bx - 6, bx + 6, by - 6, by + 6, z + 90, z + 90 + h * f, mats["glow_a"] if j % 3 else mats["glow_b"])
+    _box(m, "%sFrame_%s" % (tag, k), x - 46, x + 46, y - 46, y + 46, z + 96 + h, z + 100 + h, mats["glow_a"], yaw=0.0)
+    _box(m, "%sCube_%s" % (tag, k), x - 14, x + 14, y - 14, y + 14, z + 112 + h, z + 140 + h, mats["glow_b"], yaw=45.0)
+    m.accent_light("%sLight_%s" % (tag, k), (x, y, z + 160), (0.3, 0.9, 1.0), candela=25.0, radius=600.0)
 
 
 def cable_run(m, mats, pts, tag="Cable"):

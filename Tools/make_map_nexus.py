@@ -140,6 +140,65 @@ for i in range(10):
     x, y = P(R + rng.uniform(900, 2600), ang)
     B("Shard", x, y, -200, rng.uniform(600, 1800), 220, 220, rock, solid=False, yaw=rng.uniform(0, 90), pitch=rng.uniform(-10, 10))
 
+# ---------------------------------------------------------------- detail pass (no collision, nothing that changes the gameplay)
+# gold inlay lines radiating from the dais to the rim, between the arches
+for k in range(16):
+    deg = k * 22.5 + 11.25
+    for r in (2100.0, 2500.0, 2900.0, 3300.0):
+        x, y = P(r, deg)
+        B("InlayLine", x, y, 0, 3, 300, 16, gold, solid=False, yaw=deg)
+# a ring of runes on the dais and glowing studs on its trim
+for k in range(24):
+    deg = k * 15.0
+    x, y = P(1250.0, deg)
+    B("DaisRune", x, y, DAIS_Z + 22, DAIS_Z + 26, 70, 22, g_gold, solid=False, yaw=deg + 90)
+    x, y = P(1930.0, deg)
+    B("DaisStud", x, y, DAIS_Z + 14, DAIS_Z + 40, 34, 34, gold, solid=False, yaw=deg)
+# the obelisk: gold bands, floating rings and a crown of shards
+for zz in (DAIS_Z + 220, DAIS_Z + 480, DAIS_Z + 740):
+    B("ObBand", 0, 0, zz, zz + 26, 266, 266, gold, solid=False)
+for zz, rr in ((DAIS_Z + 1250, 260.0), (DAIS_Z + 1450, 200.0)):
+    for j in range(8):
+        x, y = P(rr, j * 45.0)
+        B("ObRing", x, y, zz, zz + 18, rr * 0.78, 28, g_orange, solid=False, yaw=j * 45.0 + 90)
+for j in range(6):
+    x, y = P(120.0, j * 60.0)
+    B("ObShard", x, y, DAIS_Z + 1120 + (j % 3) * 70, DAIS_Z + 1320 + (j % 3) * 90, 34, 34, g_orange, solid=False, yaw=j * 30.0, pitch=(j % 2) * 8 - 4)
+# arches: capitals and glowing runes along the lintel, plus a gold band around each pillar
+for k in range(8):
+    deg = k * 45.0
+    x, y = P(R - 380.0, deg)
+    tx, ty = -math.sin(math.radians(deg)), math.cos(math.radians(deg))
+    for sg in (-1, 1):
+        px, py = x + tx * sg * 330, y + ty * sg * 330
+        B("ArchCap", px, py, 860, 930, 200, 200, gold, solid=False)
+        B("ArchBand", px, py, 420, 450, 176, 176, gold, solid=False)
+    for j in range(5):
+        off = (j - 2) * 140.0
+        B("LintelRune", x + tx * off + math.cos(math.radians(deg)) * 80, y + ty * off + math.sin(math.radians(deg)) * 80, 960, 1000, 40, 70, g_orange, solid=False, yaw=deg)
+# braziers between the arches
+for k in range(8):
+    deg = k * 45.0 + 22.5
+    x, y = P(R - 300.0, deg)
+    C("BrazierPost", x, y, 0, 150, 60, gold, solid=False)
+    C("BrazierBowl", x, y, 150, 200, 170, gold, solid=False)
+    C("BrazierFire", x, y, 200, 290, 90, g_orange, solid=False)
+    m.accent_light("BrazierLight_%d" % k, (x, y, 330), (1.0, 0.5, 0.15), candela=40.0, radius=900.0)
+# banners hanging in the gates
+for team, nm, sx in ((0, "Red", -1), (1, "Blue", 1)):
+    gx = sx * 3250.0
+    g = g_blue if team else g_red
+    for sd_ in (-1, 1):
+        B("Banner", gx - sx * 100.0, sd_ * 520, 640, 1090, 12, 120, g, solid=False)
+        B("BannerTrim", gx - sx * 100.0, sd_ * 520, 1090, 1100, 16, 150, gold, solid=False)
+# ruins floating further out
+for i in range(10):
+    ang = i * 36.0 + 9.0
+    x, y = P(R + rng.uniform(1600, 3200), ang)
+    z0 = rng.uniform(-500, 500)
+    B("RuinPillar", x, y, z0, z0 + rng.uniform(500, 1100), 160, 160, pillar, solid=False, pitch=rng.uniform(-12, 12), yaw=rng.uniform(0, 90))
+    B("RuinCap", x, y, z0 + 1100, z0 + 1160, 230, 230, gold, solid=False, pitch=rng.uniform(-12, 12))
+
 # ---------------------------------------------------------------- starts
 
 
