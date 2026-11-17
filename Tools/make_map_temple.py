@@ -450,4 +450,4 @@ m.look("day_clear", sun_yaw=205.0, sun_pitch=-52.0, sun_lux=10.0, sky_intensity=
 lt.tint_sky(m, color=(1.0, 0.90, 0.76))
 lt.tint_ground(m, (0.52, 0.40, 0.26))
 lt.grade(m, tint=(1.0, 0.975, 0.93))
-m.finish(kill_z=-2000)
+m.finish(kill_z=-2000, scale=1.3)

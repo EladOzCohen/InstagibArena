@@ -483,4 +483,4 @@ m.check_starts()
 # the hall fog is neutral dark smoke, not an orange wall; slightly less saturated picture overall
 m.fog(rgb=(0.075, 0.068, 0.07))
 m.post(saturation=0.92)
-m.finish(kill_z=-150)
+m.finish(kill_z=-150)   # not enlarged: at 1.3 the south-west gantry loses its connection to the floor (see docs, section 25)

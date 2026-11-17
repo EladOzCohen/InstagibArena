@@ -631,4 +631,4 @@ m.check_starts()
 
 # ------------------------------------------------------------------------------------------------ light: night
 m.look("night_city", ambient_gain=0.1266, ev=-0.2)
-m.finish(kill_z=-1200)
+m.finish(kill_z=-1200, scale=1.3)

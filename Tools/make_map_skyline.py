@@ -561,4 +561,4 @@ m.starts(starts)
 
 # ------------------------------------------------------------------------------------------------ light: low sun
 m.look("dusk", sun_pitch=-22.0, sun_yaw=225.0, sun_lux=6.5, sun_rgb=(1.0, 0.76, 0.52), sky_intensity=9.0, ev=0.5, ambient_gain=0.1266, saturation=0.9, fog_max_opacity=0.4)
-m.finish(kill_z=-800)
+m.finish(kill_z=-800, scale=1.3)

@@ -176,7 +176,65 @@ class MapBuilder:
         """A small physically sized coloured light (candela, short radius, no shadows, reduced specular)."""
         return maplooks.accent_light(self, label, loc, rgb, candela, radius, source_radius, shadows)
 
-    def finish(self, kill_z=None):
+    def scale_world(self, s):
+        """Makes the level s times bigger across and along (x, y) about the origin; heights stay the same, so steps, jump heights and
+        the nav limits keep working. Moved and stretched in x and y: boxes, generated meshes, big cylinders and water; tilted slabs (ramps)
+        keep their rise (new pitch and length). Only moved, not stretched: catalogue props (/Game/Props), slender columns, lights (longer
+        reach), flames, flag bases, PlayerStarts. Jump pads keep their flight time and fly s times as far. The sky, sun, sky light, fog and
+        post process are left alone. Call it once, last, before finish()."""
+        if abs(s - 1.0) < 1e-4:
+            return
+        skip_types = (unreal.DirectionalLight, unreal.SkyLight, unreal.PostProcessVolume, unreal.ExponentialHeightFog, unreal.SkyAtmosphere)
+        stretched = moved = 0
+        for a in self.actor_lib.get_all_level_actors():
+            if isinstance(a, skip_types) or a.get_actor_label() in ("SkyDome", "Sun", "SkyLight", "Fog", "PostProcess"):
+                continue
+            loc = a.get_actor_location()
+            a.set_actor_location(unreal.Vector(loc.x * s, loc.y * s, loc.z), False, False)
+            if isinstance(a, unreal.PointLight):
+                comp = a.get_component_by_class(unreal.PointLightComponent)
+                comp.set_editor_property("attenuation_radius", comp.get_editor_property("attenuation_radius") * s)
+                moved += 1
+                continue
+            if isinstance(a, unreal.IAJumpPad):
+                v = a.get_editor_property("launch_velocity")
+                a.set_editor_property("launch_velocity", unreal.Vector(v.x * s, v.y * s, v.z))
+                moved += 1
+                continue
+            if not isinstance(a, unreal.StaticMeshActor):
+                moved += 1
+                continue
+            comp = a.static_mesh_component
+            mesh = comp.static_mesh
+            path = mesh.get_path_name() if mesh else ""
+            sc = a.get_actor_scale3d()
+            rot = a.get_actor_rotation()
+            if path.startswith("/Game/Props"):
+                moved += 1
+                continue
+            if "BasicShapes/Cylinder" in path and sc.x * 100.0 < 300.0:      # a slender column or pole keeps its thickness
+                moved += 1
+                continue
+            if abs(rot.pitch) > 60.0:                                          # a vertical slab turned on its side: leave the shape
+                moved += 1
+                continue
+            if abs(rot.pitch) > 1.0:                                           # a ramp: the same rise over a longer run
+                p = math.radians(rot.pitch)
+                new_pitch = math.degrees(math.atan(math.tan(p) / s))
+                length = math.sqrt((s * math.cos(p)) ** 2 + math.sin(p) ** 2)
+                if os.environ.get("IA_SCALE_DEBUG"):
+                    unreal.log("SCALE_RAMP %s pitch %.2f -> %.2f yaw %.1f roll %.1f scale %s -> x%.3f" % (a.get_actor_label(), rot.pitch, new_pitch, rot.yaw, rot.roll, sc, length))
+                a.set_actor_rotation(unreal.Rotator(roll=rot.roll, pitch=new_pitch, yaw=rot.yaw), False)
+                a.set_actor_scale3d(unreal.Vector(sc.x * length, sc.y * s, sc.z))
+            else:
+                a.set_actor_scale3d(unreal.Vector(sc.x * s, sc.y * s, sc.z))
+            stretched += 1
+        unreal.log("WORLD_SCALE x%.2f across and along: %d stretched, %d only moved" % (s, stretched, moved))
+
+    def finish(self, kill_z=None, scale=1.0):
+        scale = float(os.environ.get("IA_MAP_SCALE", scale))     # development: IA_MAP_SCALE=1 builds a map at its original size
+        if abs(scale - 1.0) > 1e-4:
+            self.scale_world(scale)
         world = self.editor_lib.get_editor_world()
         if kill_z is not None:
             world.get_world_settings().set_editor_property("kill_z", float(kill_z))

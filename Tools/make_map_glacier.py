@@ -452,4 +452,4 @@ for rnd in range(4):
 m.face_center_starts(STARTS)
 m.check_starts()
 m.fog(density=0.0022)
-m.finish(kill_z=-1500)
+m.finish(kill_z=-1500, scale=1.3)

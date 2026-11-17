@@ -5,7 +5,7 @@
 { TEXT("/Game/Maps/DM-Dock"), 4, 8 },
 { TEXT("/Game/Maps/DM-Skyline"), 3, 6 },
 { TEXT("/Game/Maps/DM-Glacier"), 4, 9 },
-{ TEXT("/Game/Maps/DM-Neon"), 3, 7 },
+{ TEXT("/Game/Maps/DM-Neon"), 4, 8 },
 { TEXT("/Game/Maps/DM-Forge"), 4, 8 },
 { TEXT("/Game/Maps/DM-Canyon"), 4, 9 },
 { TEXT("/Game/Maps/DM-Quarry"), 8, 11 },

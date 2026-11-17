@@ -610,4 +610,4 @@ _over = {k: float(os.environ["IA_" + k.upper()]) for k in ("ev", "sky_intensity"
 _look = dict(sun_yaw=35.0, ev=0.6, ambient_gain=0.21, sky_rgb=(1.0, 0.97, 0.90), saturation=0.93)
 _look.update(_over)
 b.look("day_clear", **_look)
-b.finish()
+b.finish(scale=1.3)

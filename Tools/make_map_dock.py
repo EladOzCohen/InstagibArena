@@ -502,4 +502,4 @@ _look = dict(sun_yaw=35.0, sun_pitch=-52.0, sun_lux=9.0, sky_intensity=2.6, ev=0
              saturation=0.93, fog_density=0.0008)
 _look.update(_over)
 b.look("day_clear", **_look)
-b.finish(kill_z=-1500)
+b.finish(kill_z=-1500, scale=1.3)
