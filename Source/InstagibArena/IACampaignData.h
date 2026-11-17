@@ -293,6 +293,19 @@ namespace IACampaign
 		return Items;
 	}
 
+	/** Radio chatter of a chapter: lines shown during a match, each starts with the speaker. */
+	inline const TArray<const TCHAR*>& Chatter(int32 Chapter)
+	{
+		static const TArray<TArray<const TCHAR*>> Items = {
+			{ TEXT("ANNOUNCER: Welcome to Ferrum, where the Apex League begins."), TEXT("KESTREL: Breathe. Aim before you move."), TEXT("DIRECTOR VOSS: A Wildcard. How quaint.") },
+			{ TEXT("ANNOUNCER: The Frontier League. The crowd decides."), TEXT("KESTREL: Watch their flanks. They fight like clockwork."), TEXT("DIRECTOR VOSS: Obsidian Crown is watching you.") },
+			{ TEXT("DIRECTOR VOSS: The Syndicate sets the odds. Try to disappoint them."), TEXT("KESTREL: Something is wrong with this arena. Stay sharp."), TEXT("ANNOUNCER: Meridian is live on a hundred worlds.") },
+			{ TEXT("KESTREL: Out here nobody hears you fall."), TEXT("DIRECTOR VOSS: The arenas obey. Everything here obeys."), TEXT("ANNOUNCER: Past the last planet: the Championship.") },
+			{ TEXT("SOVEREIGN: Come on, then."), TEXT("DIRECTOR VOSS: Nexus has waited for you."), TEXT("KESTREL: Whatever you choose, choose it for yourself.") },
+		};
+		return Items[FMath::Clamp(Chapter, 0, Items.Num() - 1)];
+	}
+
 	/** The two endings (shown after match 20). The player chooses. */
 	struct FEnding
 	{

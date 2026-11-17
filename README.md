@@ -44,7 +44,7 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
 
 ![A match in Neon Street](docs/images/neon.png)
 
-- **11 maps:** Foundry (industrial yard), Sunken Temple, Harbour Dock, Skyline (rooftops, falling kills), **Neon Street** (night city duel),
+- **14 maps** (three of them are space arenas: **Orbital**, **Derelict** and **Nexus**): Foundry (industrial yard), Sunken Temple, Harbour Dock, Skyline (rooftops, falling kills), **Neon Street** (night city duel),
   **Forge** (lava hall), **Glacier** (ice outpost) and **Canyon** (huge, with rope bridges). New and big: **Citadel** (castle and meadow),
   **Quarry** (open-pit mine) and **Downtown** (city district). **Jump pads** launch you to the high ground.
 - **Instagib rifle:** hitscan, one hit kills. Glowing beams, spark bursts, a hit marker and kill messages.
@@ -58,7 +58,7 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
   Recruit a squad, earn up to 3 stars per match, face a different faction in every chapter, and choose how the story ends.
 - **Free for all**, **team deathmatch** (red vs blue) and **Capture the Flag**: take the enemy flag to your base while yours is safe. Bots play it too.
 - **Bots** (2 to 10) at seven skill levels, from Rookie (very forgiving, for first-timers) to Master (for professionals).
-- **15 characters** with their own looks, picked in a menu with a live 3D preview.
+- **37 characters** in five factions, each with its own armour, picked in a menu with a live 3D preview.
 - **Online multiplayer** with friends: one hosts, the others join with an address.
 - **Sound and music:** footsteps, weapons, hit feedback and three music tracks, with volume settings.
 - **Proper menus:** Quick Play, Custom Game (with a picture and a recommended player count for every map), Multiplayer, Character,

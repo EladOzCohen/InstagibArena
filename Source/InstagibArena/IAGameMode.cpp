@@ -204,6 +204,33 @@ void AIAGameMode::StartLive()
 		StartWave(1);
 	}
 
+	// Campaign: two lines of radio chatter during the fight (the speaker is the first word of the text).
+	if (CampaignMatch >= 0)
+	{
+		const TArray<const TCHAR*>& Lines = IACampaign::Chatter(IACampaign::Matches()[CampaignMatch].Chapter);
+		const int32 Generation = MatchGeneration;
+		const int32 First = FMath::RandRange(0, Lines.Num() - 1);
+		const int32 Second = (First + 1 + FMath::RandRange(0, Lines.Num() - 2)) % Lines.Num();
+		int32 Which = 0;
+		for (float Delay : { 22.f, 110.f })
+		{
+			const FString Text = Lines[Which++ == 0 ? First : Second];
+			FTimerHandle Handle;
+			GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this, Text, Generation]()
+			{
+				const AIAGameState* State = GetGameState<AIAGameState>();
+				if (Generation != MatchGeneration || !State || State->Phase != EIAMatchPhase::Live) { return; }
+				for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+				{
+					if (AIAPlayerController* PC = Cast<AIAPlayerController>(It->Get()))
+					{
+						PC->ClientShowMessage(Text, FLinearColor(0.75f, 0.85f, 1.f), 4.f);
+					}
+				}
+			}), Delay, false);
+		}
+	}
+
 	// Campaign: the title of the match, in the announcer's voice.
 	if (CampaignMatch >= 0)
 	{
