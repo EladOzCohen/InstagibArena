@@ -11,3 +11,6 @@
 { TEXT("/Game/Maps/DM-Quarry"), 8, 11 },
 { TEXT("/Game/Maps/DM-Citadel"), 9, 11 },
 { TEXT("/Game/Maps/DM-Downtown"), 10, 11 },
+{ TEXT("/Game/Maps/DM-Orbital"), 8, 11 },
+{ TEXT("/Game/Maps/DM-Nexus"), 8, 11 },
+{ TEXT("/Game/Maps/DM-Derelict"), 8, 11 },

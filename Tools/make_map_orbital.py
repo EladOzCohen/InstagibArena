@@ -30,10 +30,10 @@ m.look("space_orbital", ev=1.6, ambient_gain=10.0)
 
 # ---------------------------------------------------------------- materials
 floor = S("ConcreteClean", albedo=(138, 146, 160), tiling=2.0, tag="OrbFloor")
-deck = S("DiamondPlateDark", albedo=(74, 80, 92), tiling=1.4, tag="OrbDeck")
+deck = S("DiamondPlateDark", albedo=(96, 104, 118), tiling=1.4, metal=0.12, tag="OrbDeck2")
 wall = S("PlasterGrey", albedo=(214, 220, 230), tiling=2.0, tag="OrbWall")
-wall_dark = S("SteelDark", albedo=(70, 76, 88), tag="OrbSteel")
-trim = S("BrushedMetal", albedo=(150, 156, 168), metal=0.5, tag="OrbTrim")
+wall_dark = S("SteelDark", albedo=(96, 104, 118), metal=0.12, tag="OrbSteel2")
+trim = S("BrushedMetal", albedo=(170, 176, 188), metal=0.25, tag="OrbTrim2")
 crate_a = S("ContainerGrey", albedo=(118, 124, 134), tag="OrbCrateGrey")
 crate_o = S("ContainerYellow", albedo=(196, 130, 40), tag="OrbCrateOrange")
 panel_blue = S("BrushedMetal", albedo=(26, 40, 88), metal=0.3, tag="OrbSolar")
@@ -115,7 +115,7 @@ for side in (-1, 1):
         C("HallColumnGlow", side * 4000.0, y, 300, 340, 160, g_blue if side > 0 else g_red, solid=False)
 
 # ---------------------------------------------------------------- the reactor core
-C("Core", 0.0, 0.0, 0, HZ + 20, 980, wall_dark)
+C("Core", 0.0, 0.0, 0, HZ + 20, 980, trim)
 C("CoreRing", 0.0, 0.0, 470, 520, 1010, g_cyan, solid=False)
 C("CoreRing", 0.0, 0.0, 700, 730, 1010, g_cyan, solid=False)
 C("CoreBase", 0.0, 0.0, 0, 90, 1160, trim)

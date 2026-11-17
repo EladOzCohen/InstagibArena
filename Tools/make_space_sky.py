@@ -316,7 +316,7 @@ def derelict():
     sun_az, sun_el = 215.0, 24.0
     sd = direction(sun_az, sun_el)
     s = Sky()
-    s.nebula(9, ((0.30, 0.10, 0.45), (0.06, 0.40, 0.45), (0.5, 0.2, 0.3)), 0.9, scale=1.9, clear=0.38)
+    s.nebula(9, ((0.30, 0.10, 0.45), (0.06, 0.40, 0.45), (0.5, 0.2, 0.3)), 2.2, scale=1.9, clear=0.34)
     s.stars(5000, 33, bright=0.8)
     s.planet(direction(300.0, 18.0), 7.0, sd, [(0.62, 0.62, 0.64)], (0.15, (0.8, 0.8, 1.0)), seed=8, crater=True, noise_scale=4.5)
     s.disc(sd, 0.4, (9.0, 8.4, 7.4), halo=0.25, halo_deg=3.0)

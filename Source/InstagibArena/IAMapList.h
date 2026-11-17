@@ -38,6 +38,12 @@ namespace IAMaps
 		  TEXT("A huge open-pit quarry with haul roads, tunnels, a crushing plant and a loading dock. Made for Capture the Flag.") },
 		{ TEXT("Downtown"), TEXT("/Game/Maps/DM-Downtown"),
 		  TEXT("A big city district with streets, plazas, rooftops and underpasses. Made for Capture the Flag.") },
+		{ TEXT("Orbital"), TEXT("/Game/Maps/DM-Orbital"),
+		  TEXT("A research station on the edge of a gas giant: a long concourse under an open ceiling, a glowing reactor core, raised decks and two base halls.") },
+		{ TEXT("Derelict"), TEXT("/Game/Maps/DM-Derelict"),
+		  TEXT("A dead starship drifting in a nebula. A cargo bay with a hole in the floor, catwalks, red emergency lights, the engine room and the bridge.") },
+		{ TEXT("Nexus"), TEXT("/Game/Maps/DM-Nexus"),
+		  TEXT("The oldest arena of the Apex League: a stone disc floating beside a black hole, with a golden dais, eight arches and no walls.") },
 	};
 
 	inline constexpr int32 Count = UE_ARRAY_COUNT(List);
