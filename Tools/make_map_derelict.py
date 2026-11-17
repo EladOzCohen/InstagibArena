@@ -205,6 +205,19 @@ for team, tag in ((0, "Red"), (1, "Blue")):
 for i, (x, y, z) in enumerate([(-1500, 0, 0), (1500, 0, 0), (0, -1750, CAT_Z), (0, 1750, CAT_Z), (-700, -1400, 0), (700, 1400, 0), (-2000, 1300, 0), (2000, -1300, 0)]):
     add_start("Start_Mid_%d" % i, x, y, rng.uniform(0, 360), None, z)
 
+# ---------------------------------------------------------------- detail pass (no collision)
+import space_detail as sd
+SD = dict(steel=steel, dark=hull, glow_a=g_amber, glow_b=g_teal)
+for sy in (-1, 1):
+    sd.pipes(m, SD, -2300, 2300, sy * (BAY_Y - 160), BAY_Z - 220, n=4, tag="BayPipe%d" % sy)
+    sd.pipes(m, SD, -2300, 2300, sy * (BAY_Y - 160), 260, n=2, tag="BayLow%d" % sy)
+    sd.wall_panels(m, SD, True, sy * (BAY_Y - 70), -2250, 2250, 760, 1380, -sy, tag="BayPanel%d" % sy)
+for sx in (-1, 1):
+    sd.wall_panels(m, SD, False, sx * (HALL_X - 20) if sx > 0 else -HALL_X + 20, -1400, 1400, 160, 900, -sx, tag="HallPanel%d" % sx)
+sd.grating(m, SD, -2300, 2300, -80, 80, 0.5, tag="BayGrate")
+sd.cable_run(m, SD, [(-2300, -1900, 1400), (-2300, -1900, 700), (-1200, -1900, 700), (-1200, -1900, 460)], tag="DerCabW")
+sd.cable_run(m, SD, [(2300, 1900, 1400), (2300, 1900, 700), (1200, 1900, 700), (1200, 1900, 460)], tag="DerCabE")
+
 m.check_starts()
 m.finish(kill_z=-1400)
 unreal.log("DERELICT actors %d" % len(m.actor_lib.get_all_level_actors()))

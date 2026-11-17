@@ -199,6 +199,23 @@ for team, tag in ((0, "Red"), (1, "Blue")):
 for i, (x, y, z) in enumerate([(-1500, 0, 0), (1500, 0, 0), (0, -1700, DECK_Z), (0, 1700, DECK_Z), (-700, -1100, 0), (700, 1100, 0), (-2800, 1900, 0), (2800, -1900, 0)]):
     add_start("Start_Mid_%d" % i, x, y, rng.uniform(0, 360), None, z)
 
+# ---------------------------------------------------------------- detail pass (no collision)
+import space_detail as sd
+SD = dict(steel=trim, dark=wall_dark, glow_a=g_cyan, glow_b=g_orange)
+for sy in (-1, 1):
+    sd.pipes(m, SD, -3300, 3300, sy * (HY - 120), HZ - 150, n=3, tag="CeilPipe%d" % sy)
+    sd.pipes(m, SD, -3300, 3300, sy * (HY - 120), 300, n=2, tag="LowPipe%d" % sy)
+    sd.wall_panels(m, SD, True, sy * (HY - 20), -3200, 3200, 220, 880, -sy, tag="WPanel%d" % sy)
+for side in (-1, 1):
+    sd.wall_panels(m, SD, False, side * (BX - 20), -1700, 1700, 180, 900, -side, tag="EndPanel%d" % side)
+sd.grating(m, SD, -3000, 3000, -80, 80, 0.5, tag="MidGrate")
+for sy in (-1, 1):
+    sd.grating(m, SD, -1650, 1650, sy * 1620 - 60, sy * 1620 + 60, DECK_Z + 0.5, tag="DeckGrate%d" % sy)
+for x, y in ((-1800.0, 0.0), (1800.0, 0.0), (0.0, 1600.0), (0.0, -1600.0)):
+    sd.hologram(m, SD, x, y, 0.0, 200.0, tag="Holo")
+sd.cable_run(m, SD, [(-3400, -1200, 960), (-3400, -1200, 600), (-2000, -1200, 600), (-2000, -1200, 0)], tag="CabW")
+sd.cable_run(m, SD, [(3400, 1200, 960), (3400, 1200, 600), (2000, 1200, 600), (2000, 1200, 0)], tag="CabE")
+
 m.check_starts()
 m.finish(kill_z=-1500)
 unreal.log("ORBITAL actors %d" % len(m.actor_lib.get_all_level_actors()))
