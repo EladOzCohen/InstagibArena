@@ -68,7 +68,8 @@ private:
 		Credits,
 		HowToPlay,
 		Campaign,
-		Hall
+		Hall,
+		Gunsmith = 12   // SIAGunsmith (Character > GUNSMITH); a fixed number for -IAMenuPage=12
 	};
 
 	void GoTo(EPage NewPage);

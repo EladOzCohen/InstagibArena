@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
+#include "IACosmetics.h"
 #include "IAPlayerState.generated.h"
 
 /** Team index: 0 = Red, 1 = Blue, 255 = no team (free for all). */
@@ -71,6 +72,28 @@ public:
 	/** Server time until which this player's body cannot be hit (spawn protection). 0 = not protected. The HUD shows it. */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Stats")
 	float SpawnProtectEndTime = 0.f;
+
+	// ---- cosmetic loadout (the Gunsmith): rifle, beam, kill effect, character variant, rank and title. Looks only.
+
+	/** Everybody's rifle, beam and kill effect are built from this on every machine. Set by the server (SetLoadout). */
+	UPROPERTY(ReplicatedUsing = OnRep_Loadout, BlueprintReadOnly, Category = "Cosmetics")
+	FIACosmeticLoadout Loadout;
+
+	/** Counts loadout changes on this machine, so that the character notices them and rebuilds its look. */
+	int32 LoadoutSerial = 0;
+
+	/** True once the server has a loadout for this player (bots get theirs when they first spawn). */
+	bool bHasLoadout = false;
+
+	/** Server: sets the loadout (values are clamped to their ranges) and logs it. */
+	void SetLoadout(const FIACosmeticLoadout& NewLoadout);
+
+	/** For the scoreboard: rank 0..6 (Recruit..Apex) and the chosen title id (0 none), both chosen by the player's profile. */
+	uint8 GetRank() const { return Loadout.Rank; }
+	int32 GetTitleId() const { return Loadout.TitleId; }
+
+	UFUNCTION()
+	void OnRep_Loadout();
 
 	/** Server only: time of the last kill, for the multi-kill window. */
 	float LastKillTime = -100.f;

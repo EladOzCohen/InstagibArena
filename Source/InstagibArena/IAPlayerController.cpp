@@ -12,6 +12,8 @@
 #include "IAGameState.h"
 #include "IAPlayerCharacter.h"
 #include "IAPlayerState.h"
+#include "IALoadoutRules.h"
+#include "IAProfileSubsystem.h"
 #include "SIAMatchResults.h"
 #include "SIAPauseMenu.h"
 #include "Camera/CameraActor.h"
@@ -349,6 +351,34 @@ void AIAPlayerController::PlayerTick(float DeltaTime)
 	}
 
 	UpdateDeathCamera();
+
+	if (!bLoadoutSent && PlayerState)
+	{
+		SendLoadout();
+	}
+}
+
+// ---------------------------------------------------------------- cosmetic loadout
+
+void AIAPlayerController::SendLoadout()
+{
+	bLoadoutSent = true;
+	const UIAProfileSubsystem* Profile = UIAProfileSubsystem::Get(this);
+	FIACosmeticLoadout Loadout = Profile ? Profile->GetLoadout() : FIACosmeticLoadout();
+	// Only what this profile has earned (an old save or a hand-edited file may hold more), and the lifetime kills for the counter.
+	IALoadout::RemoveLocked(Loadout, Profile);
+	Loadout.KillCounterValue = IALoadout::LifetimeKills(Profile);
+	IALoadout::GetDevOverride(TEXT("IALoadout"), Loadout);   // development: -IALoadout="ke=2,bs=3,..."
+	ServerSetLoadout(Loadout);
+}
+
+void AIAPlayerController::ServerSetLoadout_Implementation(const FIACosmeticLoadout& NewLoadout)
+{
+	// Looks only, so nothing is checked against rewards here (docs/REWARDS_DESIGN.md 11.8); the values are only kept in range.
+	if (AIAPlayerState* PS = GetPlayerState<AIAPlayerState>())
+	{
+		PS->SetLoadout(NewLoadout);
+	}
 }
 
 // ---------------------------------------------------------------- death camera

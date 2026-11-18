@@ -6,6 +6,8 @@
 #include "IALoadingScreen.h"
 #include "IAMenuStateSubsystem.h"
 #include "IAPlayerCharacter.h"
+#include "IALoadoutRules.h"
+#include "IAProfileSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "IACharacterRoster.h"
 #include "Misc/CommandLine.h"
@@ -139,7 +141,30 @@ void AIAMenuPlayerController::SpawnPreview(const ACameraActor* Camera)
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	Preview = GetWorld()->SpawnActor<AIAPlayerCharacter>(AIAPlayerCharacter::StaticClass(), PreviewLocation, FRotator(0.f, PreviewBaseYaw, 0.f), Params);
+	PreviewYaw = PreviewBaseYaw;
 	ShowPreviewCharacter(0);
+
+	// The preview wears the player's saved loadout (colour variant, rifle) with the lifetime kills on the counter.
+	const UIAProfileSubsystem* Profile = UIAProfileSubsystem::Get(this);
+	FIACosmeticLoadout Loadout = Profile ? Profile->GetLoadout() : FIACosmeticLoadout();
+	IALoadout::RemoveLocked(Loadout, Profile);
+	SetPreviewLoadout(Loadout);
+}
+
+void AIAMenuPlayerController::SetPreviewLoadout(const FIACosmeticLoadout& Loadout)
+{
+	if (Preview)
+	{
+		FIACosmeticLoadout Shown = Loadout;
+		Shown.KillCounterValue = IALoadout::LifetimeKills(UIAProfileSubsystem::Get(this));
+		Preview->SetForcedLoadout(Shown);
+	}
+}
+
+void AIAMenuPlayerController::SetGunsmithView(bool bOn)
+{
+	GunsmithTarget = bOn ? 1.f : 0.f;
+	DriftHold = 0.4f;
 }
 
 void AIAMenuPlayerController::ShowPreviewCharacter(int32 CharacterIndex)
@@ -169,11 +194,18 @@ void AIAMenuPlayerController::Tick(float DeltaSeconds)
 	}
 #endif
 
-	// A slow sway, so that the accessories can be seen from a little to each side.
+	// A slow sway, so that the accessories can be seen from a little to each side. In the Gunsmith the character turns its right side
+	// (and the rifle) to the camera, as far as the player turns it, and only breathes a little.
+	GunsmithBlend = FMath::FInterpConstantTo(GunsmithBlend, GunsmithTarget, DeltaSeconds, 1.f / 0.8f);
 	if (Preview)
 	{
 		const float Time = GetWorld()->GetTimeSeconds();
-		Preview->SetActorLocationAndRotation(PreviewLocation, FRotator(0.f, PreviewBaseYaw + FMath::Sin(Time * 0.7f) * 32.f, 0.f));
+		const float Sway = FMath::Sin(Time * 0.7f) * 32.f;
+		const float GunsmithYaw = -90.f + GunsmithTurn + FMath::Sin(Time * 0.5f) * 6.f;
+		const float Ease = GunsmithBlend * GunsmithBlend * (3.f - 2.f * GunsmithBlend);
+		const float TargetYaw = PreviewBaseYaw + FMath::Lerp(Sway, GunsmithYaw, Ease);
+		PreviewYaw = GunsmithBlend > 0.f ? FMath::FInterpTo(PreviewYaw, TargetYaw, DeltaSeconds, 6.f) : TargetYaw;
+		Preview->SetActorLocationAndRotation(PreviewLocation, FRotator(0.f, PreviewYaw, 0.f));
 	}
 
 	UpdateMenuCamera(DeltaSeconds);
@@ -219,10 +251,37 @@ void AIAMenuPlayerController::UpdateMenuCamera(float DeltaSeconds)
 		BaseCameraRotation.Pitch + FMath::FindDeltaAngleDegrees(BaseCameraRotation.Pitch, ClosePitch) * Ease,
 		BaseCameraRotation.Yaw + FMath::FindDeltaAngleDegrees(BaseCameraRotation.Yaw, CloseYaw) * Ease,
 		0.f);
-	const float Fov = FMath::Lerp(BaseCameraFov, CloseFov, Ease);
+	float Fov = FMath::Lerp(BaseCameraFov, CloseFov, Ease);
+
+	// The Gunsmith: a close-up of the rifle in the character's hands, the rifle right of the middle (clear of the wider panel).
+	FVector RifleCentre;
+	FRotator RifleRotation;
+	if (Preview && Preview->GetRifleViewPoint(RifleCentre, RifleRotation))
+	{
+		RifleFocus = bHaveRifleFocus ? FMath::VInterpTo(RifleFocus, RifleCentre, Dt, 5.f) : RifleCentre;
+		bHaveRifleFocus = true;
+	}
+	float GunEase = 0.f;
+	if (GunsmithBlend > 0.f && bHaveRifleFocus)
+	{
+		const float G = GunsmithBlend * GunsmithBlend * (3.f - 2.f * GunsmithBlend);
+		GunEase = G;
+		const FVector Away = FVector(BaseCameraLocation.X - PreviewLocation.X, BaseCameraLocation.Y - PreviewLocation.Y, 0.f).GetSafeNormal();
+		const FVector GunLocation = RifleFocus + Away * 92.f + FVector(0.f, 0.f, 14.f);
+		const float GunFov = 52.f;
+		const FVector ToRifle = RifleFocus - GunLocation;
+		const float GunFlat = FMath::Max(1.f, FVector2D(ToRifle.X, ToRifle.Y).Size());
+		const float GunOffAngle = FMath::RadiansToDegrees(FMath::Atan(0.42f * FMath::Tan(FMath::DegreesToRadians(GunFov * 0.5f))));
+		const float GunYaw = FMath::RadiansToDegrees(FMath::Atan2(ToRifle.Y, ToRifle.X)) - GunOffAngle;
+		const float GunPitch = FMath::RadiansToDegrees(FMath::Atan2(ToRifle.Z, GunFlat));
+		Location = FMath::Lerp(Location, GunLocation, G);
+		Rotation.Pitch += FMath::FindDeltaAngleDegrees(Rotation.Pitch, GunPitch) * G;
+		Rotation.Yaw += FMath::FindDeltaAngleDegrees(Rotation.Yaw, GunYaw) * G;
+		Fov = FMath::Lerp(Fov, GunFov, G);
+	}
 
 	// The drift: a few degrees of yaw, a breath of pitch, a little sideways and up-down movement. Calm on purpose.
-	const float Weight = DriftWeight * (1.f - 0.7f * Ease);
+	const float Weight = DriftWeight * (1.f - 0.7f * Ease) * (1.f - 0.9f * GunEase);
 	const float T = DriftTime;
 	Rotation.Yaw += (1.5f * FMath::Sin(T * 0.21f) + 0.5f * FMath::Sin(T * 0.53f + 1.3f)) * Weight;
 	Rotation.Pitch += 0.35f * FMath::Sin(T * 0.29f + 0.7f) * Weight;

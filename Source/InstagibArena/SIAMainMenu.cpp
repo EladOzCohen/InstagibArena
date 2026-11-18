@@ -10,6 +10,7 @@
 #include "IAMenuStyle.h"
 #include "InstagibArena.h"
 #include "SIAControlsPanel.h"
+#include "SIAGunsmith.h"
 #include "SIASettingsPanel.h"
 #include "SIAWelcome.h"
 #include "Framework/Application/SlateApplication.h"
@@ -187,6 +188,7 @@ float SIAMainMenu::PageWidth() const
 	case EPage::HowToPlay:
 	case EPage::Campaign:
 	case EPage::Hall:        return 840.f;
+	case EPage::Gunsmith:    return 780.f;
 	default:                 return 640.f;
 	}
 }
@@ -203,6 +205,7 @@ TSharedRef<SWidget> SIAMainMenu::BuildPage(EPage Which)
 	case EPage::Hall:        return BuildHallPage();
 	case EPage::Credits:     return BuildCreditsPage();
 	case EPage::HowToPlay:   return BuildHowToPlayPage();
+	case EPage::Gunsmith:    return SNew(SIAGunsmith).OwnerController(Owner).OnBack([this]() { GoTo(EPage::Character); });
 	default:                 return BuildMainPage();
 	}
 }
@@ -231,7 +234,7 @@ void SIAMainMenu::GoTo(EPage NewPage)
 
 void SIAMainMenu::ShowPageForTest(int32 PageIndex, int32 Tab)
 {
-	Page = static_cast<EPage>(FMath::Clamp(PageIndex, 0, 8));
+	Page = PageIndex == static_cast<int32>(EPage::Gunsmith) ? EPage::Gunsmith : static_cast<EPage>(FMath::Clamp(PageIndex, 0, 8));
 	HallView = FMath::Clamp(Tab, 0, 2);
 	MultiplayerTab = FMath::Clamp(Tab, 0, 1);
 	SettingsTab = FMath::Clamp(Tab, 0, 3);
@@ -826,6 +829,10 @@ TSharedRef<SWidget> SIAMainMenu::BuildCharacterPage()
 		+ SHorizontalBox::Slot().AutoWidth()
 		[
 			Chip(Owner, INVTEXT("DONE"), [this]() { GoTo(EPage::Main); }, nullptr, 130.f, 18)
+		]
+		+ SHorizontalBox::Slot().AutoWidth().Padding(12.f, 0.f, 0.f, 0.f)
+		[
+			Chip(Owner, INVTEXT("GUNSMITH"), [this]() { GoTo(EPage::Gunsmith); }, nullptr, 160.f, 18)
 		]);
 }
 
