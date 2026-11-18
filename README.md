@@ -58,7 +58,8 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
   Recruit a squad, earn up to 3 stars per match, face a different faction in every chapter, and choose how the story ends.
 - **Free for all**, **team deathmatch** (red vs blue) and **Capture the Flag**: take the enemy flag to your base while yours is safe. Bots play it too.
 - **Bots** (2 to 10) at seven skill levels, from Rookie (very forgiving, for first-timers) to Master (for professionals).
-- **37 characters** in five factions, each with its own armour, picked in a menu with a live 3D preview.
+- **44 characters**: 37 to pick from the start, in five factions, and seven more to earn in the campaign. Each has its own armour; pick in a menu with a live 3D preview.
+- **Hall of Champions:** your apex rank, 12 medals in five tiers and dozens of rewards you earn by playing, never by paying: rifle design in the **Gunsmith** (beam colours and styles, finishes, parts, liveries), kill effects, titles, new characters, arena times of day (dusk and night), special rules (low gravity, hardcore, big heads, endless survival), Apex+ heat levels for the campaign and a photo mode. Rewards only change looks and options, never power, and farming easy bots does not count.
 - **Online multiplayer** with friends: one hosts, the others join with an address.
 - **Sound and music:** footsteps, weapons, hit feedback and six music tracks (menu, campaign, space arenas, final match and two battle themes), with volume settings.
 - **Proper menus:** Quick Play, Custom Game (with a picture and a recommended player count for every map), Multiplayer, Character,
