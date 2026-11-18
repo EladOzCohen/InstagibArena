@@ -1,4 +1,4 @@
-"""A shared detail layer for the campaign characters (looks 17-36): wrist and ankle cuffs, elbow joints and a faction emblem on the chest.
+"""A shared detail layer for the campaign characters (looks 17-40): wrist and ankle cuffs, elbow joints and a faction emblem on the chest.
 apply(i, B, kit) adds the pieces to the kit of character i (called by gear_roster.build)."""
 
 import gear_parts as gp
@@ -17,9 +17,14 @@ for _i in range(29, 33):
     FACTION[_i] = "void"
 for _i in range(33, 37):
     FACTION[_i] = "court"
+for _i in range(37, 41):
+    FACTION[_i] = "crown"          # Obsidian Crown: cuffs and straps only, their crown badge is part of gear_chars_j
+# 41 Voss, 42 Wildcard and 43 Gino Gasket have no detail layer: cuffs, straps and a spine ridge do not fit a suit, a cloak or overalls
 
 # characters whose chest is hidden by a coat, a cape or a hologram: no emblem
-NO_EMBLEM = {28}
+NO_EMBLEM = {28, 37, 38, 39, 40}
+# characters with a cape or a long coat over the back: no spine ridge
+NO_RIDGE = {37, 40}
 
 
 def _x(p, dx):
@@ -100,7 +105,8 @@ def apply(i, B, kit):
     arm, leg = cuffs(B)
     kit.pair("lowerarm", arm)
     kit.pair("calf", leg)
-    kit.add("spine_05", spine_ridge(B))
+    if i not in NO_RIDGE:
+        kit.add("spine_05", spine_ridge(B))
     kit.pair("thigh", thigh_strap(B))
     if i not in NO_EMBLEM:
         kit.add("spine_05", emblem(B, kind))

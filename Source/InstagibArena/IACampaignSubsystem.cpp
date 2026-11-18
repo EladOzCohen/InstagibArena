@@ -35,7 +35,7 @@ namespace
 		return Out;
 	}
 
-	/** Takes Count looks: first the preferred ones, then every other look, skipping the excluded ones. */
+	/** Takes Count looks: first the preferred ones (any look), then the default looks (no reward characters), skipping the excluded ones. */
 	TArray<int32> PickLooks(const TArray<int32>& Preferred, const TSet<int32>& Excluded, int32 Count)
 	{
 		TArray<int32> Out;
@@ -49,7 +49,7 @@ namespace
 			}
 		};
 		for (int32 Look : Preferred) { Take(Look); }
-		for (int32 Look = 0; Look < IACharacters::LookCount; ++Look) { Take(Look); }
+		for (int32 Look = 0; Look < IACharacters::PlayableByDefault; ++Look) { Take(Look); }
 		return Out;
 	}
 }

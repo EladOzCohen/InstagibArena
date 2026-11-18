@@ -397,8 +397,9 @@ void AIAGameMode::SpawnBots()
 		}
 	}
 
+	// Random bots only use the characters everybody has (the reward characters come only from scripted rosters).
 	TArray<int32> Roster;
-	for (int32 I = 0; I < IACharacters::LookCount; ++I)
+	for (int32 I = 0; I < IACharacters::PlayableByDefault; ++I)
 	{
 		if (!TakenByHumans.Contains(I))
 		{
@@ -1150,7 +1151,7 @@ void AIAGameMode::StartWave(int32 Wave)
 	TArray<int32> Looks = SurvivalEnemyLooks;
 	if (Looks.IsEmpty())
 	{
-		for (int32 I = 0; I < IACharacters::LookCount; ++I) { Looks.Add(I); }
+		for (int32 I = 0; I < IACharacters::PlayableByDefault; ++I) { Looks.Add(I); }
 		Algo::RandomShuffle(Looks);
 	}
 	for (int32 I = 0; I < Count; ++I)

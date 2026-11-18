@@ -304,7 +304,7 @@ for i in range(len(gr.LOOKS)):
         continue
     B = gb.body(look["quinn"])
     pieces = []
-    name = look["name"].replace("-", "")
+    name = look["name"].replace("-", "").replace(" ", "")
     for bone in sorted(kit.parts):
         g = kit.parts[bone]
         pieces.append((bone, "/Game/Characters/Gear/SM_%s_%s" % (name, bone)))
