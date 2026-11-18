@@ -8,6 +8,7 @@
 #include "IAMapList.h"
 #include "IAMapPreview.h"
 #include "IAMenuStyle.h"
+#include "IAProfileSubsystem.h"
 #include "InstagibArena.h"
 #include "SIAControlsPanel.h"
 #include "SIAGunsmith.h"
@@ -801,14 +802,20 @@ TSharedRef<SWidget> SIAMainMenu::BuildMultiplayerPage()
 TSharedRef<SWidget> SIAMainMenu::BuildCharacterPage()
 {
 	TSharedRef<SUniformGridPanel> Grid = SNew(SUniformGridPanel).SlotPadding(FMargin(3.f));
+	const APlayerController* LockPC = Owner.Get();
+	UGameInstance* LockGI = LockPC ? LockPC->GetGameInstance() : nullptr;
+	const UIAProfileSubsystem* LockProfile = LockGI ? LockGI->GetSubsystem<UIAProfileSubsystem>() : nullptr;
+	int32 GridSlot = 0;
 	for (int32 Index = 0; Index < IACharacters::LookCount; ++Index)
 	{
+		if (LockProfile && !LockProfile->IsLookUnlocked(Index)) { continue; }   // characters of the campaign appear when they are earned
 		// Four per row: with five the longer names (Razorclaw, Gearhead, Brimstone) were cut off.
-		Grid->AddSlot(Index % 4, Index / 4)
+		Grid->AddSlot(GridSlot % 4, GridSlot / 4)
 		[
 			Chip(Owner, FText::FromString(IACharacters::GetLook(Index).Name), [this, Index]() { SelectCharacter(Index); },
 				[this, Index]() { return Setup.CharacterIndex == Index; }, 0.f, 14)
 		];
+		++GridSlot;
 	}
 
 	return Frame(INVTEXT("CHARACTER"),

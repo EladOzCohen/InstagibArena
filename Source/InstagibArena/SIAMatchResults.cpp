@@ -6,6 +6,7 @@
 #include "IAGameState.h"
 #include "IAMenuStyle.h"
 #include "IAPlayerState.h"
+#include "IAProfileSubsystem.h"
 #include "SIAScoreboard.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -90,6 +91,15 @@ void SIAMatchResults::Construct(const FArguments& InArgs)
 				[
 					SNew(SIAScoreboard).OwnerController(Owner)
 				]
+			]
+			// Rewards: apex points, new medals and unlocks from this match (IAProfileSubsystem::ApplyMatch).
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 14.f, 0.f, 0.f)
+			[
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return GetRewardText(); })
+				.Font(Font(18))
+				.Justification(ETextJustify::Center)
+				.ColorAndOpacity(TAttribute<FSlateColor>::CreateLambda([this]() { return FSlateColor(FLinearColor(1.f, 0.82f, 0.35f, FMath::Clamp((Age - 1.6f) / 0.5f, 0.f, 1.f))); }))
 			]
 			// Choice and countdown.
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 22.f, 0.f, 0.f)
@@ -197,4 +207,36 @@ FText SIAMatchResults::GetCountdownText() const
 		return FText::FromString(FString::Printf(TEXT("Next match in %d"), Seconds));
 	}
 	return FText::FromString(FString::Printf(TEXT("Next match in %d  (the host can start it sooner)"), Seconds));
+}
+
+FText SIAMatchResults::GetRewardText() const
+{
+	const UIAProfileSubsystem* Profile = UIAProfileSubsystem::Get(Owner.Get());
+	if (!Profile)
+	{
+		return FText::GetEmpty();
+	}
+	const FIAMatchGain& Gain = Profile->GetLastGain();
+	if (!Gain.bCounted)
+	{
+		return Gain.Note.IsEmpty() ? FText::GetEmpty() : FText::FromString(Gain.Note);
+	}
+	const TArray<IAReward::FRank>& Ranks = IAReward::Ranks();
+	FString Text = FString::Printf(TEXT("+%d apex points   (%s)"), Gain.AP, Ranks[FMath::Clamp(Gain.RankAfter, 0, Ranks.Num() - 1)].Name);
+	if (Gain.RankAfter > Gain.RankBefore)
+	{
+		Text += FString::Printf(TEXT(" | NEW RANK: %s"), Ranks[FMath::Clamp(Gain.RankAfter, 0, Ranks.Num() - 1)].Name);
+	}
+	for (const FString& Medal : Gain.NewMedals)
+	{
+		Text += TEXT(" | NEW MEDAL: ") + Medal;
+	}
+	for (const FName& Id : Gain.NewRewards)
+	{
+		if (const IAReward::FReward* R = IAReward::Find(Id))
+		{
+			Text += TEXT(" | NEW: ") + R->Name;
+		}
+	}
+	return FText::FromString(Text);
 }

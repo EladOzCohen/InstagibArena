@@ -19,7 +19,7 @@ void UIAProfileSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	// Development: -IAProfileSet=Kills:990,Wins:4 sets counters (they are saved like real ones).
 	FString Set;
-	if (FParse::Value(FCommandLine::Get(), TEXT("IAProfileSet="), Set))
+	if (FParse::Value(FCommandLine::Get(), TEXT("IAProfileSet="), Set, false))
 	{
 		TArray<FString> Pairs;
 		Set.ParseIntoArray(Pairs, TEXT(","));
@@ -62,7 +62,20 @@ void UIAProfileSubsystem::SetStatMax(FName Stat, int64 Value)
 
 bool UIAProfileSubsystem::IsUnlocked(FName RewardId) const
 {
-	return bUnlockAll || Unlocked.Contains(RewardId);
+	if (bUnlockAll || Unlocked.Contains(RewardId))
+	{
+		return true;
+	}
+	// The group ids G8, C6 and C7 mean "any chapter's" (the rewards are G8_1.. etc.).
+	const FString Id = RewardId.ToString();
+	if (Id == TEXT("G8") || Id == TEXT("C6") || Id == TEXT("C7"))
+	{
+		for (const FName& Have : Unlocked)
+		{
+			if (Have.ToString().StartsWith(Id + TEXT("_"))) { return true; }
+		}
+	}
+	return false;
 }
 
 bool UIAProfileSubsystem::Unlock(FName RewardId)

@@ -7,6 +7,7 @@
 #include "IACampaignSubsystem.h"
 #include "IACharacterRoster.h"
 #include "IAMenuStyle.h"
+#include "IAProfileSubsystem.h"
 #include "SIARulesPanel.h"
 #include "InstagibArena.h"
 #include "Framework/Application/SlateApplication.h"
@@ -189,13 +190,19 @@ TSharedRef<SWidget> SIAMainMenu::BuildCampaignNew()
 	CampaignLook = FMath::Clamp(Setup.CharacterIndex, 0, IACharacters::LookCount - 1);
 
 	TSharedRef<SUniformGridPanel> Grid = SNew(SUniformGridPanel).SlotPadding(FMargin(3.f));
+	const APlayerController* LockPC = Owner.Get();
+	UGameInstance* LockGI = LockPC ? LockPC->GetGameInstance() : nullptr;
+	const UIAProfileSubsystem* LockProfile = LockGI ? LockGI->GetSubsystem<UIAProfileSubsystem>() : nullptr;
+	int32 GridSlot = 0;
 	for (int32 Index = 0; Index < IACharacters::LookCount; ++Index)
 	{
-		Grid->AddSlot(Index % 4, Index / 4)
+		if (LockProfile && !LockProfile->IsLookUnlocked(Index)) { continue; }
+		Grid->AddSlot(GridSlot % 4, GridSlot / 4)
 		[
 			Chip(Owner, FText::FromString(IACharacters::GetLook(Index).Name), [this, Index]() { CampaignLook = Index; SelectCharacter(Index); },
 				[this, Index]() { return CampaignLook == Index; }, 0.f, 14)
 		];
+		++GridSlot;
 	}
 
 	TSharedRef<SWidget> Body = SNew(SVerticalBox)
