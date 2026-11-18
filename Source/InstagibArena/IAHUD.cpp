@@ -551,7 +551,8 @@ void AIAHUD::DrawTopBar(const AIAGameState& GS, float Now)
 	FString Caption = GS.IsSurvival() ? TEXT("SURVIVAL") : (GS.IsCTF() ? TEXT("CAPTURE THE FLAG") : (GS.IsTeamGame() ? TEXT("TEAM DEATHMATCH") : TEXT("FREE FOR ALL")));
 	if (GS.IsSurvival())
 	{
-		Caption += FString::Printf(TEXT("   -   WAVE %d OF %d"), FMath::Max(GS.Wave, 1), GS.ScoreLimit);
+		Caption += GS.ScoreLimit > 0 ? FString::Printf(TEXT("   -   WAVE %d OF %d"), FMath::Max(GS.Wave, 1), GS.ScoreLimit)
+			: FString::Printf(TEXT("   -   ENDLESS   -   WAVE %d"), FMath::Max(GS.Wave, 1));
 	}
 	else if (GS.ScoreLimit > 0)
 	{
@@ -1252,7 +1253,7 @@ void AIAHUD::UpdateScoreboardWidget(const AIAGameState& GS)
 						const AIAGameState* State = WeakState.Get();
 						if (!State) { return FText::GetEmpty(); }
 						FString Line = State->IsSurvival() ? TEXT("SURVIVAL") : (State->IsCTF() ? TEXT("CAPTURE THE FLAG") : (State->IsTeamGame() ? TEXT("TEAM DEATHMATCH") : TEXT("FREE FOR ALL")));
-						if (State->IsSurvival()) { Line += FString::Printf(TEXT("   -   %d waves"), State->ScoreLimit); }
+						if (State->IsSurvival()) { Line += State->ScoreLimit > 0 ? FString::Printf(TEXT("   -   %d waves"), State->ScoreLimit) : FString::Printf(TEXT("   -   endless, wave %d"), FMath::Max(State->Wave, 1)); }
 						else if (State->ScoreLimit > 0) { Line += State->IsCTF() ? FString::Printf(TEXT("   -   first to %d captures"), State->ScoreLimit) : FString::Printf(TEXT("   -   first to %d"), State->ScoreLimit); }
 						if (State->TimeLimitSeconds > 0) { Line += FString::Printf(TEXT("   -   %s left"), *HudClockText(State->ClockSeconds)); }
 						return FText::FromString(Line);
@@ -1314,6 +1315,28 @@ void AIAHUD::DrawHUD()
 	const bool bDeadView = PC && PC->GetDeathInfo().bActive;
 	const float CX = Canvas->ClipX * 0.5f;
 	const float CY = Canvas->ClipY * 0.5f;
+
+	// Hardcore mutator (R3): a tiny crosshair, the scoreboard on Tab, the countdown and the death panel. Nothing else.
+	if (GS->HasMutator(EIAMutator::Hardcore))
+	{
+		if (!bDeadView)
+		{
+			const float Half = FMath::Max(1.f, 1.3f * S);
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), CX - Half - 1.f, CY - Half - 1.f, 2.f * Half + 2.f, 2.f * Half + 2.f);
+			DrawRect(IASettings::GetCrosshairColor(), CX - Half, CY - Half, 2.f * Half, 2.f * Half);
+			if (GS->IsCTF())
+			{
+				DrawFlagPrompt(*GS, Now);
+			}
+		}
+		if (GS->IsSurvival())
+		{
+			DrawMessages(Now);   // "WAVE 7" and "WAVE CLEARED" are the only way to know where the run stands
+		}
+		DrawCountdown(*GS, Now);
+		DrawDeath(Now);
+		return;
+	}
 
 	if (!bDeadView)
 	{

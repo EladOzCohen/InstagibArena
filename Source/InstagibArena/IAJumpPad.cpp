@@ -2,6 +2,7 @@
 
 #include "IAJumpPad.h"
 #include "IAAudioSubsystem.h"
+#include "IAGameState.h"
 #include "InstagibArena.h"
 #include "EngineUtils.h"
 #include "TimerManager.h"
@@ -221,7 +222,10 @@ void AIAJumpPad::OnPadOverlap(UPrimitiveComponent* OverlappedComponent, AActor* 
 	const bool bLaunch = HasAuthority() || Character->IsLocallyControlled();
 	if (bLaunch)
 	{
-		Character->LaunchCharacter(LaunchVelocity, true, true);
+		// Low Gravity: the same arc at a lower speed (velocity x sqrt(g ratio) keeps the height and the landing point).
+		const AIAGameState* GS = GetWorld()->GetGameState<AIAGameState>();
+		const float Scale = (GS && GS->HasMutator(EIAMutator::LowGravity)) ? FMath::Sqrt(IARules::LowGravityScale) : 1.f;
+		Character->LaunchCharacter(LaunchVelocity * Scale, true, true);
 	}
 #if !UE_BUILD_SHIPPING
 	if (bPadTest)

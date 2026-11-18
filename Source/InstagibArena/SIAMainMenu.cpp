@@ -11,6 +11,7 @@
 #include "InstagibArena.h"
 #include "SIAControlsPanel.h"
 #include "SIAGunsmith.h"
+#include "SIARulesPanel.h"
 #include "SIASettingsPanel.h"
 #include "SIAWelcome.h"
 #include "Framework/Application/SlateApplication.h"
@@ -631,6 +632,12 @@ TSharedRef<SWidget> SIAMainMenu::BuildSetupRows()
 					[this]() { Setup.TimeLimit = FMath::Min(30, Setup.TimeLimit + 1); },
 					190.f),
 				170.f, INVTEXT("The match ends when this time is up."))
+		]
+
+		// Rules and time of day that rewards unlock (SIARulesPanel.cpp).
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			IARulesUI::BuildCustomRows(Owner, [this]() { return Setup.MapIndex; })
 		];
 }
 
@@ -943,6 +950,7 @@ FString SIAMainMenu::BuildOptions(bool bHost) const
 	FString Options = FString::Printf(TEXT("Mode=%s?ScoreLimit=%d?TimeLimit=%d?Bots=%d?BotSkill=%d?Char=%d"),
 		Setup.GameType == 2 ? TEXT("CTF") : (Setup.GameType == 1 ? TEXT("TDM") : TEXT("FFA")),
 		Setup.GameType == 2 ? Setup.CaptureLimit : Setup.ScoreLimit, Setup.TimeLimit, Setup.BotCount, Setup.BotSkill, Setup.CharacterIndex);
+	Options += IARulesUI::UrlOptions(Owner, Setup.MapIndex);   // mutators and time of day (rewards)
 
 	const FString Name = IASettings::GetUrlSafePlayerName();
 	if (!Name.IsEmpty())

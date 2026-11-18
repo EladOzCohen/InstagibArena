@@ -51,6 +51,9 @@ public:
 
 	void SetSkill(EIABotSkill NewSkill);
 
+	/** Campaign Heat 3: when a coordinated mate sees the human, this bot goes to where he was seen. */
+	void SetCoordinated(bool bInCoordinated) { bCoordinated = bInCoordinated; }
+
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void UpdateControlRotation(float DeltaTime, bool bUpdatePawn = true) override {}
 
@@ -87,6 +90,8 @@ private:
 
 	EIABotSkill Skill = EIABotSkill::Intermediate;
 	FIABotSkillParams Params;
+	bool bCoordinated = false;
+	float NextCalloutTime = 0.f;
 
 	float ThinkAccumulator = 0.f;
 	float LogAccumulator = 0.f;

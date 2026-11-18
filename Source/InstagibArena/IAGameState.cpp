@@ -2,6 +2,7 @@
 
 #include "IAGameState.h"
 #include "IAPlayerState.h"
+#include "IAMapVariant.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
 
@@ -27,6 +28,21 @@ void AIAGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(AIAGameState, WinnerTeam);
 	DOREPLIFETIME(AIAGameState, Wave);
 	DOREPLIFETIME(AIAGameState, WaveEnemiesLeft);
+	DOREPLIFETIME(AIAGameState, Mutators);
+	DOREPLIFETIME(AIAGameState, MapVariant);
+	DOREPLIFETIME(AIAGameState, HeatLevel);
+}
+
+void AIAGameState::BeginPlay()
+{
+	Super::BeginPlay();
+	// The server set the variant before this; a client may get it here or later in OnRep_MapVariant.
+	IAMapVariant::Apply(GetWorld(), MapVariant);
+}
+
+void AIAGameState::OnRep_MapVariant()
+{
+	IAMapVariant::Apply(GetWorld(), MapVariant);
 }
 
 float AIAGameState::GetPhaseSecondsLeft() const

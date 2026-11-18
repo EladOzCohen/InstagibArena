@@ -12,6 +12,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
 
 FIABotSkillParams FIABotSkillParams::ForSkill(EIABotSkill Skill)
 {
@@ -178,6 +179,27 @@ void AIABotController::FindTarget(AIAPlayerCharacter* Me)
 		if (Target.IsValid() && (Target->IsDead() || Now - LastSeenTime > Params.MemorySeconds))
 		{
 			Target.Reset();
+		}
+
+		// Campaign Heat 3: a mate who sees the human calls it out, and the bot goes to where he was seen.
+		if (bCoordinated && !Target.IsValid() && Now >= NextCalloutTime)
+		{
+			NextCalloutTime = Now + 0.8f;
+			for (TActorIterator<AIABotController> It(GetWorld()); It; ++It)
+			{
+				const AIABotController* Mate = *It;
+				AIAPlayerCharacter* Seen = Mate->Target.Get();
+				if (Mate == this || !Mate->bCoordinated || !Mate->bTargetVisible || !Seen || Seen->IsDead()
+					|| !Cast<APlayerController>(Seen->GetController()) || !IsEnemy(Me, Seen)
+					|| FVector::Dist(Mate->LastSeenLocation, Me->GetActorLocation()) > 4500.f)
+				{
+					continue;
+				}
+				Target = Seen;
+				LastSeenLocation = Mate->LastSeenLocation;
+				LastSeenTime = Now;
+				break;
+			}
 		}
 	}
 }

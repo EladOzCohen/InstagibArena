@@ -94,6 +94,8 @@ public:
 	virtual void ProcessLanded(const FHitResult& Hit, float RemainingTime, int32 Iterations) override;
 	virtual bool DoJump(bool bReplayingMoves, float DeltaTime) override;
 	virtual float GetMaxSpeed() const override;
+	/** Low Gravity mutator (R1): the gravity of the match, the same on every machine (AIAGameState::Mutators). */
+	virtual float GetGravityZ() const override;
 
 	bool bWantsToDodge = false;
 	uint8 WantedDodgeDir = 0;

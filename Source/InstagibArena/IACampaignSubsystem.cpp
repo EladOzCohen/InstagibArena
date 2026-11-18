@@ -4,6 +4,8 @@
 #include "IACharacterRoster.h"
 #include "IAMapList.h"
 #include "IAProfileSubsystem.h"
+#include "IARuleData.h"
+#include "Engine/GameInstance.h"
 #include "InstagibArena.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
@@ -89,6 +91,11 @@ void UIACampaignSubsystem::Load()
 	NextMatch = FMath::Clamp(NextMatch, 0, IACampaign::MatchCount);
 	Difficulty = FMath::Clamp(Difficulty, 0, 2);
 	HeroLook = FMath::Clamp(HeroLook, 0, IACharacters::LookCount - 1);
+	GConfig->GetInt(Section, TEXT("HeatLevel"), HeatLevel, GGameUserSettingsIni);
+	HeatLevel = FMath::Clamp(HeatLevel, 0, IARules::MaxHeat);
+	GConfig->GetString(Section, TEXT("HeatBest"), Text, GGameUserSettingsIni);
+	HeatBest = ParseInts(Text);
+	HeatBest.SetNumZeroed(IACampaign::MatchCount);
 }
 
 void UIACampaignSubsystem::Save() const
@@ -101,6 +108,8 @@ void UIACampaignSubsystem::Save() const
 	GConfig->SetInt(Section, TEXT("Ending"), Ending, GGameUserSettingsIni);
 	GConfig->SetString(Section, TEXT("Stars"), *JoinInts(StarsPerMatch), GGameUserSettingsIni);
 	GConfig->SetString(Section, TEXT("Squad"), *JoinInts(Squad), GGameUserSettingsIni);
+	GConfig->SetInt(Section, TEXT("HeatLevel"), HeatLevel, GGameUserSettingsIni);
+	GConfig->SetString(Section, TEXT("HeatBest"), *JoinInts(HeatBest), GGameUserSettingsIni);
 	GConfig->Flush(false, GGameUserSettingsIni);
 }
 
@@ -114,6 +123,7 @@ void UIACampaignSubsystem::StartNewCampaign(const FString& InHeroName, int32 InH
 	Ending = 0;
 	StarsPerMatch.Init(0, IACampaign::MatchCount);
 	Squad.Reset();
+	HeatBest.Init(0, IACampaign::MatchCount);
 	Save();
 	NotifyProfile();
 }
@@ -125,6 +135,7 @@ void UIACampaignSubsystem::ResetCampaign()
 	Ending = 0;
 	StarsPerMatch.Init(0, IACampaign::MatchCount);
 	Squad.Reset();
+	HeatBest.Init(0, IACampaign::MatchCount);
 	Save();
 }
 
@@ -219,6 +230,7 @@ TArray<int32> UIACampaignSubsystem::BuildEnemyLooks(int32 MatchIndex) const
 		return {};
 	}
 	const FIACampaignMatch& M = Matches[MatchIndex];
+	const int32 EnemyCount = M.EnemyCount + GetHeatExtraEnemies(MatchIndex);
 	TSet<int32> Excluded;
 	Excluded.Add(HeroLook);
 	for (int32 Look : Squad) { Excluded.Add(Look); }
@@ -228,7 +240,7 @@ TArray<int32> UIACampaignSubsystem::BuildEnemyLooks(int32 MatchIndex) const
 	if (MatchIndex == IACampaign::MatchCount - 1) { Preferred.Add(IACampaign::LookSovereign); }
 	else if (M.RecruitLook >= 0 && !Excluded.Contains(M.RecruitLook)) { Preferred.Add(M.RecruitLook); }
 	Preferred.Append(IACampaign::Factions()[M.Faction].Looks);
-	return PickLooks(Preferred, Excluded, M.EnemyCount);
+	return PickLooks(Preferred, Excluded, EnemyCount);
 }
 
 FString UIACampaignSubsystem::BuildTravelOptions(int32 MatchIndex) const
@@ -241,17 +253,68 @@ FString UIACampaignSubsystem::BuildTravelOptions(int32 MatchIndex) const
 	const FIACampaignMatch& M = Matches[MatchIndex];
 
 	const TCHAR* Mode = TEXT("FFA");
-	int32 Bots = M.EnemyCount;
+	const int32 Heat = GetHeatLevel();
+	int32 Bots = M.EnemyCount + GetHeatExtraEnemies(MatchIndex);
 	switch (M.Mode)
 	{
 	case EIACampaignMode::Duel:            Mode = TEXT("FFA"); break;
 	case EIACampaignMode::FreeForAll:      Mode = TEXT("FFA"); break;
-	case EIACampaignMode::TeamDeathmatch:  Mode = TEXT("TDM"); Bots = M.EnemyCount + M.AllyCount; break;
-	case EIACampaignMode::CaptureTheFlag:  Mode = TEXT("CTF"); Bots = M.EnemyCount + M.AllyCount; break;
-	case EIACampaignMode::Survival:        Mode = TEXT("Survival"); Bots = M.EnemyCount + M.AllyCount; break;
+	case EIACampaignMode::TeamDeathmatch:  Mode = TEXT("TDM"); Bots += M.AllyCount; break;
+	case EIACampaignMode::CaptureTheFlag:  Mode = TEXT("CTF"); Bots += M.AllyCount; break;
+	case EIACampaignMode::Survival:        Mode = TEXT("Survival"); Bots += M.AllyCount; break;
 	}
-	return FString::Printf(TEXT("Mode=%s?ScoreLimit=%d?TimeLimit=%d?Bots=%d?BotSkill=%d?Char=%d?%s=%d"),
+	FString Options = FString::Printf(TEXT("Mode=%s?ScoreLimit=%d?TimeLimit=%d?Bots=%d?BotSkill=%d?Char=%d?%s=%d"),
 		Mode, M.Limit, M.TimeLimitMinutes, Bots, GetEffectiveSkill(MatchIndex), HeroLook, UrlOption, MatchIndex + 1);
+	if (Heat > 0)
+	{
+		Options += FString::Printf(TEXT("?%s=%d"), IARules::HeatUrlOption, Heat);
+	}
+	return Options;
+}
+
+// ---------------------------------------------------------------- Apex+ Heat
+
+bool UIACampaignSubsystem::IsHeatAvailable() const
+{
+	if (!bStarted)
+	{
+		return false;
+	}
+	const UGameInstance* Instance = GetGameInstance();
+	const UIAProfileSubsystem* Profile = Instance ? Instance->GetSubsystem<UIAProfileSubsystem>() : nullptr;
+	return Ending > 0 || (Profile && Profile->IsUnlocked(FName(TEXT("R5"))));
+}
+
+void UIACampaignSubsystem::SetHeatLevel(int32 Level)
+{
+	HeatLevel = FMath::Clamp(Level, 0, IARules::MaxHeat);
+	Save();
+}
+
+int32 UIACampaignSubsystem::GetBestHeat(int32 MatchIndex) const
+{
+	return HeatBest.IsValidIndex(MatchIndex) ? HeatBest[MatchIndex] : 0;
+}
+
+void UIACampaignSubsystem::RecordHeatCleared(int32 MatchIndex, int32 Heat)
+{
+	if (MatchIndex < 0 || MatchIndex >= IACampaign::MatchCount)
+	{
+		return;
+	}
+	HeatBest.SetNumZeroed(IACampaign::MatchCount);
+	HeatBest[MatchIndex] = FMath::Max(HeatBest[MatchIndex], FMath::Clamp(Heat, 0, IARules::MaxHeat));
+	Save();
+}
+
+int32 UIACampaignSubsystem::GetHeatExtraEnemies(int32 MatchIndex) const
+{
+	const TArray<FIACampaignMatch>& Matches = IACampaign::Matches();
+	if (!Matches.IsValidIndex(MatchIndex) || Matches[MatchIndex].Mode == EIACampaignMode::Duel)
+	{
+		return 0;
+	}
+	return IARules::HeatRules(GetHeatLevel()).ExtraEnemies;
 }
 
 void UIACampaignSubsystem::RecordResult(int32 MatchIndex, bool bWon, int32 Stars)
