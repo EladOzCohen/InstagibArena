@@ -24,6 +24,8 @@ public:
 		SLATE_ARGUMENT(TFunction<void()>, OnResume)
 		SLATE_ARGUMENT(TFunction<void()>, OnLeave)
 		SLATE_ARGUMENT(TFunction<void()>, OnQuit)
+		/** Photo Mode (reward A3); the button shows dimmed with the reason when it is not available. */
+		SLATE_ARGUMENT(TFunction<void()>, OnPhoto)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -40,11 +42,13 @@ public:
 private:
 	void ShowSettings(bool bShow);
 	TSharedRef<SWidget> BuildMainPage();
+	TSharedRef<SWidget> BuildPhotoButton();
 
 	TWeakObjectPtr<APlayerController> Owner;
 	TFunction<void()> OnResume;
 	TFunction<void()> OnLeave;
 	TFunction<void()> OnQuit;
+	TFunction<void()> OnPhoto;
 	bool bShowSettings = false;
 	int32 InitialSettingsTab = 0;
 

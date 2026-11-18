@@ -83,6 +83,17 @@ public:
 	/** URL option value: match number + 1, 0 when the match is not a campaign match. */
 	static constexpr const TCHAR* UrlOption = TEXT("Camp");
 
+	// ---- Apex+ Heat (reward R5, rules in IARuleData.h): offered once the campaign has an ending
+	bool IsHeatAvailable() const;
+	/** The Heat level of the next matches, 0..5 (0 while Heat is not available). Travels as URL option Heat=. */
+	int32 GetHeatLevel() const { return IsHeatAvailable() ? HeatLevel : 0; }
+	void SetHeatLevel(int32 Level);
+	/** The highest Heat level a match was won at (0 = none). */
+	int32 GetBestHeat(int32 MatchIndex) const;
+	void RecordHeatCleared(int32 MatchIndex, int32 Heat);
+	/** Heat 2+: one more enemy, except in duels. */
+	int32 GetHeatExtraEnemies(int32 MatchIndex) const;
+
 private:
 	void Load();
 	void Save() const;
@@ -95,4 +106,6 @@ private:
 	int32 Ending = 0;
 	TArray<int32> StarsPerMatch;
 	TArray<int32> Squad;
+	int32 HeatLevel = 0;
+	TArray<int32> HeatBest;
 };

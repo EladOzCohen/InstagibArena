@@ -4,6 +4,7 @@
 #include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
+#include "IAGameState.h"
 
 namespace
 {
@@ -355,4 +356,12 @@ void UIACharacterMovement::ProcessLanded(const FHitResult& Hit, float RemainingT
 		bDodgedThisAir = false;
 		CooldownRemaining = FMath::Max(CooldownRemaining, DodgeLandingLockout);
 	}
+}
+
+float UIACharacterMovement::GetGravityZ() const
+{
+	const float Gravity = Super::GetGravityZ();
+	const UWorld* World = GetWorld();
+	const AIAGameState* GS = World ? World->GetGameState<AIAGameState>() : nullptr;
+	return (GS && GS->HasMutator(EIAMutator::LowGravity)) ? Gravity * IARules::LowGravityScale : Gravity;
 }

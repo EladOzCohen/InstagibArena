@@ -63,10 +63,14 @@ public:
 	 * True while the pause menu is open or the match is over (results screen). The character ignores
 	 * firing, jumping and dodging then.
 	 */
-	bool IsMenuOpen() const { return bMenuOpen || bMatchFrozen; }
+	bool IsMenuOpen() const { return bMenuOpen || bMatchFrozen || PhotoMode.IsValid(); }
 
 	void OpenPause();
 	void ClosePause();
+
+	/** Photo Mode (reward A3, IAPhotoMode.h): closes the pause menu and starts the free camera. Esc ends it. */
+	void StartPhotoMode();
+	void EndPhotoMode();
 
 	/** Server to the dead player: who killed you, from where, and how long until you respawn. Drives the death camera and the HUD panel. */
 	UFUNCTION(Client, Reliable)
@@ -118,6 +122,7 @@ private:
 
 	TSharedPtr<class SIAPauseMenu> PauseMenu;
 	bool bMenuOpen = false;
+	TSharedPtr<class FIAPhotoMode> PhotoMode;
 
 	// ---- match flow (local controller only)
 	void OnPhaseChanged(uint8 NewPhase);

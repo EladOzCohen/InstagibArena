@@ -90,6 +90,9 @@ void AIAGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 		BotCount = FMath::Clamp(RequestedBots, 1, 12);
 	}
 
+	// Mutators, time of day and campaign Heat (IAGameModeRules.cpp).
+	ReadRewardOptions(Options);
+
 #if !UE_BUILD_SHIPPING
 	// Test helpers: shorter or longer countdown and results screen.
 	float DevValue = 0.f;
@@ -113,6 +116,9 @@ void AIAGameMode::InitGameState()
 		GS->TimeLimitSeconds = TimeLimitMinutes * 60;
 		GS->ClockSeconds = GS->TimeLimitSeconds;
 		GS->Phase = EIAMatchPhase::Warmup;
+		GS->Mutators = Mutators;
+		GS->MapVariant = MapVariant;
+		GS->HeatLevel = static_cast<uint8>(HeatLevel);
 	}
 }
 
@@ -239,7 +245,8 @@ void AIAGameMode::StartLive()
 		{
 			if (AIAPlayerController* PC = Cast<AIAPlayerController>(It->Get()))
 			{
-				PC->ClientShowMessage(FString::Printf(TEXT("MATCH %d: %s"), CampaignMatch + 1, *FString(M.Title).ToUpper()), FLinearColor(1.f, 0.78f, 0.25f), 3.f);
+				PC->ClientShowMessage(FString::Printf(TEXT("MATCH %d: %s%s"), CampaignMatch + 1, *FString(M.Title).ToUpper(),
+					HeatLevel > 0 ? *FString::Printf(TEXT("   -   HEAT %d"), HeatLevel) : TEXT("")), FLinearColor(1.f, 0.78f, 0.25f), 3.f);
 			}
 		}
 	}
@@ -262,7 +269,8 @@ void AIAGameMode::BeginSpawnProtection(APawn* Pawn)
 {
 	ACharacter* Body = Cast<ACharacter>(Pawn);
 	AIAPlayerState* State = Pawn ? Pawn->GetPlayerState<AIAPlayerState>() : nullptr;
-	if (!Body || !State || SpawnProtectSeconds <= 0.f || Protected.Contains(Pawn))
+	const float Seconds = SpawnProtectFor(Pawn);
+	if (!Body || !State || Seconds <= 0.f || Protected.Contains(Pawn))
 	{
 		return;
 	}
@@ -270,7 +278,7 @@ void AIAGameMode::BeginSpawnProtection(APawn* Pawn)
 	// The body keeps its collision (the clients predict movement with it). A shot passes through a protected
 	// player because ServerFire ignores bodies whose SpawnProtectEndTime has not passed yet.
 	Protected.Add(Pawn, FProtection());
-	State->SpawnProtectEndTime = GetWorld()->GetTimeSeconds() + SpawnProtectSeconds;
+	State->SpawnProtectEndTime = GetWorld()->GetTimeSeconds() + Seconds;
 
 	TWeakObjectPtr<APawn> WeakPawn(Pawn);
 	FTimerHandle Handle;
@@ -284,7 +292,7 @@ void AIAGameMode::BeginSpawnProtection(APawn* Pawn)
 		{
 			Protected.Remove(WeakPawn);
 		}
-	}), SpawnProtectSeconds, false);
+	}), Seconds, false);
 }
 
 void AIAGameMode::EndSpawnProtection(APawn* Pawn)
@@ -311,6 +319,7 @@ void AIAGameMode::StartNewMatch()
 	}
 
 	++MatchGeneration;
+	StopSlowFinish();
 	bFirstBloodDone = false;
 	LastFragsLeft = ScoreLimit;
 	TeamLead[0] = TeamLead[1] = 0;
@@ -456,6 +465,7 @@ void AIAGameMode::SpawnBots()
 				PS->Team = ScriptedAlly[I] ? 0 : 1;   // the human takes the red side (the first player in)
 			}
 		}
+		ApplyHeatToBot(Bot, BotSkill);   // campaign Apex+: stronger, coordinated enemies
 		// The body comes when the countdown ends (StartLive).
 	}
 }
@@ -519,7 +529,7 @@ void AIAGameMode::AssignTeam(AIAPlayerState* PlayerState)
 void AIAGameMode::TickClock()
 {
 	AIAGameState* GS = GetGameState<AIAGameState>();
-	if (!GS || GS->Phase != EIAMatchPhase::Live)
+	if (!GS || GS->Phase != EIAMatchPhase::Live || bSlowFinishPending)
 	{
 		return;
 	}
@@ -587,6 +597,10 @@ void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 			ScheduleRespawn(Victim, 1.f);
 		}
 		return;
+	}
+	if (bSlowFinishPending)
+	{
+		return;   // the match is decided, the winning kill is playing in slow motion
 	}
 
 	AIAPlayerState* VictimState = Victim->GetPlayerState<AIAPlayerState>();
@@ -659,6 +673,8 @@ void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 		AnnounceKillMedals(KillerState, MultiKillCount);
 	}
 
+	// A match that ends here ends with a kill (Slow Finish).
+	TGuardValue<bool> KillContext(bKillContext, bRealKill);
 	if (GameType == EIAGameType::Survival)
 	{
 		// No respawns during a wave: the squad is revived when the wave is cleared.
@@ -668,11 +684,11 @@ void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 
 	CheckScoreLimit();
 
-	if (GS->Phase == EIAMatchPhase::Live)
+	if (GS->Phase == EIAMatchPhase::Live && !bSlowFinishPending)
 	{
 		UpdateLeadStates();
 		CheckFragsLeft();
-		ScheduleRespawn(Victim, RespawnDelay);
+		ScheduleRespawn(Victim, RespawnDelayFor(Victim));
 	}
 }
 
@@ -890,6 +906,11 @@ void AIAGameMode::FinishMatch(const FString& WinnerText, int32 WinnerPlayerId, u
 	{
 		return;
 	}
+	if (BeginSlowFinish(WinnerText, WinnerPlayerId, WinnerTeam))
+	{
+		return;   // EndSlowFinish calls this again
+	}
+	StopSlowFinish();
 
 	GS->WinnerText = WinnerText;
 	GS->WinnerPlayerId = WinnerPlayerId;
@@ -979,6 +1000,10 @@ void AIAGameMode::ReportCampaignResult(int32 WinnerPlayerId, uint8 WinnerTeam)
 	}
 	UE_LOG(LogInstagib, Log, TEXT("Campaign: match %d %s (%d : %d), %d stars"), CampaignMatch + 1, bWon ? TEXT("won") : TEXT("lost"), Mine, Theirs, Stars);
 	Camp->RecordResult(CampaignMatch, bWon, Stars);
+	if (bWon)
+	{
+		RecordHeatCleared();   // Apex+ Heat >= 1 only
+	}
 }
 
 // ---------------------------------------------------------------- survival
@@ -1032,7 +1057,7 @@ void AIAGameMode::SpawnWaveBot(int32 Slot, int32 Look)
 	{
 		return;
 	}
-	Bot->SetSkill(static_cast<EIABotSkill>(BotSkill));
+	Bot->SetSkill(static_cast<EIABotSkill>(WaveBotSkill()));
 	if (AIAPlayerState* PS = Bot->GetPlayerState<AIAPlayerState>())
 	{
 		PS->SetPlayerName(IACharacters::GetLook(Look).Name);
@@ -1041,6 +1066,7 @@ void AIAGameMode::SpawnWaveBot(int32 Slot, int32 Look)
 		PS->CharacterIndex = Look;
 		PS->Team = 1;
 	}
+	ApplyHeatToBot(Bot, WaveBotSkill());
 	RestartPlayer(Bot);
 	BeginSpawnProtection(Bot->GetPawn());
 }
@@ -1097,7 +1123,8 @@ void AIAGameMode::StartWave(int32 Wave)
 	{
 		if (AIAPlayerController* PC = Cast<AIAPlayerController>(It->Get()))
 		{
-			PC->ClientShowMessage(FString::Printf(TEXT("WAVE %d OF %d"), Wave, FMath::Max(ScoreLimit, Wave)), FLinearColor(1.f, 0.55f, 0.1f), 2.5f);
+			PC->ClientShowMessage(ScoreLimit > 0 ? FString::Printf(TEXT("WAVE %d OF %d"), Wave, FMath::Max(ScoreLimit, Wave)) : FString::Printf(TEXT("WAVE %d"), Wave),
+				FLinearColor(1.f, 0.55f, 0.1f), 2.5f);
 		}
 	}
 }
@@ -1131,7 +1158,8 @@ void AIAGameMode::CheckWaveState(AController* JustDied)
 	++GS->RedScore;
 	GS->WaveEnemiesLeft = 0;
 	UE_LOG(LogInstagib, Log, TEXT("Survival: wave %d cleared (%d of %d)"), WaveNumber, GS->RedScore, ScoreLimit);
-	if (WaveNumber >= ScoreLimit)
+	RecordSurvivalWave(GS->RedScore);   // Endless Survival: personal best
+	if (ScoreLimit > 0 && WaveNumber >= ScoreLimit)   // 0 = endless
 	{
 		FinishMatch(TEXT("Every wave survived!"), -1, 0);
 		return;
@@ -1148,7 +1176,7 @@ void AIAGameMode::CheckWaveState(AController* JustDied)
 	GetWorldTimerManager().SetTimer(WaveTimer, FTimerDelegate::CreateLambda([this, Next, Generation]()
 	{
 		if (Generation == MatchGeneration) { StartWave(Next); }
-	}), 4.f, false);
+	}), IARules::HeatRules(HeatLevel).EnemyRespawnScale < 1.f ? 2.f : 4.f, false);   // Heat 4: the next wave comes sooner
 }
 
 // ---------------------------------------------------------------- smart spawning

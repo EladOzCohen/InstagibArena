@@ -2,6 +2,7 @@
 
 #include "SIAPauseMenu.h"
 #include "IAMenuStyle.h"
+#include "IAPhotoMode.h"
 #include "IASettings.h"
 #include "InstagibArena.h"
 #include "SIASettingsPanel.h"
@@ -24,6 +25,7 @@ void SIAPauseMenu::Construct(const FArguments& InArgs)
 	OnResume = InArgs._OnResume;
 	OnLeave = InArgs._OnLeave;
 	OnQuit = InArgs._OnQuit;
+	OnPhoto = InArgs._OnPhoto;
 	Modal = MakeShared<FIAModal>(Owner);
 
 
@@ -58,6 +60,10 @@ TSharedRef<SWidget> SIAPauseMenu::BuildMainPage()
 			]
 			+ SVerticalBox::Slot().AutoHeight()
 			[
+				BuildPhotoButton()
+			]
+			+ SVerticalBox::Slot().AutoHeight()
+			[
 				NavButton(Owner, INVTEXT("LEAVE MATCH"), INVTEXT("Go back to the main menu"), [Leave]() { if (Leave) { Leave(); } }, 400.f)
 			]
 			+ SVerticalBox::Slot().AutoHeight()
@@ -69,6 +75,21 @@ TSharedRef<SWidget> SIAPauseMenu::BuildMainPage()
 							{ { INVTEXT("QUIT"), [Quit]() { if (Quit) { Quit(); } }, false }, { INVTEXT("STAY"), nullptr, true } });
 					}, 400.f)
 			]
+		];
+}
+
+TSharedRef<SWidget> SIAPauseMenu::BuildPhotoButton()
+{
+	// Photo Mode (reward A3): dimmed with the reason while it cannot be used.
+	FText Reason;
+	const bool bOpen = FIAPhotoMode::CanStart(Owner.Get(), &Reason);
+	return SNew(SBorder)
+		.BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
+		.Padding(0.f)
+		.IsEnabled(bOpen)
+		.ColorAndOpacity(bOpen ? FLinearColor::White : FLinearColor(1.f, 1.f, 1.f, 0.4f))
+		[
+			NavButton(Owner, INVTEXT("PHOTO MODE"), Reason, [this, bOpen]() { if (bOpen && OnPhoto) { OnPhoto(); } }, 400.f)
 		];
 }
 
@@ -217,6 +238,7 @@ void SIAPauseMenu::DevCommand(const FString& Command)
 	if (Name == TEXT("key")) { SimulateKey(FKey(*Value)); }
 	else if (Name == TEXT("settings")) { InitialSettingsTab = FCString::Atoi(*Value); ShowSettings(true); }
 	else if (Name == TEXT("modal-cancel")) { Modal->Cancel(); }
+	else if (Name == TEXT("photo")) { if (OnPhoto) { OnPhoto(); } }
 	else if (const TSharedPtr<SIASettingsPanel> Pinned = SettingsPanel.Pin())
 	{
 		Pinned->DevCommand(Command);

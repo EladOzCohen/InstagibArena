@@ -2,6 +2,7 @@
 
 #include "IAPlayerController.h"
 #include "IAMapList.h"
+#include "IAPhotoMode.h"
 #include "IAAudioSubsystem.h"
 #include "IAHUD.h"
 #include "IAInputConfig.h"
@@ -139,6 +140,7 @@ void AIAPlayerController::BeginPlay()
 
 void AIAPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	PhotoMode.Reset();
 	ClosePause();
 	HideResults();
 	EndDeathCamera();
@@ -147,6 +149,10 @@ void AIAPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AIAPlayerController::TogglePause()
 {
+	if (PhotoMode.IsValid())
+	{
+		return;   // photo mode handles Esc itself
+	}
 	if (bMenuOpen)
 	{
 		ClosePause();
@@ -169,6 +175,7 @@ void AIAPlayerController::OpenPause()
 		.OwnerController(this)
 		.OnResume([this]() { ClosePause(); })
 		.OnLeave([this]() { ReturnToMenu(); })
+		.OnPhoto([this]() { StartPhotoMode(); })
 		.OnQuit([this]() { UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false); });
 	Viewport->AddViewportWidgetContent(PauseMenu.ToSharedRef(), 20);
 
@@ -206,8 +213,32 @@ void AIAPlayerController::ClosePause()
 	ApplyInputMode();
 }
 
+void AIAPlayerController::StartPhotoMode()
+{
+	if (PhotoMode.IsValid() || !IsLocalController() || !FIAPhotoMode::CanStart(this))
+	{
+		return;
+	}
+	ClosePause();
+	bShouldPerformFullTickWhenPaused = true;   // input, PlayerTick and the camera keep working in the paused world
+	PhotoMode = MakeShared<FIAPhotoMode>(this);
+}
+
+void AIAPlayerController::EndPhotoMode()
+{
+	if (!PhotoMode.IsValid())
+	{
+		return;
+	}
+	PhotoMode.Reset();   // the destructor puts camera, HUD and pause back
+	bShouldPerformFullTickWhenPaused = false;
+	ApplyInputMode();
+	OpenPause();         // back where photo mode was opened from
+}
+
 void AIAPlayerController::ReturnToMenu()
 {
+	PhotoMode.Reset();
 	ClosePause();
 	HideResults();
 	ClientTravel(IAMaps::MenuPath, TRAVEL_Absolute);
@@ -310,6 +341,15 @@ void AIAPlayerController::PlayerTick(float DeltaTime)
 
 	if (!IsLocalController())
 	{
+		return;
+	}
+
+	if (PhotoMode.IsValid())
+	{
+		if (!PhotoMode->Tick())
+		{
+			EndPhotoMode();
+		}
 		return;
 	}
 

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameState.h"
+#include "IARuleData.h"
 #include "IAGameState.generated.h"
 
 UENUM(BlueprintType)
@@ -140,6 +141,26 @@ public:
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
 	int32 WaveEnemiesLeft = 0;
+
+	// ---- game options unlocked by rewards (IARuleData.h). Set by the game mode before the match, the same on every machine.
+	/** Custom game mutators, EIAMutator bits. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Rules")
+	uint8 Mutators = 0;
+
+	/** Time of day of the map: 0 day (as built), 1 dusk, 2 night. Every machine relights the map (IAMapVariant). */
+	UPROPERTY(ReplicatedUsing = OnRep_MapVariant, BlueprintReadOnly, Category = "Rules")
+	uint8 MapVariant = 0;
+
+	/** Campaign Apex+ Heat level 0..5. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Rules")
+	uint8 HeatLevel = 0;
+
+	bool HasMutator(EIAMutator Flag) const { return IARules::Has(Mutators, Flag); }
+
+	UFUNCTION()
+	void OnRep_MapVariant();
+
+	virtual void BeginPlay() override;
 
 	/** False during the countdown and the results screen. */
 	bool IsFiringAllowed() const { return Phase == EIAMatchPhase::Live; }

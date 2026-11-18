@@ -7,6 +7,7 @@
 #include "IACampaignSubsystem.h"
 #include "IACharacterRoster.h"
 #include "IAMenuStyle.h"
+#include "SIARulesPanel.h"
 #include "InstagibArena.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
@@ -141,6 +142,7 @@ TSharedRef<SWidget> SIAMainMenu::BuildCampaignHome()
 		[
 			Paragraph(FText::Format(INVTEXT("Squad: {0}"), SquadNames.IsEmpty() ? INVTEXT("none yet") : FText::FromString(SquadNames)), 16, TextDim)
 		];
+		Body->AddSlot().AutoHeight() [ IARulesUI::BuildHeatSelector(Owner) ];   // Apex+ (reward R5)
 	}
 
 	TSharedRef<SHorizontalBox> Footer = SNew(SHorizontalBox)
@@ -370,7 +372,7 @@ TSharedRef<SWidget> SIAMainMenu::BuildCampaignLadder()
 	Body->AddSlot().AutoHeight()
 	[
 		Paragraph(FText::Format(INVTEXT("{0} on {1}.  Opponents: {2} ({3}), skill: {4}."), ModeName(Sel.Mode), FText::FromString(UIACampaignSubsystem::ResolveMapName(Sel.Map)),
-			FText::FromString(Faction.Name), Sel.EnemyCount, IABots::SkillName(Skill)), 15, TextDim)
+			FText::FromString(Faction.Name), Sel.EnemyCount + Camp->GetHeatExtraEnemies(CampaignSelected), IABots::SkillName(Skill)), 15, TextDim)
 	];
 	if (Sel.AllyCount > 0)
 	{
@@ -387,6 +389,7 @@ TSharedRef<SWidget> SIAMainMenu::BuildCampaignLadder()
 	[
 		Paragraph(FText::Format(INVTEXT("Stars: a win, a clear win, and:  {0}"), FText::FromString(Sel.Bonus.ToText())), 15, FLinearColor(1.f, 0.82f, 0.35f))
 	];
+	Body->AddSlot().AutoHeight().Padding(0.f, 0.f, 0.f, 6.f) [ IARulesUI::BuildHeatBriefing(Owner, CampaignSelected) ];
 	if (Sel.RecruitLook >= 0 && !Camp->IsRecruited(Sel.RecruitLook))
 	{
 		Body->AddSlot().AutoHeight()

@@ -3,6 +3,7 @@
 #include "IAAnimInstance.h"
 #include "IAPlayerCharacter.h"
 #include "IACharacterMovement.h"
+#include "IAGameState.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimSequence.h"
@@ -63,6 +64,7 @@ struct FIAAnimProxy : public FAnimInstanceProxy
 	float AimPitch = 0.f;
 	bool bLandEvent = false;
 	float LandImpact = 0.f;
+	float HeadScale = 1.f;   // Big Heads mutator (R6): looks only, the hit capsule does not change
 
 	// ---- state kept between frames
 	float Speed = 0.f;
@@ -97,6 +99,9 @@ struct FIAAnimProxy : public FAnimInstanceProxy
 		bGrounded = !(Move && Move->IsFalling()); // a pawn without movement (none) counts as standing
 		bCrouched = Pawn->bIsCrouched;
 		AimPitch = FRotator::NormalizeAxis(Pawn->GetAimPitchForAnimation());
+		const UWorld* World = Pawn->GetWorld();
+		const AIAGameState* GS = World ? World->GetGameState<AIAGameState>() : nullptr;
+		HeadScale = (GS && GS->HasMutator(EIAMutator::BigHeads)) ? IARules::BigHeadScale : 1.f;
 
 		// A landing is a fall that ends on the ground.
 		if (bGrounded && !bPrevGrounded && PrevVelZ < -300.f)
@@ -294,6 +299,21 @@ struct FIAAnimProxy : public FAnimInstanceProxy
 			}
 		}
 		Output.Pose.NormalizeRotations();
+
+		// Big Heads: the head bone (and everything worn on it) grows.
+		if (HeadScale != 1.f)
+		{
+			const FBoneContainer& Bones = Output.Pose.GetBoneContainer();
+			const int32 MeshIndex = Bones.GetPoseBoneIndexForBoneName(TEXT("head"));
+			if (MeshIndex != INDEX_NONE)
+			{
+				const FCompactPoseBoneIndex Head = Bones.MakeCompactPoseIndex(FMeshPoseBoneIndex(MeshIndex));
+				if (Head != INDEX_NONE)
+				{
+					Output.Pose[Head].SetScale3D(FVector(HeadScale));
+				}
+			}
+		}
 		return true;
 	}
 };

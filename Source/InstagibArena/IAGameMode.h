@@ -167,6 +167,37 @@ protected:
 	void ReportCampaignResult(int32 WinnerPlayerId, uint8 WinnerTeam);
 	int32 CampaignMatch = -1;
 
+	// ---- game options unlocked by rewards (IAGameModeRules.cpp, IARuleData.h): mutators, time of day, campaign Heat
+	void ReadRewardOptions(const FString& Options);
+	bool HasMutator(EIAMutator Flag) const { return IARules::Has(Mutators, Flag); }
+	/** Seconds of spawn protection for this body (Heat 2: shorter for the human). */
+	float SpawnProtectFor(const APawn* Pawn) const;
+	/** Respawn delay of this controller (Heat 4: enemies come back faster). */
+	float RespawnDelayFor(const AController* Victim) const;
+	/** Campaign Heat: an enemy of the human (FFA: every bot, team games: team 1). */
+	bool IsHeatEnemy(const AController* C) const;
+	/** Heat: skill bonus and coordination of an enemy bot. BaseSkill is the skill it would have without Heat. */
+	void ApplyHeatToBot(class AIABotController* Bot, int32 BaseSkill) const;
+	/** Survival: skill of a wave bot (Endless Survival gets harder every five waves). */
+	int32 WaveBotSkill() const;
+	/** Endless Survival: the personal best wave (UIAProfileSubsystem stat BestWave). */
+	void RecordSurvivalWave(int32 WavesCleared) const;
+	/** Campaign Heat >= 1 won: the "Heat cleared" record. */
+	void RecordHeatCleared() const;
+	/** Slow Finish: true when the winning kill starts the slow motion (FinishMatch is called again after it). */
+	bool BeginSlowFinish(const FString& WinnerText, int32 WinnerPlayerId, uint8 WinnerTeam);
+	void StopSlowFinish();
+	void EndSlowFinish();
+	uint8 Mutators = 0;
+	uint8 MapVariant = 0;
+	int32 HeatLevel = 0;
+	bool bKillContext = false;          // inside OnPlayerKilled: a match that ends now ends with a kill
+	bool bSlowFinishPending = false;
+	FString PendingWinnerText;
+	int32 PendingWinnerId = -1;
+	uint8 PendingWinnerTeam = 255;
+	FTimerHandle SlowFinishTimer;
+
 	EIAGameType GameType = EIAGameType::FreeForAll;
 	int32 ScoreLimit = 25;
 	int32 TimeLimitMinutes = 0;
