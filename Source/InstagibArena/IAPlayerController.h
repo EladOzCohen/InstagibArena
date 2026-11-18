@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "IACosmetics.h"
 #include "IAPlayerController.generated.h"
 
 class UInputAction;
@@ -97,6 +98,10 @@ public:
 	/** True from the end of the match until the next one begins. */
 	bool IsMatchFrozen() const { return bMatchFrozen; }
 
+	/** The cosmetic loadout of this player (from the profile on the player's machine) for the server, which replicates it in the player state. */
+	UFUNCTION(Server, Reliable)
+	void ServerSetLoadout(const FIACosmeticLoadout& NewLoadout);
+
 	virtual void PlayerTick(float DeltaTime) override;
 	virtual bool IsMoveInputIgnored() const override { return Super::IsMoveInputIgnored() || bMatchFrozen; }
 	virtual bool IsLookInputIgnored() const override { return Super::IsLookInputIgnored() || bMatchFrozen; }
@@ -132,6 +137,10 @@ private:
 	TSharedPtr<class SIAMatchResults> ResultsScreen;
 	bool bMatchFrozen = false;
 	uint8 LastPhase = 255;
+
+	/** Sends the profile's loadout once the player state exists (local controller only). */
+	void SendLoadout();
+	bool bLoadoutSent = false;
 
 	FDeathInfo Death;
 	FRotator DeathStartView = FRotator::ZeroRotator;

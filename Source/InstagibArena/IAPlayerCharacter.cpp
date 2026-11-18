@@ -8,7 +8,11 @@
 #include "IAAudioSubsystem.h"
 #include "IACharacterRoster.h"
 #include "IACharacterGear.h"
+#include "IACharacterVariants.h"
+#include "IALoadoutRules.h"
+#include "IARifleLook.h"
 #include "IABeam.h"
+#include "TimerManager.h"
 #include "IASettings.h"
 #include "IAImpactEffect.h"
 #include "IAAnimInstance.h"
@@ -85,6 +89,7 @@ void AIAPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(AIAPlayerCharacter, bDead);
 	DOREPLIFETIME(AIAPlayerCharacter, DeathShotDir);
 	DOREPLIFETIME(AIAPlayerCharacter, DeathHitLocation);
+	DOREPLIFETIME(AIAPlayerCharacter, DeathEffect);
 }
 
 void AIAPlayerCharacter::BeginPlay()
@@ -95,6 +100,114 @@ void AIAPlayerCharacter::BeginPlay()
 	{
 		Audio->PlayAt(EIASound::Spawn, GetActorLocation(), 0.6f);
 	}
+
+#if !UE_BUILD_SHIPPING
+	// Development: -IAKillFx=Style,Seconds plays that kill effect on the screenshot dummies (showroom) after the given time,
+	// "-IAKillFx=all,Seconds" gives each dummy an effect from its look (1..5, or 1..6 shifted by -IAKillFxOffset=N).
+	FString KillFx;
+	if (FParse::Value(FCommandLine::Get(), TEXT("IAKillFx="), KillFx, /*bShouldStopOnSeparator*/ false))
+	{
+		FString StyleText, SecondsText;
+		if (KillFx.Split(TEXT(","), &StyleText, &SecondsText))
+		{
+			const float Seconds = FMath::Max(0.1f, FCString::Atof(*SecondsText));
+			FTimerHandle Handle;
+			GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this, StyleText]()
+			{
+				if (ForcedLook < 0 || GetPlayerState())
+				{
+					return;
+				}
+				int32 Style = FCString::Atoi(*StyleText);
+				if (StyleText == TEXT("all"))
+				{
+					// The dummies stand in a row (IADevSubsystem showroom): give each its own effect, 1..5, from its look.
+					Style = 1 + FMath::Abs(ForcedLook) % 5;
+					FString Offset;
+					if (FParse::Value(FCommandLine::Get(), TEXT("IAKillFxOffset="), Offset))
+					{
+						Style = 1 + (FMath::Abs(ForcedLook) + FCString::Atoi(*Offset)) % 6;
+					}
+				}
+				DevPlayDeath(static_cast<uint8>(FMath::Clamp(Style, 0, 6)));
+			}), Seconds, false);
+		}
+	}
+#endif
+}
+
+void AIAPlayerCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	// Bots get a random cheap look the first time they spawn (or the development override -IABotLoadout=...).
+	AIAPlayerState* PS = GetPlayerState<AIAPlayerState>();
+	if (HasAuthority() && PS && PS->bIsBotPlayer && !PS->bHasLoadout)
+	{
+		FIACosmeticLoadout BotLoadout = IALoadout::MakeBotLoadout(PS->SlotId * 31 + PS->CharacterIndex);
+		IALoadout::GetDevOverride(TEXT("IABotLoadout"), BotLoadout);
+		PS->SetLoadout(BotLoadout);
+	}
+}
+
+void AIAPlayerCharacter::SetForcedLoadout(const FIACosmeticLoadout& Loadout)
+{
+	ForcedLoadout = Loadout;
+	bHasForcedLoadout = true;
+	++ForcedLoadoutSerial;
+}
+
+FIACosmeticLoadout AIAPlayerCharacter::GetCosmeticLoadout() const
+{
+	if (const AIAPlayerState* PS = GetPlayerState<AIAPlayerState>())
+	{
+		return PS->Loadout;
+	}
+	if (bHasForcedLoadout)
+	{
+		return ForcedLoadout;
+	}
+	FIACosmeticLoadout Dev;
+	if (ForcedLook >= 0 && IALoadout::GetDevOverride(TEXT("IALoadout"), Dev))
+	{
+		return Dev;   // development: the screenshot dummies wear -IALoadout too
+	}
+	return FIACosmeticLoadout();
+}
+
+int32 AIAPlayerCharacter::GetLoadoutSerial() const
+{
+	if (const AIAPlayerState* PS = GetPlayerState<AIAPlayerState>())
+	{
+		return PS->LoadoutSerial;
+	}
+	return bHasForcedLoadout ? ForcedLoadoutSerial : 0;
+}
+
+bool AIAPlayerCharacter::GetRifleViewPoint(FVector& OutCentre, FRotator& OutRotation) const
+{
+	if (!TPWeaponRoot)
+	{
+		return false;
+	}
+	const FTransform Rifle = TPWeaponRoot->GetComponentTransform();
+	OutCentre = Rifle.TransformPosition(FVector(24.f, 0.f, 0.f));
+	OutRotation = Rifle.Rotator();
+	return true;
+}
+
+void AIAPlayerCharacter::DevPlayDeath(uint8 KillEffect)
+{
+	if (bDead)
+	{
+		return;
+	}
+	DeathEffect = KillEffect;
+	DeathShotDir = (-GetActorForwardVector() + FVector(0.f, 0.f, 0.15f)).GetSafeNormal();
+	DeathHitLocation = GetActorLocation() + FVector(0.f, 0.f, 30.f);
+	bDead = true;
+	OnRep_Dead();
+	SetLifeSpan(5.f);
 }
 
 void AIAPlayerCharacter::Tick(float DeltaSeconds)
@@ -116,11 +229,49 @@ void AIAPlayerCharacter::UpdateDeath(float DeltaSeconds)
 	}
 	DeathAge += DeltaSeconds;
 
-	// The body lies there for a moment, then bursts into sparks of its color and is gone.
-	if (!bDeathBurstDone && DeathAge > 3.6f)
+	// Kill effects change the body while it falls (ice, ash, glitches, embers); the effect actor does the rest.
+	if (DeathEffect > 0 && GetNetMode() != NM_DedicatedServer && !bDeathBurstDone)
+	{
+		USkeletalMeshComponent* Skel = GetMesh();
+		switch (DeathEffect)
+		{
+		case 1: // Ash: the body chars in two steps before it crumbles
+			if (DeathStage == 0 && DeathAge > 0.25f) { DeathStage = 1; TintDeadBody(FLinearColor(0.09f, 0.08f, 0.075f), 0.95f, 0.f, 0.f, FLinearColor(1.f, 0.3f, 0.05f), 0.6f); }
+			if (DeathStage == 1 && DeathAge > 0.8f) { DeathStage = 2; TintDeadBody(FLinearColor(0.035f, 0.033f, 0.032f), 1.f, 0.f, 0.f, FLinearColor(1.f, 0.3f, 0.05f), 0.25f); }
+			break;
+		case 3: // Frost: ice at once, then the body stops where it is (frozen)
+			if (DeathStage == 0) { DeathStage = 1; TintDeadBody(FLinearColor(0.55f, 0.78f, 0.95f), 0.08f, 0.2f, 0.25f, FLinearColor(0.7f, 0.9f, 1.f), 0.8f); }
+			if (DeathStage == 1 && DeathAge > 0.14f && Skel && Skel->IsSimulatingPhysics())
+			{
+				DeathStage = 2;
+				Skel->SetAllPhysicsLinearVelocity(FVector::ZeroVector);
+				Skel->SetAllPhysicsAngularVelocityInRadians(FVector::ZeroVector);
+				Skel->SetEnableGravity(false);
+				Skel->PutAllRigidBodiesToSleep();
+			}
+			break;
+		case 4: // Glitch: the body flickers in and out
+			DeathFlickerTimer -= DeltaSeconds;
+			if (DeathFlickerTimer <= 0.f)
+			{
+				DeathFlickerTimer = FMath::FRandRange(0.03f, 0.09f);
+				SetBodyPartsVisible(FMath::FRand() > 0.45f);
+			}
+			break;
+		case 5: // Ember: a smouldering, charred body with glowing edges
+			if (DeathStage == 0 && DeathAge > 0.2f) { DeathStage = 1; TintDeadBody(FLinearColor(0.04f, 0.03f, 0.025f), 0.9f, 0.f, 0.f, FLinearColor(1.f, 0.32f, 0.04f), 1.6f); }
+			break;
+		default:
+			break;
+		}
+	}
+
+	// The body lies there for a moment, then bursts into sparks of its color and is gone (kill effects: their own time and burst).
+	const float VanishTime = DeathEffect > 0 ? AIAImpactEffect::GetKillVanishTime(DeathEffect) : 3.6f;
+	if (!bDeathBurstDone && DeathAge > VanishTime)
 	{
 		bDeathBurstDone = true;
-		if (GetNetMode() != NM_DedicatedServer && GetWorld())
+		if (GetNetMode() != NM_DedicatedServer && GetWorld() && DeathEffect == 0)
 		{
 			FVector Where = GetMesh() ? GetMesh()->GetBoneLocation(TEXT("pelvis")) : GetActorLocation();
 			if (AIAImpactEffect* Burst = GetWorld()->SpawnActor<AIAImpactEffect>(Where, FRotator::ZeroRotator))
@@ -134,6 +285,58 @@ void AIAPlayerCharacter::UpdateDeath(float DeltaSeconds)
 			GetMesh()->SetSimulatePhysics(false);
 			GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		}
+	}
+}
+
+void AIAPlayerCharacter::TintDeadBody(const FLinearColor& Color, float Roughness, float Metallic, float Glow, const FLinearColor& RimColor, float Rim)
+{
+	// The body (M_IACharacter: Color, Color2, Roughness, Metallic, Glow, Rim) and the gear (M_IAGear: palette roles C0..C6 with the
+	// roughness in alpha, Metal0..6). The materials are this character's own dynamic instances, so nobody else changes colour.
+	auto Paint = [&](UMaterialInterface* Material)
+	{
+		UMaterialInstanceDynamic* Dynamic = Cast<UMaterialInstanceDynamic>(Material);
+		if (!Dynamic)
+		{
+			return;
+		}
+		Dynamic->SetVectorParameterValue(TEXT("Color"), Color);
+		Dynamic->SetVectorParameterValue(TEXT("Color2"), Color * 0.6f);
+		Dynamic->SetScalarParameterValue(TEXT("Roughness"), Roughness);
+		Dynamic->SetScalarParameterValue(TEXT("Metallic"), Metallic);
+		Dynamic->SetScalarParameterValue(TEXT("Glow"), Glow);
+		Dynamic->SetScalarParameterValue(TEXT("Rim"), Rim);
+		Dynamic->SetVectorParameterValue(TEXT("RimColor"), RimColor);
+		for (int32 Role = 0; Role < 7; ++Role)
+		{
+			const float Shade = Role == 4 ? 0.6f : (Role == 1 ? 0.8f : 1.f);
+			Dynamic->SetVectorParameterValue(*FString::Printf(TEXT("C%d"), Role), FLinearColor(Color.R * Shade, Color.G * Shade, Color.B * Shade, Roughness));
+			Dynamic->SetScalarParameterValue(*FString::Printf(TEXT("Metal%d"), Role), Metallic);
+		}
+	};
+	if (USkeletalMeshComponent* Skel = GetMesh())
+	{
+		for (int32 Slot = 0; Slot < Skel->GetNumMaterials(); ++Slot)
+		{
+			Paint(Skel->GetMaterial(Slot));
+		}
+	}
+	for (UStaticMeshComponent* Part : Accessories)
+	{
+		if (Part)
+		{
+			for (int32 Slot = 0; Slot < Part->GetNumMaterials(); ++Slot)
+			{
+				Paint(Part->GetMaterial(Slot));
+			}
+		}
+	}
+}
+
+void AIAPlayerCharacter::SetBodyPartsVisible(bool bVisible)
+{
+	if (USkeletalMeshComponent* Skel = GetMesh())
+	{
+		Skel->SetVisibility(bVisible, /*bPropagateToChildren*/ true);
 	}
 }
 
@@ -570,19 +773,23 @@ void AIAPlayerCharacter::ServerFire_Implementation()
 
 void AIAPlayerCharacter::MulticastShotEffect_Implementation(FVector Start, FVector End, FVector Normal, uint8 HitType)
 {
+	// The shooter's beam colour and style (cosmetic loadout); the team colour stays in team games.
+	const FLinearColor ShotColor = GetShotColor();
+	const FIACosmeticLoadout Loadout = GetCosmeticLoadout();
+
 	// Sparks and a flash where the shot landed.
 	if (HitType != 0 && GetNetMode() != NM_DedicatedServer && GetWorld())
 	{
 		if (AIAImpactEffect* Impact = GetWorld()->SpawnActor<AIAImpactEffect>(End + Normal * 3.f, FRotator::ZeroRotator))
 		{
-			Impact->Init(Normal, GetBodyColor(), HitType == 2 ? 1.4f : 1.f, HitType == 2 ? 24 : 12);
+			Impact->Init(Normal, ShotColor, HitType == 2 ? 1.4f : 1.f, HitType == 2 ? 24 : 12);
 		}
 		// A shot that hits the level leaves a scorch mark.
 		if (HitType == 1)
 		{
 			if (UIAScorchSubsystem* Scorch = UIAScorchSubsystem::Get(this))
 			{
-				Scorch->AddMark(End + Normal * 0.5f, Normal, GetBodyColor());
+				Scorch->AddMark(End + Normal * 0.5f, Normal, ShotColor);
 			}
 		}
 	}
@@ -596,7 +803,9 @@ void AIAPlayerCharacter::MulticastShotEffect_Implementation(FVector Start, FVect
 		}
 		if (AIABeam* Beam = GetWorld()->SpawnActor<AIABeam>(GetMuzzleLocation(Start), FRotator::ZeroRotator))
 		{
-			Beam->Init(GetMuzzleLocation(Start), End, GetBodyColor());
+			const AIAPlayerState* ShooterState = GetPlayerState<AIAPlayerState>();
+			const bool bTeamColors = ShooterState && ShooterState->Team != IA_NoTeam;
+			Beam->Init(GetMuzzleLocation(Start), End, ShotColor, Loadout.BeamStyle, bTeamColors);
 		}
 	}
 
@@ -669,6 +878,16 @@ float AIAPlayerCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 		const FPointDamageEvent& Point = static_cast<const FPointDamageEvent&>(DamageEvent);
 		DeathHitLocation = Point.HitInfo.ImpactPoint;
 		DeathShotDir = Point.ShotDirection.GetSafeNormal();
+	}
+
+	// The killer's kill effect is shown on this body (not for suicides). Replicated with bDead.
+	DeathEffect = 0;
+	if (EventInstigator && EventInstigator != GetController())
+	{
+		if (const AIAPlayerState* KillerState = EventInstigator->GetPlayerState<AIAPlayerState>())
+		{
+			DeathEffect = KillerState->Loadout.KillEffect;
+		}
 	}
 
 	Die(EventInstigator);
@@ -754,12 +973,20 @@ void AIAPlayerCharacter::OnRep_Dead()
 			Audio->PlayAt(EIASound::Death, GetActorLocation(), 1.f, 0.06f);
 		}
 
-		// The character bursts into sparks of its own color.
+		// The character bursts into sparks of its own color, or the killer's kill effect takes over.
 		if (GetNetMode() != NM_DedicatedServer && GetWorld())
 		{
 			if (AIAImpactEffect* Burst = GetWorld()->SpawnActor<AIAImpactEffect>(GetActorLocation() + FVector(0.f, 0.f, 20.f), FRotator::ZeroRotator))
 			{
-				Burst->Init(FVector::UpVector, GetBodyColor(), 2.2f, 44);
+				if (DeathEffect > 0)
+				{
+					const bool bRagdoll = GetMesh() && GetMesh()->IsVisible() && GetMesh()->GetSkeletalMeshAsset();
+					Burst->InitKill(DeathEffect, GetBodyColor(), bRagdoll ? GetMesh() : nullptr);
+				}
+				else
+				{
+					Burst->Init(FVector::UpVector, GetBodyColor(), 2.2f, 44);
+				}
 			}
 		}
 	}
@@ -783,6 +1010,12 @@ FLinearColor AIAPlayerCharacter::GetBodyColor() const
 		return IACharacters::GetLook(PS->CharacterIndex).Accent;
 	}
 	return FLinearColor::White;
+}
+
+FLinearColor AIAPlayerCharacter::GetShotColor() const
+{
+	const AIAPlayerState* PS = GetPlayerState<AIAPlayerState>();
+	return IARifleLook::BeamColor(GetCosmeticLoadout(), GetBodyColor(), PS && PS->Team != IA_NoTeam);
 }
 
 void AIAPlayerCharacter::UpdateBodyColor()
@@ -833,18 +1066,23 @@ void AIAPlayerCharacter::UpdateLook()
 		Team = (uint8)ForcedTeam;
 	}
 
+	// A new cosmetic loadout (rifle, colour variant) rebuilds the look too. The dead keep theirs (the kill effect paints the body).
 	const int32 Key = Index * 1000 + Team;
-	if (Key == AppliedLookKey)
+	const int32 LoadoutSerial = GetLoadoutSerial();
+	if (Key == AppliedLookKey && (LoadoutSerial == AppliedLoadoutSerial || bDead))
 	{
 		return;
 	}
 	AppliedLookKey = Key;
+	AppliedLoadoutSerial = LoadoutSerial;
 	ApplyLook(Index, Team);
 }
 
 void AIAPlayerCharacter::ApplyLook(int32 CharacterIndex, uint8 Team)
 {
-	const FIACharacterLook& Look = IACharacters::GetLook(CharacterIndex);
+	// The colour variant of the loadout (Veteran, Elite, Obsidian) is a recoloured copy of the roster look.
+	FLinearColor VariantGlow;
+	const FIACharacterLook Look = IACharacterVariants::Apply(IACharacters::GetLook(CharacterIndex), GetCosmeticLoadout().CharacterVariant, VariantGlow);
 
 	USkeletalMesh* MeshAsset = LoadObject<USkeletalMesh>(nullptr, Look.bQuinn
 		? TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple")
@@ -878,6 +1116,7 @@ void AIAPlayerCharacter::ApplyLook(int32 CharacterIndex, uint8 Team)
 	// Colors. Roster entries past the first five reuse a look with the hue turned.
 	FLinearColor Body = Look.Body;
 	FLinearColor Accent = Look.Accent;
+	FLinearColor GlowColor = VariantGlow;   // visors, eyes, cores: the accent, or the variant's own light (Obsidian: red)
 	const int32 Variant = CharacterIndex / IACharacters::LookCount;
 	if (Variant > 0)
 	{
@@ -890,6 +1129,7 @@ void AIAPlayerCharacter::ApplyLook(int32 CharacterIndex, uint8 Team)
 		};
 		Body = Turn(Body, 50.f);
 		Accent = Turn(Accent, 80.f);
+		GlowColor = Turn(GlowColor, 80.f);
 	}
 
 	FLinearColor TeamColor = Accent;
@@ -971,7 +1211,7 @@ void AIAPlayerCharacter::ApplyLook(int32 CharacterIndex, uint8 Team)
 	const bool bMetalAccent = Look.AccentMetal > 0.f;
 	UMaterialInstanceDynamic* AccentMat = MakeMaterial(AccentPaint, bMetalAccent ? 0.35f : 0.6f, Look.AccentMetal, 0.f);
 	UMaterialInstanceDynamic* TeamMat = MakeMaterial(TeamColor, 0.55f, 0.f, Team == IA_NoTeam ? 0.f : 0.5f);
-	UMaterialInstanceDynamic* GlowMat = MakeMaterial(Accent, 0.4f, 0.f, 2.2f);   // visors, eyes, cores: small lit parts
+	UMaterialInstanceDynamic* GlowMat = MakeMaterial(GlowColor, 0.4f, 0.f, 2.2f);   // visors, eyes, cores: small lit parts
 	UMaterialInstanceDynamic* LightMat = MakeMaterial(FLinearColor(0.8f, 0.8f, 0.76f), 0.9f, 0.f, 0.f);
 	// Attached shapes are stretched boxes and cones: the cloth detail would smear into streaks, so they stay flat and matte.
 	for (UMaterialInstanceDynamic* Part : { AccentMat, TeamMat, GlowMat, LightMat })
@@ -993,7 +1233,7 @@ void AIAPlayerCharacter::ApplyLook(int32 CharacterIndex, uint8 Team)
 	const FQuat MeshToActor = FRotator(0.f, -90.f, 0.f).Quaternion(); // the mesh component's rotation inside the actor
 
 	// Modelled gear (Tools/make_gear_assets.py). The primitive accessories of the roster are the fallback when no gear mesh can be loaded.
-	const int32 GearCount = IAGear::Attach(this, Skel, MeshAsset, CharacterIndex, Look, Body, AccentPaint, Accent, TeamColor, Team != IA_NoTeam, RimStrength, Accessories);
+	const int32 GearCount = IAGear::Attach(this, Skel, MeshAsset, CharacterIndex, Look, Body, AccentPaint, GlowColor, TeamColor, Team != IA_NoTeam, RimStrength, Accessories);
 	static const TArray<FIAAccessory> NoParts;
 
 	for (const FIAAccessory& Part : (GearCount > 0 ? NoParts : Look.Parts))
@@ -1248,6 +1488,9 @@ void AIAPlayerCharacter::BuildWeapon(bool bFirstPerson, USkeletalMesh* MeshAsset
 		{
 			Comp->SetOwnerNoSee(true);
 		}
+		// The player's cosmetic loadout paints the slots (finish, livery, free colours) and adds parts. Looks only: the mesh, its size
+		// and the muzzle point (RifleMuzzle) never change.
+		const FIACosmeticLoadout Loadout = GetCosmeticLoadout();
 		for (int32 Slot = 0; Slot < RifleSlotCount; ++Slot)
 		{
 			UMaterialInterface* Source = RifleMesh->GetMaterial(Slot);
@@ -1256,16 +1499,10 @@ void AIAPlayerCharacter::BuildWeapon(bool bFirstPerson, USkeletalMesh* MeshAsset
 			{
 				continue;
 			}
-			if (Slot == SlotAccent)
+			// Painted trim in the player's colour; the core is the only light source of the rifle (Glow is animated in UpdateWeaponView).
+			IARifleLook::StyleSlot(Material, Slot, Loadout, CurrentAccent);
+			if (Slot == SlotCore)
 			{
-				// Painted trim in the player's colour.
-				Material->SetVectorParameterValue(TEXT("BodyColor"), CurrentAccent * 0.7f);
-			}
-			else if (Slot == SlotCore)
-			{
-				// The only light source of the rifle: emissive in the player's colour (Glow is animated in UpdateWeaponView).
-				Material->SetVectorParameterValue(TEXT("BodyColor"), CurrentAccent * 0.12f);
-				Material->SetVectorParameterValue(TEXT("AccentColor"), CurrentAccent);
 				if (bFirstPerson) { FPCoreMaterial = Material; } else { TPCoreMaterial = Material; }
 			}
 			Comp->SetMaterial(Slot, Material);
@@ -1274,6 +1511,10 @@ void AIAPlayerCharacter::BuildWeapon(bool bFirstPerson, USkeletalMesh* MeshAsset
 		Comp->RegisterComponent();
 		Comp->AttachToComponent(Root, FAttachmentTransformRules::KeepRelativeTransform);
 		Parts.Add(Comp);
+
+		UMaterialInterface* WeaponMaster = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Characters/Weapon/M_IAWeapon.M_IAWeapon"));
+		IARifleLook::AddParts(this, Root, bFirstPerson, Loadout, CurrentAccent, WeaponMaster, Parts);
+		FlashMat->SetVectorParameterValue(TEXT("Color"), IARifleLook::CoreColor(Loadout, CurrentAccent));
 
 		if (bFirstPerson)
 		{

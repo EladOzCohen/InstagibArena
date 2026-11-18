@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "IACharacterMovement.h"
+#include "IACosmetics.h"
 #include "IAPlayerCharacter.generated.h"
 
 class UCameraComponent;
@@ -49,6 +50,20 @@ public:
 	/** Shows a roster look without any player state. Used by the developer showroom. */
 	void SetForcedLook(int32 CharacterIndex, int32 Team = -1) { ForcedLook = CharacterIndex; ForcedTeam = Team; }
 
+	/** A cosmetic loadout for a pawn without a player state (the menu preview, the Gunsmith). The look is rebuilt when it changes. */
+	void SetForcedLoadout(const FIACosmeticLoadout& Loadout);
+
+	/** The loadout this pawn shows: the player state's, else the forced one, else the standard look. */
+	FIACosmeticLoadout GetCosmeticLoadout() const;
+
+	/** The middle of the rifle the others see (for the Gunsmith camera). False when there is no rifle yet. */
+	bool GetRifleViewPoint(FVector& OutCentre, FRotator& OutRotation) const;
+
+	/** Development: plays a death with the given kill effect on a pawn without a player state (screenshots of the kill effects). */
+	void DevPlayDeath(uint8 KillEffect);
+
+	virtual void PossessedBy(AController* NewController) override;
+
 	/** True for the pawn a human on this machine is controlling (not bots, not other players). */
 	bool IsLocalHuman() const { return IsLocallyControlled() && Cast<APlayerController>(GetController()) != nullptr; }
 
@@ -85,9 +100,18 @@ protected:
 	UPROPERTY(Replicated)
 	FVector_NetQuantize DeathHitLocation = FVector::ZeroVector;
 
+	/** The killer's kill effect (FIACosmeticLoadout::KillEffect, 0 = the standard sparks). Set on the server just before bDead. */
+	UPROPERTY(Replicated)
+	uint8 DeathEffect = 0;
+
 	float DeathAge = 0.f;
 	bool bDeathBurstDone = false;
+	int32 DeathStage = 0;           // kill effects: what has been done to the body so far
+	float DeathFlickerTimer = 0.f;
 	void UpdateDeath(float DeltaSeconds);
+	/** Kill effects: paints the dead body (all its dynamic materials) in one colour, e.g. ice or ash. */
+	void TintDeadBody(const FLinearColor& Color, float Roughness, float Metallic, float Glow, const FLinearColor& RimColor, float Rim);
+	void SetBodyPartsVisible(bool bVisible);
 
 	UFUNCTION()
 	void OnRep_Dead();
@@ -199,7 +223,14 @@ private:
 	int32 ForcedLook = -1;
 	int32 ForcedTeam = -1;   // developer showroom: shows the team colours too
 	int32 AppliedLookKey = INT32_MIN;
+	int32 AppliedLoadoutSerial = INT32_MIN;
+	FIACosmeticLoadout ForcedLoadout;
+	bool bHasForcedLoadout = false;
+	int32 ForcedLoadoutSerial = 0;
+	int32 GetLoadoutSerial() const;
 	FLinearColor GetBodyColor() const;
+	/** The colour of this player's beam and impacts: the custom beam colour in free for all, otherwise the body colour. */
+	FLinearColor GetShotColor() const;
 
 	float LastTapTime[4] = { -10.f, -10.f, -10.f, -10.f };
 	float LastFireTime = -10.f;

@@ -67,7 +67,8 @@ private:
 		Settings,
 		Credits,
 		HowToPlay,
-		Campaign
+		Campaign,
+		Gunsmith = 12   // SIAGunsmith (Character > GUNSMITH); a fixed number for -IAMenuPage=12
 	};
 
 	void GoTo(EPage NewPage);

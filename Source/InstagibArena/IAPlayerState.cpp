@@ -3,6 +3,8 @@
 #include "IAPlayerState.h"
 #include "IAGameMode.h"
 #include "IAGameState.h"
+#include "IALoadoutRules.h"
+#include "InstagibArena.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
@@ -31,6 +33,26 @@ void AIAPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AIAPlayerState, Captures);
 	DOREPLIFETIME(AIAPlayerState, Returns);
 	DOREPLIFETIME(AIAPlayerState, FlagKills);
+	DOREPLIFETIME(AIAPlayerState, Loadout);
+}
+
+void AIAPlayerState::SetLoadout(const FIACosmeticLoadout& NewLoadout)
+{
+	Loadout = NewLoadout;
+	IALoadout::Clamp(Loadout);
+	bHasLoadout = true;
+	++LoadoutSerial;
+	ForceNetUpdate();
+	UE_LOG(LogInstagib, Log, TEXT("LOADOUT %s (%s, %s): %s"), *GetPlayerName(), bIsBotPlayer ? TEXT("bot") : TEXT("human"),
+		GetNetMode() == NM_Client ? TEXT("client") : TEXT("server"), *IALoadout::Describe(Loadout));
+}
+
+void AIAPlayerState::OnRep_Loadout()
+{
+	++LoadoutSerial;
+	bHasLoadout = true;
+	UE_LOG(LogInstagib, Log, TEXT("LOADOUT %s (%s, %s): %s"), *GetPlayerName(), bIsBotPlayer ? TEXT("bot") : TEXT("human"),
+		GetNetMode() == NM_Client ? TEXT("client") : TEXT("server"), *IALoadout::Describe(Loadout));
 }
 
 void AIAPlayerState::ResetMatchStats()
