@@ -185,7 +185,8 @@ float SIAMainMenu::PageWidth() const
 	case EPage::Multiplayer: return 720.f;
 	case EPage::Settings:
 	case EPage::HowToPlay:
-	case EPage::Campaign:    return 840.f;
+	case EPage::Campaign:
+	case EPage::Hall:        return 840.f;
 	default:                 return 640.f;
 	}
 }
@@ -199,6 +200,7 @@ TSharedRef<SWidget> SIAMainMenu::BuildPage(EPage Which)
 	case EPage::Character:   return BuildCharacterPage();
 	case EPage::Settings:    return BuildSettingsPage();
 	case EPage::Campaign:    return BuildCampaignPage();
+	case EPage::Hall:        return BuildHallPage();
 	case EPage::Credits:     return BuildCreditsPage();
 	case EPage::HowToPlay:   return BuildHowToPlayPage();
 	default:                 return BuildMainPage();
@@ -229,7 +231,8 @@ void SIAMainMenu::GoTo(EPage NewPage)
 
 void SIAMainMenu::ShowPageForTest(int32 PageIndex, int32 Tab)
 {
-	Page = static_cast<EPage>(FMath::Clamp(PageIndex, 0, 7));
+	Page = static_cast<EPage>(FMath::Clamp(PageIndex, 0, 8));
+	HallView = FMath::Clamp(Tab, 0, 2);
 	MultiplayerTab = FMath::Clamp(Tab, 0, 1);
 	SettingsTab = FMath::Clamp(Tab, 0, 3);
 	CampaignView = FMath::Clamp(Tab, 0, 2);   // campaign page: 0 home, 1 new campaign, 2 the ladder
@@ -446,6 +449,10 @@ TSharedRef<SWidget> SIAMainMenu::BuildMainPage()
 			+ SVerticalBox::Slot().AutoHeight()
 			[
 				NavButton(Owner, INVTEXT("CHARACTER"), INVTEXT("Pick who you play as"), [this]() { GoTo(EPage::Character); })
+			]
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				NavButton(Owner, INVTEXT("HALL OF CHAMPIONS"), INVTEXT("Your rank, rewards and medals"), [this]() { HallView = 0; bHallResetAsked = false; GoTo(EPage::Hall); })
 			]
 			+ SVerticalBox::Slot().AutoHeight()
 			[

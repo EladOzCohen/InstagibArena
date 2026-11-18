@@ -86,6 +86,8 @@ public:
 private:
 	void Load();
 	void Save() const;
+	/** Lets the rewards (IAProfileSubsystem) look at the campaign after a change. */
+	void NotifyProfile() const;
 
 	bool bStarted = false;
 	FString HeroName;

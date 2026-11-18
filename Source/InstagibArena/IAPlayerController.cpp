@@ -3,6 +3,7 @@
 #include "IAPlayerController.h"
 #include "IAMapList.h"
 #include "IAAudioSubsystem.h"
+#include "IAProfileSubsystem.h"
 #include "IAHUD.h"
 #include "IAInputConfig.h"
 #include "InstagibArena.h"
@@ -109,6 +110,30 @@ void AIAPlayerController::SetupInputComponent()
 	if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(InputComponent))
 	{
 		Input->BindAction(MenuAction, ETriggerEvent::Started, this, &AIAPlayerController::TogglePause);
+	}
+}
+
+void AIAPlayerController::ClientRewardMatchBegin_Implementation()
+{
+	if (UIAProfileSubsystem* Profile = UIAProfileSubsystem::Get(this))
+	{
+		Profile->BeginMatch();
+	}
+}
+
+void AIAPlayerController::ClientRewardKill_Implementation(float Value, bool bSkilled, float DistanceCm, bool bAirborne)
+{
+	if (UIAProfileSubsystem* Profile = UIAProfileSubsystem::Get(this))
+	{
+		Profile->RecordKill(Value, bSkilled, DistanceCm, bAirborne);
+	}
+}
+
+void AIAPlayerController::ClientRewardMatchEnd_Implementation(const FIAMatchSummary& Summary)
+{
+	if (UIAProfileSubsystem* Profile = UIAProfileSubsystem::Get(this))
+	{
+		Profile->ApplyMatch(Summary);
 	}
 }
 

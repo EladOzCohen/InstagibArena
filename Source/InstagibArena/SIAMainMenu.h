@@ -67,7 +67,8 @@ private:
 		Settings,
 		Credits,
 		HowToPlay,
-		Campaign
+		Campaign,
+		Hall
 	};
 
 	void GoTo(EPage NewPage);
@@ -83,6 +84,13 @@ private:
 	TSharedRef<SWidget> BuildHowToPlayPage();
 
 	// ---- campaign "The Apex League" (SIAMainMenuCampaign.cpp): 0 home, 1 new campaign, 2 the ladder
+	// ---- Hall of Champions (SIAMainMenuHall.cpp): 0 overview, 1 rewards, 2 medals
+	TSharedRef<SWidget> BuildHallPage();
+	void SetHallView(int32 View);
+	int32 HallView = 0;
+	int32 HallCategory = 0;
+	bool bHallResetAsked = false;
+
 	TSharedRef<SWidget> BuildCampaignPage();
 	TSharedRef<SWidget> BuildCampaignHome();
 	TSharedRef<SWidget> BuildCampaignNew();

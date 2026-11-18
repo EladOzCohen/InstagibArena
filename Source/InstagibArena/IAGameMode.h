@@ -175,6 +175,12 @@ protected:
 
 	FTimerHandle ClockTimer;
 	FTimerHandle WarmupTimer;
+
+	/** World time when the match went live (for the rewards: a match must last two minutes to count). */
+	float LiveStartTime = 0.f;
+
+	/** Rewards: sends each human player the numbers of the finished match (see IAProfileSubsystem::ApplyMatch). */
+	void SendRewardSummaries(int32 WinnerPlayerId, uint8 WinnerTeam);
 	FTimerHandle RestartTimer;
 	bool bBotsSpawned = false;
 

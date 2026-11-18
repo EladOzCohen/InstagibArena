@@ -3,6 +3,7 @@
 #include "IACampaignSubsystem.h"
 #include "IACharacterRoster.h"
 #include "IAMapList.h"
+#include "IAProfileSubsystem.h"
 #include "InstagibArena.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
@@ -114,6 +115,7 @@ void UIACampaignSubsystem::StartNewCampaign(const FString& InHeroName, int32 InH
 	StarsPerMatch.Init(0, IACampaign::MatchCount);
 	Squad.Reset();
 	Save();
+	NotifyProfile();
 }
 
 void UIACampaignSubsystem::ResetCampaign()
@@ -152,6 +154,16 @@ void UIACampaignSubsystem::SetEnding(int32 Value)
 {
 	Ending = FMath::Clamp(Value, 0, 2);
 	Save();
+	NotifyProfile();
+}
+
+void UIACampaignSubsystem::NotifyProfile() const
+{
+	UGameInstance* Instance = GetGameInstance();
+	if (UIAProfileSubsystem* Profile = Instance ? Instance->GetSubsystem<UIAProfileSubsystem>() : nullptr)
+	{
+		Profile->OnCampaignChanged(*this);
+	}
 }
 
 FString UIACampaignSubsystem::ResolveMapName(const TCHAR* ShortName)
@@ -274,4 +286,5 @@ void UIACampaignSubsystem::RecordResult(int32 MatchIndex, bool bWon, int32 Stars
 	}
 	UE_LOG(LogInstagib, Log, TEXT("Campaign: match %d won with %d stars, next match %d"), MatchIndex + 1, Stars, NextMatch + 1);
 	Save();
+	NotifyProfile();
 }

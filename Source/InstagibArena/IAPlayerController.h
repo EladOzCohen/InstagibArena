@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "IAMatchSummary.h"
 #include "IAPlayerController.generated.h"
 
 class UInputAction;
@@ -58,6 +59,14 @@ public:
 	/** Text in the middle of this player's screen. Sent by the server, shown by the HUD. */
 	UFUNCTION(Client, Reliable)
 	void ClientShowMessage(const FString& Text, FLinearColor Color, float Duration);
+
+	/** Rewards: a match went live / a kill of this player / the match ended normally (numbers for the local profile). */
+	UFUNCTION(Client, Reliable)
+	void ClientRewardMatchBegin();
+	UFUNCTION(Client, Reliable)
+	void ClientRewardKill(float Value, bool bSkilled, float DistanceCm, bool bAirborne);
+	UFUNCTION(Client, Reliable)
+	void ClientRewardMatchEnd(const FIAMatchSummary& Summary);
 
 	/**
 	 * True while the pause menu is open or the match is over (results screen). The character ignores

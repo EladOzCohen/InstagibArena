@@ -14,6 +14,7 @@
 #include "Algo/RandomShuffle.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/GameState.h"
@@ -172,6 +173,14 @@ void AIAGameMode::StartLive()
 
 	GS->Phase = EIAMatchPhase::Live;
 	GS->PhaseEndTime = 0.f;
+	LiveStartTime = GetWorld()->GetTimeSeconds();
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (AIAPlayerController* PC = Cast<AIAPlayerController>(It->Get()))
+		{
+			PC->ClientRewardMatchBegin();
+		}
+	}
 	GetWorldTimerManager().SetTimer(ClockTimer, this, &AIAGameMode::TickClock, 1.f, true);
 	UE_LOG(LogInstagib, Log, TEXT("Match phase: live (%d players)"), GS->PlayerArray.Num());
 
@@ -635,6 +644,18 @@ void AIAGameMode::OnPlayerKilled(AController* Killer, AController* Victim)
 	{
 		++KillerState->Kills;
 		MultiKillCount = KillerState->RegisterKill(Now, MultiKillWindow);
+		// Rewards: tell the killer how much this kill is worth (a human victim 1, a bot by its skill, a teammate nothing).
+		if (AIAPlayerController* KillerHuman = Cast<AIAPlayerController>(Killer); KillerHuman && VictimState && !(GS->IsTeamGame() && VictimState->Team == KillerState->Team))
+		{
+			const bool bBot = VictimState->bIsBotPlayer;
+			const float Value = !bBot ? 1.f : (BotSkill >= 3 ? 1.f : (BotSkill == 2 ? 0.5f : 0.f));
+			const ACharacter* KillerBody = Cast<ACharacter>(Killer->GetPawn());
+			const ACharacter* VictimBody = Cast<ACharacter>(Victim->GetPawn());
+			const float Distance = (KillerBody && VictimBody) ? FVector::Dist(KillerBody->GetActorLocation(), VictimBody->GetActorLocation()) : 0.f;
+			const bool bAir = (KillerBody && KillerBody->GetCharacterMovement() && KillerBody->GetCharacterMovement()->IsFalling())
+				|| (VictimBody && VictimBody->GetCharacterMovement() && VictimBody->GetCharacterMovement()->IsFalling());
+			KillerHuman->ClientRewardKill(Value, !bBot || BotSkill >= 3, Distance, bAir);
+		}
 		if (GameType == EIAGameType::TeamDeathmatch)
 		{
 			if (KillerState->Team == 0) { ++GS->RedScore; }
@@ -907,7 +928,57 @@ void AIAGameMode::FinishMatch(const FString& WinnerText, int32 WinnerPlayerId, u
 		GetWorldTimerManager().SetTimer(RestartTimer, this, &AIAGameMode::StartNewMatch, RestartDelay, false);
 	}
 
+	SendRewardSummaries(WinnerPlayerId, WinnerTeam);
 	ReportCampaignResult(WinnerPlayerId, WinnerTeam);
+}
+
+void AIAGameMode::SendRewardSummaries(int32 WinnerPlayerId, uint8 WinnerTeam)
+{
+	const AIAGameState* GS = GetGameState<AIAGameState>();
+	if (!GS)
+	{
+		return;
+	}
+	FString MapName = GetWorld()->GetMapName();
+	MapName.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
+	MapName.RemoveFromStart(TEXT("DM-"));
+	const bool bTeamGame = GS->IsTeamGame();
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		AIAPlayerController* PC = Cast<AIAPlayerController>(It->Get());
+		const AIAPlayerState* Me = PC ? PC->GetPlayerState<AIAPlayerState>() : nullptr;
+		if (!Me || Me->bIsBotPlayer)
+		{
+			continue;
+		}
+		FIAMatchSummary S;
+		S.GameType = static_cast<uint8>(GameType);
+		S.MapName = MapName;
+		S.bWon = bTeamGame ? (WinnerTeam == Me->Team) : (WinnerPlayerId == Me->GetPlayerId());
+		S.DurationSec = GetWorld()->GetTimeSeconds() - LiveStartTime;
+		for (APlayerState* Other : GS->PlayerArray)
+		{
+			const AIAPlayerState* State = Cast<AIAPlayerState>(Other);
+			if (!State || State == Me || (bTeamGame && State->Team == Me->Team))
+			{
+				continue;
+			}
+			++S.Opponents;
+			S.bHumanOpponents = S.bHumanOpponents || !State->bIsBotPlayer;
+		}
+		S.BotSkill = BotSkill;
+		S.Kills = Me->Kills;
+		S.Deaths = Me->Deaths;
+		S.ShotsFired = Me->ShotsFired;
+		S.ShotsHit = Me->ShotsHit;
+		S.Captures = Me->Captures;
+		S.Returns = Me->Returns;
+		S.FlagKills = Me->FlagKills;
+		S.BestStreak = Me->BestStreak;
+		S.Wave = GameType == EIAGameType::Survival ? GS->Wave : 0;
+		S.CampaignMatch = CampaignMatch;
+		PC->ClientRewardMatchEnd(S);
+	}
 }
 
 void AIAGameMode::ReportCampaignResult(int32 WinnerPlayerId, uint8 WinnerTeam)
