@@ -20,7 +20,7 @@ def _floats(text):
 
 def parse():
     src = open(HEADER, encoding="utf-8").read()
-    pat = re.compile(r'\{\s*TEXT\("([\w-]+)"\),\s*TEXT\("([\w ]+)"\),\s*(true|false),\s*([\d.]+)f,\s*FLinearColor\(([^)]*)\),\s*FLinearColor\(([^)]*)\),\s*'
+    pat = re.compile(r'\{\s*TEXT\("([\w -]+)"\),\s*TEXT\("([\w ]+)"\),\s*(true|false),\s*([\d.]+)f,\s*FLinearColor\(([^)]*)\),\s*FLinearColor\(([^)]*)\),\s*'
                      r'([\d.]+)f,\s*([\d.]+)f')
     looks = []
     for m in pat.finditer(src):
@@ -30,6 +30,14 @@ def parse():
 
 
 LOOKS = parse()
+
+try:                                    # preview colours of the roles a roster entry overrides (FIAGearRole), for gear_preview.py
+    import gear_chars_j as _j
+    for _i, _roles in _j.PREVIEW_ROLES.items():
+        if _i < len(LOOKS):
+            LOOKS[_i]["preview_roles"] = _roles
+except ImportError:
+    pass
 
 
 def build(i):
@@ -62,9 +70,9 @@ def _build(i):
         import importlib
         names = {15: "kestrel", 16: "sovereign", 17: "scrapjaw", 18: "rivet", 19: "flux", 20: "torch", 21: "praetor", 22: "auxilia", 23: "signifer", 24: "tribune",
                  25: "cipher", 26: "chrome", 27: "broker", 28: "glitch", 29: "apogee", 30: "tether", 31: "vanta", 32: "perigee", 33: "oni", 34: "jackal", 35: "gorgon",
-                 36: "wraith"}
+                 36: "wraith", 37: "regent", 38: "sentinel", 39: "harrier", 40: "oracle", 41: "voss", 42: "wildcard", 43: "gino"}
         fn = names.get(i)
-        for mod in ("gear_chars_d", "gear_chars_e", "gear_chars_f", "gear_chars_g", "gear_chars_h", "gear_chars_i"):
+        for mod in ("gear_chars_d", "gear_chars_e", "gear_chars_f", "gear_chars_g", "gear_chars_h", "gear_chars_i", "gear_chars_j"):
             try:
                 m = importlib.import_module(mod)
             except ImportError:

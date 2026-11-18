@@ -32,7 +32,7 @@ int32 IAGear::Attach(AActor* Owner, USkeletalMeshComponent* Skel, USkeletalMesh*
 	const bool bMetalAccent = Look.AccentMetal > 0.f;
 	const FLinearColor Cloth = Look.GearCloth.A > 0.f ? FLinearColor(Look.GearCloth.R, Look.GearCloth.G, Look.GearCloth.B) : Body * 0.62f;
 	struct FRole { FLinearColor Color; float Roughness; float Metal; };
-	const FRole Roles[7] = {
+	FRole Roles[7] = {
 		{ Body,                                       FMath::Clamp(Look.Roughness, 0.5f, 0.9f), Look.Metallic },
 		{ Cloth,                                      0.9f,                                       0.f },
 		{ AccentPaint,                                bMetalAccent ? 0.35f : 0.6f,                Look.AccentMetal },
@@ -41,13 +41,27 @@ int32 IAGear::Attach(AActor* Owner, USkeletalMeshComponent* Skel, USkeletalMesh*
 		{ Accent,                                     0.4f,                                       0.f },
 		{ FLinearColor(0.8f, 0.8f, 0.76f),            0.9f,                                       0.f },
 	};
+	// Per-look overrides (glossy obsidian plate, a red glow beside a gold accent, a matte glow role ...).
+	float GlowStrength = 2.0f;
+	for (const FIAGearRole& Override : Look.GearRoles)
+	{
+		if (Override.Role < 0 || Override.Role >= 7)
+		{
+			continue;
+		}
+		FRole& R = Roles[Override.Role];
+		if (Override.Color.A > 0.f) { R.Color = FLinearColor(Override.Color.R, Override.Color.G, Override.Color.B); }
+		if (Override.Roughness >= 0.f) { R.Roughness = Override.Roughness; }
+		if (Override.Metal >= 0.f) { R.Metal = Override.Metal; }
+		if (Override.Role == 5 && Override.Glow >= 0.f) { GlowStrength = Override.Glow; }
+	}
 	UMaterialInstanceDynamic* Material = UMaterialInstanceDynamic::Create(BaseMaterial, Owner);
 	for (int32 I = 0; I < 7; ++I)
 	{
 		Material->SetVectorParameterValue(*FString::Printf(TEXT("C%d"), I), FLinearColor(Roles[I].Color.R, Roles[I].Color.G, Roles[I].Color.B, Roles[I].Roughness));
 		Material->SetScalarParameterValue(*FString::Printf(TEXT("Metal%d"), I), Roles[I].Metal);
 	}
-	Material->SetScalarParameterValue(TEXT("Glow"), 2.0f);                           // visors and eyes only (role 5)
+	Material->SetScalarParameterValue(TEXT("Glow"), GlowStrength);                   // visors and eyes only (role 5)
 	Material->SetScalarParameterValue(TEXT("TeamGlow"), bTeamGame ? 0.5f : 0.f);    // keeps the team colour readable in the shade
 	Material->SetScalarParameterValue(TEXT("Rim"), RimStrength);
 	Material->SetVectorParameterValue(TEXT("RimColor"), TeamColor);

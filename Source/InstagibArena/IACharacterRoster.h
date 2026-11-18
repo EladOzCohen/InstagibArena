@@ -48,6 +48,20 @@ struct FIAGearPiece
 	const TCHAR* Mesh;
 };
 
+/**
+ * Overrides one palette role of the modelled gear (roles: 0 plate, 1 cloth, 2 accent, 3 team, 4 trim, 5 glow, 6 light; see IACharacterGear.cpp).
+ * Every value left negative (or a colour with alpha 0) keeps the default of that role. Glow is the emissive strength and only works on role 5
+ * (0 turns the glow role into an ordinary matte colour).
+ */
+struct FIAGearRole
+{
+	int32 Role;
+	FLinearColor Color;
+	float Roughness = -1.f;
+	float Metal = -1.f;
+	float Glow = -1.f;
+};
+
 /** The look of one character: which mannequin, how it is scaled, colors and accessories. */
 struct FIACharacterLook
 {
@@ -63,12 +77,32 @@ struct FIACharacterLook
 	float BodyGlow = 0.f;        // makes the whole body emissive (used by the hologram)
 	float AccentMetal = 0.f;     // 1 = the accent parts are metal (gold, steel); everything else on a character is matte
 	FLinearColor GearCloth = FLinearColor(0.f, 0.f, 0.f, 0.f); // cloth of the modelled gear when it is not the body colour (alpha 0 = derive it from the body)
+	TArray<FIAGearRole> GearRoles; // optional overrides of the gear palette (glossy plate, a glow colour other than the accent ...)
 };
 
 namespace IACharacters
 {
 	/** Number of distinct looks. Roster entries beyond this reuse them with a shifted hue. */
-	inline constexpr int32 LookCount = 37;
+	inline constexpr int32 LookCount = 44;
+
+	/**
+	 * The first PlayableByDefault looks are free for everybody. The looks after them (37 Regent ... 43 Gino Gasket: Obsidian Crown,
+	 * Director Voss, Wildcard, Gino Gasket) are rewards: random picks (bots in free play, survival waves, the draft of the campaign)
+	 * never use them; scripted campaign rosters and an explicit choice by index still can.
+	 */
+	inline constexpr int32 PlayableByDefault = 37;
+
+	/** True for the looks that need no unlock (see PlayableByDefault). */
+	inline constexpr bool IsPlayableByDefault(int32 Index) { return Index >= 0 && Index < PlayableByDefault; }
+
+	// The reward characters by name.
+	inline constexpr int32 LookRegent = 37;
+	inline constexpr int32 LookSentinel = 38;
+	inline constexpr int32 LookHarrier = 39;
+	inline constexpr int32 LookOracle = 40;
+	inline constexpr int32 LookVoss = 41;
+	inline constexpr int32 LookWildcard = 42;
+	inline constexpr int32 LookGino = 43;
 
 	/** Rotation that turns a cylinder's long axis (Z) into the character's forward axis (X). */
 	inline const FRotator AlongX(-90.f, 0.f, 0.f);
@@ -312,6 +346,49 @@ namespace IACharacters
 			// 36 - Wraith (Hollow Court): a hooded black robe with a pale mask.
 			{ TEXT("Wraith"), TEXT("Hooded"), true, 1.02f,
 			  FLinearColor(0.07f, 0.07f, 0.10f), FLinearColor(0.70f, 0.75f, 0.85f), 0.8f, 0.1f, {} },
+			// ---- Reward characters (37-43): not in the random picks, see PlayableByDefault. Gear: Tools/gear_chars_j.py. ----
+			// Obsidian Crown (37-40), the League's house team: glossy obsidian plate, gold, red glow, a gold crown badge on the chest.
+			// 37 - Regent (Obsidian Crown): the captain. Tall, a gold crown crest on the helmet, red glow lines, a short cape.
+			{ TEXT("Regent"), TEXT("Crown Captain"), false, 1.10f,
+			  FLinearColor(0.018f, 0.018f, 0.022f), FLinearColor(0.95f, 0.68f, 0.16f), 0.3f, 0.8f, {}, 0.f, 1.0f,
+			  FLinearColor(0.05f, 0.006f, 0.006f, 1.f),
+			  { { 0, FLinearColor(0.f, 0.f, 0.f, 0.f), 0.3f, 0.85f }, { 4, FLinearColor(0.012f, 0.012f, 0.015f, 1.f), 0.25f, 0.9f },
+			    { 5, FLinearColor(1.0f, 0.05f, 0.03f, 1.f), -1.f, -1.f, 2.4f } } },
+			// 38 - Sentinel (Obsidian Crown): the heavy. Bulky black plate with gold trim, a tower shoulder guard, a red visor slit.
+			{ TEXT("Sentinel"), TEXT("Crown Heavy"), false, 1.12f,
+			  FLinearColor(0.02f, 0.02f, 0.024f), FLinearColor(0.95f, 0.68f, 0.16f), 0.3f, 0.8f, {}, 0.f, 1.0f,
+			  FLinearColor(0.03f, 0.03f, 0.035f, 1.f),
+			  { { 0, FLinearColor(0.f, 0.f, 0.f, 0.f), 0.3f, 0.85f }, { 4, FLinearColor(0.012f, 0.012f, 0.015f, 1.f), 0.25f, 0.9f },
+			    { 5, FLinearColor(1.0f, 0.05f, 0.03f, 1.f), -1.f, -1.f, 2.4f } } },
+			// 39 - Harrier (Obsidian Crown): the scout. A slim black suit with gold lines, a swept-back crest, small shoulder wings.
+			{ TEXT("Harrier"), TEXT("Crown Scout"), true, 1.0f,
+			  FLinearColor(0.016f, 0.016f, 0.02f), FLinearColor(0.95f, 0.68f, 0.16f), 0.3f, 0.8f, {}, 0.f, 1.0f,
+			  FLinearColor(0.025f, 0.025f, 0.03f, 1.f),
+			  { { 0, FLinearColor(0.f, 0.f, 0.f, 0.f), 0.3f, 0.85f }, { 4, FLinearColor(0.012f, 0.012f, 0.015f, 1.f), 0.25f, 0.9f },
+			    { 5, FLinearColor(1.0f, 0.05f, 0.03f, 1.f), -1.f, -1.f, 2.4f } } },
+			// 40 - Oracle (Obsidian Crown): the caster. A long black coat, a gold half-mask, a floating gold ring behind the head.
+			{ TEXT("Oracle"), TEXT("Crown Seer"), true, 1.04f,
+			  FLinearColor(0.02f, 0.018f, 0.022f), FLinearColor(0.95f, 0.68f, 0.16f), 0.3f, 0.8f, {}, 0.f, 1.0f,
+			  FLinearColor(0.03f, 0.022f, 0.028f, 1.f),
+			  { { 0, FLinearColor(0.f, 0.f, 0.f, 0.f), 0.3f, 0.85f }, { 4, FLinearColor(0.012f, 0.012f, 0.015f, 1.f), 0.25f, 0.9f },
+			    { 5, FLinearColor(1.0f, 0.05f, 0.03f, 1.f), -1.f, -1.f, 2.4f } } },
+			// 41 - Voss: the director of the Apex League. A white and black suit, a high collar, long coat tails, a glowing monocle, no helmet.
+			{ TEXT("Voss"), TEXT("Director"), false, 1.06f,
+			  FLinearColor(0.70f, 0.72f, 0.76f), FLinearColor(0.55f, 0.82f, 1.0f), 0.45f, 0.15f, {}, 0.f, 0.6f,
+			  FLinearColor(0.014f, 0.014f, 0.018f, 1.f),
+			  { { 6, FLinearColor(0.80f, 0.82f, 0.86f, 1.f), 0.4f, 0.f } } },
+			// 42 - Wildcard: the nameless challenger. A hooded cloak, a blank mask, a worn scarf, grey-green with one orange line.
+			{ TEXT("Wildcard"), TEXT("Nameless"), false, 1.0f,
+			  FLinearColor(0.11f, 0.14f, 0.10f), FLinearColor(1.0f, 0.40f, 0.05f), 0.85f, 0.05f, {}, 0.f, 0.f,
+			  FLinearColor(0.055f, 0.07f, 0.052f, 1.f),
+			  { { 4, FLinearColor(0.20f, 0.15f, 0.09f, 1.f), 0.95f, 0.f }, { 6, FLinearColor(0.62f, 0.62f, 0.58f, 1.f), 0.7f, 0.f } } },
+			// 43 - Gino Gasket: a short, stocky plumber with a fan moustache, a red cap with a pipe-wrench badge, blue overalls, white gloves.
+			//      Smaller to look at only (the collision capsule is the same for every character).
+			{ TEXT("Gino Gasket"), TEXT("Plumber"), false, 0.92f,
+			  FLinearColor(0.035f, 0.10f, 0.42f), FLinearColor(0.80f, 0.04f, 0.03f), 0.85f, 0.0f, {}, 0.f, 0.f,
+			  FLinearColor(0.60f, 0.33f, 0.20f, 1.f),
+			  { { 4, FLinearColor(0.72f, 0.50f, 0.16f, 1.f), 0.35f, 1.0f }, { 5, FLinearColor(0.045f, 0.022f, 0.012f, 1.f), 0.85f, 0.f, 0.f },
+			    { 6, FLinearColor(0.88f, 0.88f, 0.86f, 1.f), 0.8f, 0.f } } },
 		};
 		return Looks[Index % Looks.Num()];
 	}
