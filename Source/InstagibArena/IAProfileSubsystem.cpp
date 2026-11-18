@@ -32,6 +32,8 @@ void UIAProfileSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			}
 		}
 	}
+	EvaluateRewards();
+	NewUnlocks.Reset();
 }
 
 UIAProfileSubsystem* UIAProfileSubsystem::Get(const UObject* WorldContext)
