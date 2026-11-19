@@ -1,6 +1,7 @@
 // Instagib Arena
 
 #include "SIAScoreboard.h"
+#include "IARewardData.h"
 #include "IAFlag.h"
 #include "IAGameState.h"
 #include "IAMenuStyle.h"
@@ -16,7 +17,31 @@
 namespace
 {
 	const float ColRank = 44.f;
-	const float ColName = 300.f;
+	const float ColName = 380.f;
+
+	/** The name with the player's title and rank (from the replicated cosmetic loadout): "Name - Title  [Veteran]". */
+	FText PlayerLabel(const AIAPlayerState& P)
+	{
+		FString Text = P.GetPlayerName();
+		if (P.bHasLoadout)
+		{
+			const TArray<IAReward::FRank>& Ranks = IAReward::Ranks();
+			const FString RankText = (P.Loadout.Rank > 0 && P.Loadout.Rank < Ranks.Num()) ? FString::Printf(TEXT("  [%s]"), Ranks[P.Loadout.Rank].Name) : FString();
+			// The title only fits next to a short name.
+			if (P.Loadout.TitleId > 0)
+			{
+				if (const IAReward::FReward* T = IAReward::Find(FName(*FString::Printf(TEXT("T%d"), P.Loadout.TitleId))))
+				{
+					if (Text.Len() + T->Name.Len() + RankText.Len() + 3 <= 34)
+					{
+						Text += TEXT(" - ") + T->Name;
+					}
+				}
+			}
+			Text += RankText;
+		}
+		return FText::FromString(Text);
+	}
 	const float ColKills = 84.f;
 	const float ColDeaths = 96.f;
 	const float ColKD = 74.f;
@@ -222,7 +247,7 @@ TSharedRef<SWidget> SIAScoreboard::MakePlayerRow(TWeakObjectPtr<const AIAPlayerS
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot().AutoWidth()
 						[
-							SNew(STextBlock).Text(Number([](const AIAPlayerState& P) { return FText::FromString(P.GetPlayerName()); }))
+							SNew(STextBlock).Text(Number([](const AIAPlayerState& P) { return PlayerLabel(P); }))
 								.Font(IAMenu::Font(18, bLocal)).ColorAndOpacity(NameColor)
 								.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 						]
@@ -290,7 +315,7 @@ TSharedRef<SWidget> SIAScoreboard::MakePlayerRow(TWeakObjectPtr<const AIAPlayerS
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot().AutoWidth()
 					[
-						SNew(STextBlock).Text(Number([](const AIAPlayerState& P) { return FText::FromString(P.GetPlayerName()); }))
+						SNew(STextBlock).Text(Number([](const AIAPlayerState& P) { return PlayerLabel(P); }))
 							.Font(IAMenu::Font(18, bLocal)).ColorAndOpacity(NameColor)
 							.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 					]
