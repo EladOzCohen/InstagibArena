@@ -594,6 +594,14 @@ bool UIADevSubsystem::PlaceCamera(float DeltaTime)
 			{
 				PC->SetViewTarget(Camera.Get());
 			}
+			// -IAShotNoHud: a clean picture (for the pictures of the readme and the website).
+			if (FParse::Param(FCommandLine::Get(), TEXT("IAShotNoHud")))
+			{
+				if (AHUD* Hud = PC->GetHUD())
+				{
+					Hud->bShowHUD = false;
+				}
+			}
 		}
 	}
 	return true;
