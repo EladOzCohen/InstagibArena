@@ -17,9 +17,58 @@ One weapon. One hit. One kill. Play alone against bots, or with your friends.
 
 ## Install in 4 steps (takes two minutes)
 
-**The arenas** (all 14, from industrial yards to a stone disc beside a black hole):
+| | |
+|---|---|
+| **1** | **Click the orange Download button above.** A file called `InstagibArena_Setup.exe` is saved on your computer. If your browser asks, choose **Keep**. |
+| **2** | **Open the file** (it is in your *Downloads* folder). **Windows will probably show a blue screen** that says *"Windows protected your PC"*. That is normal. Click **More info**, then **Run anyway**. If it asks "Do you want to allow this app to make changes?", click **Yes**. |
+| **3** | **Follow the installer.** Choose a language and keep pressing **Next**, then **Install**. It adds everything the game needs. You do not need Unreal Engine or anything else. |
+| **4** | **Play.** Start **Instagib Arena** from the desktop icon or the Start menu, and press **QUICK PLAY**. |
 
-![The 14 arenas](docs/images/maps.jpg)
+> **Why the blue screen? Is it safe?** Windows shows it for every new program from a small developer that has not paid
+> for a digital signature (it costs money every year). The whole game is open source, so anyone can read exactly what it
+> does, right here in this repository. If you would rather not run it, simply do not install it.
+
+<details>
+<summary><b>Something went wrong? Quick answers</b></summary>
+
+- **The game is slow or choppy:** *Settings* > *Video*: lower **Quality** or the resolution, and turn **Motion blur** off. Plug in a laptop.
+- **My friends cannot join my game:** everyone needs the same version. The host should keep the *Windows Firewall* box ticked during installation. Type the address exactly as shown. Same Wi-Fi is easiest; for different places use the free [Tailscale](https://tailscale.com/).
+- **How do I remove it?** Windows *Settings* > *Apps* > *Instagib Arena* > *Uninstall*.
+- **Mac or phone?** Not yet. Windows PCs only.
+- **Anything else:** [open an issue](../../issues/new) and say what happened.
+</details>
+
+---
+
+## What is in the game
+
+![A match in Foundry](docs/images/gameplay.jpg)
+
+- **20 maps** (four of them are space arenas: **Orbital**, **Derelict**, **Nexus** and **Reactor**): Foundry (industrial yard), Sunken Temple, Harbour Dock, Skyline (rooftops, falling kills), **Neon Street** (night city duel),
+  **Forge** (lava hall), **Glacier** (ice outpost) and **Canyon** (huge, with rope bridges). New and big: **Citadel** (castle and meadow),
+  **Quarry** (open-pit mine) and **Downtown** (city district). Six more huge arenas, so that every match of the campaign has its own: **Scrapyard** (junk yard with a crane deck), **Colosseum** (sand arena with climbable stands), **Casino** (a grand hall with mezzanines), **Reactor** (a circular reactor hall), **Cathedral** (gothic nave with galleries) and **Throne Hall** (a hall with a deep channel and a throne at each end). **Jump pads** launch you to the high ground.
+- **Instagib rifle:** hitscan, one hit kills. Glowing beams, spark bursts, a hit marker and kill messages.
+- **Fast, fluid movement:** double jump, dodge (double-tap a direction), wall dodge, crouch and a slow walk. A smooth camera
+  with head bob, a lean when strafing and a dip on landing (each can be switched off).
+- **Animated characters:** walking and running in eight directions, jump, fall and crouch poses, the rifle in the hands,
+  and a body that collapses when it is hit. Scorch marks stay on walls and floors.
+- **A complete match:** 5 second warm-up with a 3-2-1 countdown, live play, a results screen (rank, kills, deaths, accuracy,
+  best streak) and a quick rematch. Medals for first blood, multi-kills and killing sprees, a kill feed, and a short protection after you respawn.
+- **Campaign: The Apex League.** 20 matches in 5 chapters across five worlds: duels, free for all, team deathmatch, capture the flag and survival.
+  Recruit a squad, earn up to 3 stars per match, face a different faction in every chapter, and choose how the story ends.
+- **Free for all**, **team deathmatch** (red vs blue) and **Capture the Flag**: take the enemy flag to your base while yours is safe. Bots play it too.
+- **Bots** (2 to 10) at seven skill levels, from Rookie (very forgiving, for first-timers) to Master (for professionals).
+- **44 characters**: 37 to pick from the start, in five factions, and seven more to earn in the campaign. Each has its own armour; pick in a menu with a live 3D preview.
+- **Hall of Champions:** your apex rank, 12 medals in five tiers and dozens of rewards you earn by playing, never by paying: rifle design in the **Gunsmith** (beam colours and styles, finishes, parts, liveries), kill effects, titles, new characters, arena times of day (dusk and night), special rules (low gravity, hardcore, big heads, endless survival), Apex+ heat levels for the campaign and a photo mode. Rewards only change looks and options, never power, and farming easy bots does not count.
+- **Online multiplayer** with friends: one hosts, the others join with an address.
+- **Sound and music:** footsteps, weapons, hit feedback and six music tracks (menu, campaign, space arenas, final match and two battle themes), with volume settings.
+- **Proper menus:** Quick Play, Custom Game (with a picture and a recommended player count for every map), Multiplayer, Character,
+  How to Play, Settings in tabs (gameplay, video, audio and controls with **rebindable keys**, four crosshair styles) and a pause menu.
+  Everything works with the mouse and the keyboard.
+
+**The arenas** (all 20, from industrial yards to a stone disc beside a black hole):
+
+![The 20 arenas](docs/images/maps.jpg)
 
 | | |
 |---|---|

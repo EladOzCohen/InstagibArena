@@ -44,6 +44,18 @@ namespace IAMaps
 		  TEXT("A dead starship drifting in a nebula. A cargo bay with a hole in the floor, catwalks, red emergency lights, the engine room and the bridge.") },
 		{ TEXT("Nexus"), TEXT("/Game/Maps/DM-Nexus"),
 		  TEXT("The oldest arena of the Apex League: a stone disc floating beside a black hole, with a golden dais, eight arches and no walls.") },
+		{ TEXT("Scrapyard"), TEXT("/Game/Maps/DM-Scrapyard"),
+		  TEXT("A huge junk yard of the Rustborn: container alleys, climbable junk piles, wrecked cars and a crane deck in the middle.") },
+		{ TEXT("Colosseum"), TEXT("/Game/Maps/DM-Colosseum"),
+		  TEXT("A Legion arena with sand floor, stands you can climb, a ruined central dais and two stone bridges across the pit.") },
+		{ TEXT("Casino"), TEXT("/Game/Maps/DM-Casino"),
+		  TEXT("A grand hall of the Neon Syndicate: a lit fountain, slot machine rows, two bars, mezzanines and a skybridge.") },
+		{ TEXT("Reactor"), TEXT("/Game/Maps/DM-Reactor"),
+		  TEXT("A circular reactor hall on a space station: a glowing core, a catwalk ring with ramps and jump pads, coolant tanks.") },
+		{ TEXT("Cathedral"), TEXT("/Game/Maps/DM-Cathedral"),
+		  TEXT("A gothic cathedral of the Hollow Court: a nave between two rows of pillars, galleries, a transept and a blood-red altar window.") },
+		{ TEXT("Throne Hall"), TEXT("/Game/Maps/DM-ThroneHall"),
+		  TEXT("A long hall with a throne at each end, a deep channel across the middle with three bridges and jump pads. Made for Capture the Flag.") },
 	};
 
 	inline constexpr int32 Count = UE_ARRAY_COUNT(List);
