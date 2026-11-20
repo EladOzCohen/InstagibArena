@@ -185,9 +185,13 @@ FString UIACampaignSubsystem::ResolveMapName(const TCHAR* ShortName)
 	{
 		if (Wanted == Info.AssetPath) { return ShortName; }
 	}
-	if (FCString::Stricmp(ShortName, TEXT("Orbital")) == 0) { return TEXT("Skyline"); }
-	if (FCString::Stricmp(ShortName, TEXT("Derelict")) == 0) { return TEXT("Forge"); }
-	if (FCString::Stricmp(ShortName, TEXT("Nexus")) == 0) { return TEXT("Downtown"); }
+	// Every match of the campaign has its own arena; the ones below are not built yet and use a stand-in (remove a line when its map exists).
+	if (FCString::Stricmp(ShortName, TEXT("Scrapyard")) == 0) { return TEXT("Foundry"); }
+	if (FCString::Stricmp(ShortName, TEXT("Colosseum")) == 0) { return TEXT("Temple"); }
+	if (FCString::Stricmp(ShortName, TEXT("Casino")) == 0) { return TEXT("Neon"); }
+	if (FCString::Stricmp(ShortName, TEXT("Reactor")) == 0) { return TEXT("Orbital"); }
+	if (FCString::Stricmp(ShortName, TEXT("Cathedral")) == 0) { return TEXT("Citadel"); }
+	if (FCString::Stricmp(ShortName, TEXT("ThroneHall")) == 0) { return TEXT("Quarry"); }
 	return TEXT("Foundry");
 }
 

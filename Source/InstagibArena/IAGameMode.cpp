@@ -231,7 +231,7 @@ void AIAGameMode::StartLive()
 		{
 			const FString Text = Lines[Which++ == 0 ? First : Second];
 			FTimerHandle Handle;
-			GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this, Text, Generation]()
+			GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this, Text, Generation]()
 			{
 				const AIAGameState* State = GetGameState<AIAGameState>();
 				if (Generation != MatchGeneration || !State || State->Phase != EIAMatchPhase::Live) { return; }
@@ -291,7 +291,7 @@ void AIAGameMode::BeginSpawnProtection(APawn* Pawn)
 
 	TWeakObjectPtr<APawn> WeakPawn(Pawn);
 	FTimerHandle Handle;
-	GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this, WeakPawn]()
+	GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this, WeakPawn]()
 	{
 		if (APawn* P = WeakPawn.Get())
 		{
@@ -565,7 +565,7 @@ void AIAGameMode::ScheduleRespawn(AController* Victim, float Delay)
 	TWeakObjectPtr<AController> WeakVictim(Victim);
 	const int32 Generation = MatchGeneration;
 	FTimerHandle RespawnHandle;
-	GetWorldTimerManager().SetTimer(RespawnHandle, FTimerDelegate::CreateLambda([this, WeakVictim, Generation]()
+	GetWorldTimerManager().SetTimer(RespawnHandle, FTimerDelegate::CreateWeakLambda(this, [this, WeakVictim, Generation]()
 	{
 		const AIAGameState* GS = GetGameState<AIAGameState>();
 		if (!WeakVictim.IsValid() || !GS || Generation != MatchGeneration || WeakVictim->GetPawn())
@@ -1245,7 +1245,7 @@ void AIAGameMode::CheckWaveState(AController* JustDied)
 	}
 	const int32 Next = WaveNumber + 1;
 	const int32 Generation = MatchGeneration;
-	GetWorldTimerManager().SetTimer(WaveTimer, FTimerDelegate::CreateLambda([this, Next, Generation]()
+	GetWorldTimerManager().SetTimer(WaveTimer, FTimerDelegate::CreateWeakLambda(this, [this, Next, Generation]()
 	{
 		if (Generation == MatchGeneration) { StartWave(Next); }
 	}), IARules::HeatRules(HeatLevel).EnemyRespawnScale < 1.f ? 2.f : 4.f, false);   // Heat 4: the next wave comes sooner
@@ -1841,7 +1841,7 @@ void AIAGameMode::SetupDevHooks()
 		const FVector Offset(Parts.Num() > 0 ? FCString::Atof(*Parts[0]) : 400.f, Parts.Num() > 1 ? FCString::Atof(*Parts[1]) : 0.f, 0.f);
 		const float Yaw = Parts.Num() > 2 ? FCString::Atof(*Parts[2]) : 0.f;
 		FTimerHandle Handle;
-		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this, Offset, Yaw]()
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this, Offset, Yaw]()
 		{
 			const AIAFlagBase* Base = Bases[0].Get();
 			AIAFlag* Flag = Flags[0].Get();
@@ -1868,7 +1868,7 @@ void AIAGameMode::SetupDevHooks()
 		const float At = Parts.Num() > 0 ? FCString::Atof(*Parts[0]) : 3.f;
 		const int32 Team = Parts.Num() > 1 ? FMath::Clamp(FCString::Atoi(*Parts[1]), 0, 1) : 0;
 		FTimerHandle Handle;
-		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this, Team]()
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this, Team]()
 		{
 			AIAPlayerCharacter* Pick = nullptr;
 			for (TActorIterator<AIAPlayerCharacter> It(GetWorld()); It; ++It)
@@ -1887,7 +1887,7 @@ void AIAGameMode::SetupDevHooks()
 	if (bCtfDrop)
 	{
 		FTimerHandle Handle;
-		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this]()
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this]()
 		{
 			for (int32 Team = 0; Team < 2; ++Team)
 			{
@@ -1902,7 +1902,7 @@ void AIAGameMode::SetupDevHooks()
 	if (bCtfCapture)
 	{
 		FTimerHandle Handle;
-		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this]()
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this]()
 		{
 			for (int32 Team = 0; Team < 2; ++Team)
 			{
@@ -1925,7 +1925,7 @@ void AIAGameMode::SetupDevHooks()
 	{
 		// -IAProtProbe: 3 s into the fight, shoots the same line at the first human with and without spawn protection.
 		FTimerHandle Handle;
-		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this]()
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this]()
 		{
 			APawn* Target = nullptr;
 			for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
@@ -1972,7 +1972,7 @@ void AIAGameMode::SetupDevHooks()
 		for (int32 I = 0; I < 5; ++I)
 		{
 			FTimerHandle Handle;
-			GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this]()
+			GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this]()
 			{
 				AController* Human = nullptr;
 				AController* Bot = nullptr;
@@ -1991,7 +1991,7 @@ void AIAGameMode::SetupDevHooks()
 	if (bKillMe)
 	{
 		FTimerHandle Handle;
-		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this]()
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this]()
 		{
 			// The last human in the list: a remote client when there is one, else the local player.
 			APlayerController* Target = nullptr;
